@@ -24,7 +24,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
     ),
     _OnboardData(
       icon: Icons.build_circle_outlined,
-      title: 'خدمات صيانة\naحترافية',
+      title: 'خدمات صيانة\nاحترافية',
       subtitle: 'تتبع طلبات الصيانة لجهازك خطوة بخطوة مع تحديثات فورية',
       gradient: LinearGradient(colors: [Color(0xFF7B1FA2), Color(0xFFE91E63)]),
     ),
@@ -42,97 +42,106 @@ class _OnboardingPageState extends State<OnboardingPage> {
     ),
   ];
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.darkBg,
-      body: Container(
-        decoration: const BoxDecoration(gradient: AppColors.darkGradient),
-        child: Column(
-          children: [
-            // Page content
-            Expanded(
-              child: PageView.builder(
-                controller: _controller,
-                onPageChanged: (i) => setState(() => _current = i),
-                itemCount: _pages.length,
-                itemBuilder: (ctx, i) => _OnboardPage(data: _pages[i]),
-              ),
-            ),
-            // Dot indicators
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: List.generate(
-                _pages.length,
-                (i) => AnimatedContainer(
-                  duration: 300.ms,
-                  margin: const EdgeInsets.symmetric(horizontal: 4),
-                  width: i == _current ? 24 : 8,
-                  height: 8,
-                  decoration: BoxDecoration(
-                    color: i == _current ? AppColors.primary : AppColors.textMuted,
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 24),
-            // Navigation buttons
-            Padding(
-              padding: const EdgeInsets.fromLTRB(24, 0, 24, 48),
-              child: Row(
-                children: [
-                  if (_current < _pages.length - 1)
-                    TextButton(
-                      onPressed: _skip,
-                      child: const Text(
-                        'تخطي',
-                        style: TextStyle(
-                          fontFamily: 'Cairo',
-                          color: AppColors.textSecondary,
-                        ),
-                      ),
-                    ),
-                  const Spacer(),
-                  ElevatedButton(
-                    onPressed: _next,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 32, vertical: 14),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12)),
-                    ),
-                    child: Text(
-                      _current == _pages.length - 1 ? 'ابدأ الآن' : 'التالي',
-                      style: const TextStyle(
-                          fontFamily: 'Cairo',
-                          fontWeight: FontWeight.w700,
-                          fontSize: 15),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   void _next() {
     if (_current == _pages.length - 1) {
       _skip();
     } else {
       _controller.nextPage(
-          duration: const Duration(milliseconds: 400), curve: Curves.easeInOut);
+        duration: const Duration(milliseconds: 400),
+        curve: Curves.easeInOut,
+      );
     }
   }
 
   void _skip() async {
     await StorageService.setOnboardingDone();
     if (mounted) context.go('/login');
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.darkBg,
+      body: SafeArea(
+        child: Container(
+          decoration: const BoxDecoration(gradient: AppColors.darkGradient),
+          child: Column(
+            children: [
+              // Slides content
+              Expanded(
+                child: PageView.builder(
+                  controller: _controller,
+                  onPageChanged: (i) => setState(() => _current = i),
+                  itemCount: _pages.length,
+                  itemBuilder: (ctx, i) => _OnboardPage(data: _pages[i]),
+                ),
+              ),
+              // Dot indicators
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: List.generate(
+                  _pages.length,
+                  (i) => AnimatedContainer(
+                    duration: 300.ms,
+                    margin: const EdgeInsets.symmetric(horizontal: 4),
+                    width: i == _current ? 24 : 8,
+                    height: 8,
+                    decoration: BoxDecoration(
+                      color: i == _current
+                          ? AppColors.primary
+                          : AppColors.textMuted,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              // Navigation buttons — always visible
+              Padding(
+                padding: const EdgeInsets.fromLTRB(24, 0, 24, 20),
+                child: Row(
+                  children: [
+                    if (_current < _pages.length - 1)
+                      TextButton(
+                        onPressed: _skip,
+                        child: const Text(
+                          'تخطي',
+                          style: TextStyle(
+                            fontFamily: 'Cairo',
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                      )
+                    else
+                      const SizedBox.shrink(),
+                    const Spacer(),
+                    ElevatedButton(
+                      onPressed: _next,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 32, vertical: 14),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
+                      ),
+                      child: Text(
+                        _current == _pages.length - 1 ? 'ابدأ الآن' : 'التالي',
+                        style: const TextStyle(
+                          fontFamily: 'Cairo',
+                          fontWeight: FontWeight.w700,
+                          fontSize: 15,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
 
@@ -143,7 +152,7 @@ class _OnboardPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(32, 60, 32, 24),
+      padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 40),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
@@ -155,9 +164,10 @@ class _OnboardPage extends StatelessWidget {
               borderRadius: BorderRadius.circular(40),
               boxShadow: [
                 BoxShadow(
-                    color: Colors.black38,
-                    blurRadius: 30,
-                    offset: const Offset(0, 10))
+                  color: Colors.black38,
+                  blurRadius: 30,
+                  offset: const Offset(0, 10),
+                ),
               ],
             ),
             child: Icon(data.icon, size: 70, color: Colors.white),
@@ -167,21 +177,23 @@ class _OnboardPage extends StatelessWidget {
             data.title,
             textAlign: TextAlign.center,
             style: const TextStyle(
-                fontFamily: 'Cairo',
-                fontSize: 28,
-                fontWeight: FontWeight.w700,
-                color: Colors.white,
-                height: 1.3),
+              fontFamily: 'Cairo',
+              fontSize: 28,
+              fontWeight: FontWeight.w700,
+              color: Colors.white,
+              height: 1.3,
+            ),
           ).animate(delay: 200.ms).fadeIn().slideY(begin: 0.2, end: 0),
           const SizedBox(height: 16),
           Text(
             data.subtitle,
             textAlign: TextAlign.center,
             style: const TextStyle(
-                fontFamily: 'Cairo',
-                fontSize: 15,
-                color: AppColors.textSecondary,
-                height: 1.7),
+              fontFamily: 'Cairo',
+              fontSize: 15,
+              color: AppColors.textSecondary,
+              height: 1.7,
+            ),
           ).animate(delay: 350.ms).fadeIn().slideY(begin: 0.2, end: 0),
         ],
       ),
@@ -194,9 +206,10 @@ class _OnboardData {
   final String title;
   final String subtitle;
   final Gradient gradient;
-  const _OnboardData(
-      {required this.icon,
-      required this.title,
-      required this.subtitle,
-      required this.gradient});
+  const _OnboardData({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.gradient,
+  });
 }
