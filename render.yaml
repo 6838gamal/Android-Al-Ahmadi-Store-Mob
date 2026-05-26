@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: android-alahmadi-store-api
+    name: android-al-ahmadi-store-api
     runtime: python
     buildCommand: pip install -r requirements.txt
     startCommand: python run_backend.py
