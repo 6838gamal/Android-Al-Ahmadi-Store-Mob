@@ -32,7 +32,13 @@ class _MainShellState extends ConsumerState<MainShell> {
       backgroundColor: AppColors.darkBg,
       drawer: _buildDrawer(context),
       body: widget.child,
-      bottomNavigationBar: _buildBottomNav(),
+      bottomNavigationBar: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _buildBottomNav(),
+          _buildStoreBranding(context),
+        ],
+      ),
     );
   }
 
@@ -192,6 +198,48 @@ class _MainShellState extends ConsumerState<MainShell> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildStoreBranding(BuildContext context) {
+    return GestureDetector(
+      onDoubleTap: () => _showAdminLogin(context),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        decoration: BoxDecoration(
+          color: AppColors.darkSurface,
+          border: const Border(top: BorderSide(color: AppColors.darkBorder, width: 0.5)),
+        ),
+        child: SafeArea(
+          top: false,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                width: 28,
+                height: 28,
+                decoration: BoxDecoration(
+                  gradient: AppColors.primaryGradient,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(Icons.phone_android, color: Colors.white, size: 16),
+              ),
+              const SizedBox(width: 8),
+              const Text(
+                AppConstants.appName,
+                style: TextStyle(
+                  fontFamily: 'Cairo',
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textSecondary,
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

@@ -55,7 +55,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
 
   void _skip() async {
     await StorageService.setOnboardingDone();
-    if (mounted) context.go('/login');
+    if (mounted) context.go('/products');
   }
 
   @override

@@ -7,6 +7,8 @@ import '../../../../core/constants/app_constants.dart';
 import '../../../../core/utils/app_utils.dart';
 import '../../../../shared/widgets/loading_widget.dart';
 import '../../../../shared/widgets/status_badge.dart';
+import '../../../auth/presentation/providers/auth_provider.dart';
+import '../../../auth/presentation/widgets/admin_login_dialog.dart';
 import '../providers/products_provider.dart';
 
 class ProductsPage extends ConsumerStatefulWidget {
@@ -30,6 +32,7 @@ class _ProductsPageState extends ConsumerState<ProductsPage> {
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(productsProvider);
+    final auth = ref.watch(authProvider);
     return Scaffold(
       backgroundColor: AppColors.darkBg,
       body: CustomScrollView(
@@ -43,6 +46,12 @@ class _ProductsPageState extends ConsumerState<ProductsPage> {
               onPressed: () => Scaffold.of(ctx).openDrawer(),
             )),
             actions: [
+              if (!auth.isAuthenticated)
+                TextButton.icon(
+                  onPressed: () => context.go('/login'),
+                  icon: const Icon(Icons.login_rounded, color: Colors.white, size: 18),
+                  label: const Text('دخول', style: TextStyle(fontFamily: 'Cairo', color: Colors.white, fontSize: 13, fontWeight: FontWeight.w700)),
+                ),
               IconButton(
                 icon: const Icon(Icons.search, color: Colors.white),
                 onPressed: () => _showSearch(context),
@@ -186,7 +195,14 @@ class _ProductsPageState extends ConsumerState<ProductsPage> {
   }
 
   void _showAdminLogin(BuildContext context) {
-    // handled by MainShell drawer
+    showDialog(
+      context: context,
+      builder: (_) => AdminLoginDialog(
+        onSuccess: () {
+          if (context.mounted) context.go('/admin');
+        },
+      ),
+    );
   }
 }
 
