@@ -146,6 +146,18 @@
       "languageVersion": "3.8"
     },
     {
+      "name": "ci",
+      "rootUri": "file:///home/runner/.pub-cache/hosted/pub.dev/ci-0.1.0",
+      "packageUri": "lib/",
+      "languageVersion": "2.12"
+    },
+    {
+      "name": "cli_util",
+      "rootUri": "file:///home/runner/.pub-cache/hosted/pub.dev/cli_util-0.4.2",
+      "packageUri": "lib/",
+      "languageVersion": "3.4"
+    },
+    {
       "name": "clock",
       "rootUri": "file:///home/runner/.pub-cache/hosted/pub.dev/clock-1.1.2",
       "packageUri": "lib/",
@@ -200,14 +212,14 @@
       "languageVersion": "3.1"
     },
     {
-      "name": "custom_lint_core",
-      "rootUri": "file:///home/runner/.pub-cache/hosted/pub.dev/custom_lint_core-0.7.0",
+      "name": "custom_lint",
+      "rootUri": "file:///home/runner/.pub-cache/hosted/pub.dev/custom_lint-0.6.10",
       "packageUri": "lib/",
       "languageVersion": "3.0"
     },
     {
-      "name": "custom_lint_visitor",
-      "rootUri": "file:///home/runner/.pub-cache/hosted/pub.dev/custom_lint_visitor-1.0.0+6.11.0",
+      "name": "custom_lint_core",
+      "rootUri": "file:///home/runner/.pub-cache/hosted/pub.dev/custom_lint_core-0.6.10",
       "packageUri": "lib/",
       "languageVersion": "3.0"
     },
@@ -867,7 +879,7 @@
     },
     {
       "name": "riverpod_analyzer_utils",
-      "rootUri": "file:///home/runner/.pub-cache/hosted/pub.dev/riverpod_analyzer_utils-0.5.8",
+      "rootUri": "file:///home/runner/.pub-cache/hosted/pub.dev/riverpod_analyzer_utils-0.5.6",
       "packageUri": "lib/",
       "languageVersion": "3.0"
     },
@@ -879,7 +891,7 @@
     },
     {
       "name": "riverpod_generator",
-      "rootUri": "file:///home/runner/.pub-cache/hosted/pub.dev/riverpod_generator-2.6.3",
+      "rootUri": "file:///home/runner/.pub-cache/hosted/pub.dev/riverpod_generator-2.6.1",
       "packageUri": "lib/",
       "languageVersion": "2.17"
     },
