@@ -1,6 +1,9 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from contextlib import asynccontextmanager
+import asyncio
+import httpx
 import os
 
 from backend.core.database import engine, Base, SessionLocal
@@ -8,12 +11,34 @@ from backend.api.routes import auth, products, orders, reservations, maintenance
 
 Base.metadata.create_all(bind=engine)
 
+SELF_URL = os.getenv("RENDER_EXTERNAL_URL", "")
+
+async def _keep_alive():
+    """Ping the health endpoint every 10 minutes to prevent render.com from sleeping."""
+    if not SELF_URL:
+        return
+    await asyncio.sleep(60)
+    async with httpx.AsyncClient(timeout=10) as client:
+        while True:
+            try:
+                await client.get(f"{SELF_URL}/api/health")
+                print("🔔 Keep-alive ping sent")
+            except Exception as e:
+                print(f"⚠️  Keep-alive ping failed: {e}")
+            await asyncio.sleep(600)
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    asyncio.create_task(_keep_alive())
+    yield
+
 app = FastAPI(
     title="اندرويد الاحمدي API",
     description="نظام إدارة محل الجوالات",
     version="1.0.0",
     docs_url="/api/docs",
     redoc_url="/api/redoc",
+    lifespan=lifespan,
 )
 
 

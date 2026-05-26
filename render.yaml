@@ -15,4 +15,9 @@ services:
         value: "1440"
       - key: ALLOWED_ORIGINS
         value: "*"
+      - key: RENDER_EXTERNAL_URL
+        fromService:
+          type: web
+          name: android-al-ahmadi-store-api
+          property: host
     healthCheckPath: /api/health
