@@ -1,0 +1,4 @@
+- [Flutter web API URL](flutter-web-api.md) — must use Uri.base.origin dynamically; hardcoded localhost or empty baseUrl crashes Dio on web
+- [Passlib bcrypt compat](passlib-bcrypt.md) — bcrypt must be pinned to 4.0.1; 5.x breaks passlib with AttributeError on __about__
+- [Node proxy redirects](node-proxy.md) — FastAPI 307-redirects bare paths to trailing-slash; proxy must follow redirects internally
+- [Backend workflow binding](backend-workflow.md) — uvicorn must bind 0.0.0.0 (not localhost) for Replit workflow port detection
