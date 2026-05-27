@@ -108,7 +108,7 @@ class _ProductsPageState extends ConsumerState<ProductsPage> {
             const SliverFillRemaining(child: EmptyState(title: 'لا توجد منتجات', icon: Icons.inventory_2_outlined))
           else
             SliverPadding(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
               sliver: SliverGrid(
                 delegate: SliverChildBuilderDelegate(
                   (ctx, i) => _ProductCard(
@@ -121,7 +121,7 @@ class _ProductsPageState extends ConsumerState<ProductsPage> {
                   crossAxisCount: 2,
                   crossAxisSpacing: 12,
                   mainAxisSpacing: 12,
-                  childAspectRatio: 0.72,
+                  childAspectRatio: 0.62,
                 ),
               ),
             ),
@@ -283,7 +283,7 @@ class _ProductCard extends StatelessWidget {
             ClipRRect(
               borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
               child: AspectRatio(
-                aspectRatio: 1.1,
+                aspectRatio: 1.15,
                 child: product['image_url'] != null
                     ? Image.network(
                         '${AppConstants.baseUrl}${product['image_url']}',
@@ -293,33 +293,44 @@ class _ProductCard extends StatelessWidget {
                     : _placeholder(),
               ),
             ),
-            Padding(
-              padding: const EdgeInsets.all(10),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    product['name'] ?? '',
-                    style: const TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.w700, color: Colors.white, fontSize: 12),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  if (product['brand'] != null) ...[
-                    const SizedBox(height: 2),
-                    Text(product['brand'], style: const TextStyle(fontFamily: 'Cairo', fontSize: 11, color: AppColors.textSecondary)),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          product['name'] ?? '',
+                          style: const TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.w700, color: Colors.white, fontSize: 12),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        if (product['brand'] != null) ...[
+                          const SizedBox(height: 2),
+                          Text(product['brand'], style: const TextStyle(fontFamily: 'Cairo', fontSize: 11, color: AppColors.textSecondary), maxLines: 1, overflow: TextOverflow.ellipsis),
+                        ],
+                      ],
+                    ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Flexible(
+                          child: Text(
+                            AppUtils.formatPrice((product['price'] as num?)?.toDouble() ?? 0),
+                            style: const TextStyle(fontFamily: 'Cairo', fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.primary),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        StatusBadge(status: status, isProduct: true),
+                      ],
+                    ),
                   ],
-                  const SizedBox(height: 6),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        AppUtils.formatPrice((product['price'] as num?)?.toDouble() ?? 0),
-                        style: const TextStyle(fontFamily: 'Cairo', fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.primary),
-                      ),
-                      StatusBadge(status: status, isProduct: true),
-                    ],
-                  ),
-                ],
+                ),
               ),
             ),
           ],

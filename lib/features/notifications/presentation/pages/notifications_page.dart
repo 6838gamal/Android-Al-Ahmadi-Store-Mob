@@ -27,7 +27,7 @@ class NotificationsPage extends StatelessWidget {
         actions: [TextButton(onPressed: () {}, child: const Text('مسح الكل', style: TextStyle(fontFamily: 'Cairo', color: AppColors.primary, fontSize: 12)))],
       ),
       body: ListView.builder(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
         itemCount: _demoNotifications.length,
         itemBuilder: (ctx, i) {
           final n = _demoNotifications[i];

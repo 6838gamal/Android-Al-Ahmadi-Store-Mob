@@ -106,7 +106,7 @@ class _OrdersPageState extends ConsumerState<OrdersPage> {
                         onAction: () => context.push('/orders/create'),
                       )
                     : ListView.builder(
-                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
                         itemCount: state.orders.length,
                         itemBuilder: (ctx, i) => _OrderCard(order: state.orders[i], index: i),
                       ),

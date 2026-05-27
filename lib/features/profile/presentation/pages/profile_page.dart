@@ -15,19 +15,42 @@ class ProfilePage extends ConsumerWidget {
     if (user == null) {
       return Scaffold(
         backgroundColor: AppColors.darkBg,
+        appBar: AppBar(
+          backgroundColor: AppColors.darkSurface,
+          leading: IconButton(
+            icon: const Icon(Icons.menu, color: Colors.white),
+            onPressed: () => MainShell.scaffoldKey.currentState?.openDrawer(),
+          ),
+          title: const Text('حسابي', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.w700)),
+        ),
         body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.person_outline, size: 80, color: AppColors.textMuted),
-              const SizedBox(height: 16),
-              const Text('يرجى تسجيل الدخول', style: TextStyle(fontFamily: 'Cairo', color: AppColors.textSecondary, fontSize: 18)),
-              const SizedBox(height: 24),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 40),
-                child: AppButton(text: 'تسجيل الدخول', onPressed: () => context.go('/login')),
-              ),
-            ],
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 40),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  width: 96, height: 96,
+                  decoration: BoxDecoration(
+                    color: AppColors.darkCard,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: AppColors.darkBorder, width: 2),
+                  ),
+                  child: const Icon(Icons.person_outline, size: 48, color: AppColors.textMuted),
+                ),
+                const SizedBox(height: 20),
+                const Text('يرجى تسجيل الدخول', style: TextStyle(fontFamily: 'Cairo', color: Colors.white, fontSize: 18, fontWeight: FontWeight.w700)),
+                const SizedBox(height: 8),
+                const Text('سجّل دخولك للوصول لطلباتك وحجوزاتك', textAlign: TextAlign.center, style: TextStyle(fontFamily: 'Cairo', color: AppColors.textSecondary, fontSize: 13)),
+                const SizedBox(height: 32),
+                AppButton(text: 'تسجيل الدخول', onPressed: () => context.go('/login')),
+                const SizedBox(height: 12),
+                TextButton(
+                  onPressed: () => context.go('/register'),
+                  child: const Text('ليس لديك حساب؟ سجّل الآن', style: TextStyle(fontFamily: 'Cairo', color: AppColors.primary, fontSize: 13)),
+                ),
+              ],
+            ),
           ),
         ),
       );
@@ -43,7 +66,7 @@ class ProfilePage extends ConsumerWidget {
         title: const Text('حسابي', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.w700)),
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
         child: Column(
           children: [
             const SizedBox(height: 16),

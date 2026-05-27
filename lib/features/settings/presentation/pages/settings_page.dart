@@ -24,7 +24,7 @@ class SettingsPage extends ConsumerWidget {
         title: const Text('الإعدادات', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.w700)),
       ),
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
         children: [
           // Account section
           _SectionHeader(title: 'الحساب'),
