@@ -88,7 +88,8 @@ class _AdminShellState extends ConsumerState<AdminShell> {
   Widget _buildDrawer(BuildContext context) {
     return Drawer(
       backgroundColor: AppColors.darkSurface,
-      child: Column(
+      child: ListView(
+        padding: EdgeInsets.zero,
         children: [
           Container(
             padding: const EdgeInsets.fromLTRB(20, 52, 20, 24),
@@ -113,26 +114,21 @@ class _AdminShellState extends ConsumerState<AdminShell> {
               ],
             ),
           ),
-          Expanded(
-            child: ListView(
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              children: [
-                _item(Icons.dashboard_outlined, 'لوحة التحكم', () { Navigator.pop(context); context.go('/admin'); }),
-                _item(Icons.receipt_long_outlined, 'إدارة الطلبات', () { Navigator.pop(context); context.go('/admin/orders'); }),
-                _item(Icons.inventory_2_outlined, 'إدارة المنتجات', () { Navigator.pop(context); context.go('/admin/products'); }),
-                _item(Icons.build_outlined, 'الصيانة', () { Navigator.pop(context); context.go('/admin/maintenance'); }),
-                _item(Icons.bookmark_outline, 'الحجوزات', () { Navigator.pop(context); context.go('/admin/reservations'); }),
-                _item(Icons.people_outline, 'العملاء', () { Navigator.pop(context); context.go('/admin/customers'); }),
-                const Divider(color: AppColors.darkDivider, indent: 16, endIndent: 16),
-                _item(Icons.exit_to_app, 'العودة لتطبيق العميل', () { Navigator.pop(context); context.go('/products'); }, color: AppColors.warning),
-                _item(Icons.logout, 'تسجيل الخروج', () async {
-                  Navigator.pop(context);
-                  await ref.read(authProvider.notifier).logout();
-                  if (context.mounted) context.go('/login');
-                }, color: AppColors.error),
-              ],
-            ),
-          ),
+          const SizedBox(height: 8),
+          _item(Icons.dashboard_outlined, 'لوحة التحكم', () { Navigator.pop(context); context.go('/admin'); }),
+          _item(Icons.receipt_long_outlined, 'إدارة الطلبات', () { Navigator.pop(context); context.go('/admin/orders'); }),
+          _item(Icons.inventory_2_outlined, 'إدارة المنتجات', () { Navigator.pop(context); context.go('/admin/products'); }),
+          _item(Icons.build_outlined, 'الصيانة', () { Navigator.pop(context); context.go('/admin/maintenance'); }),
+          _item(Icons.bookmark_outline, 'الحجوزات', () { Navigator.pop(context); context.go('/admin/reservations'); }),
+          _item(Icons.people_outline, 'العملاء', () { Navigator.pop(context); context.go('/admin/customers'); }),
+          const Divider(color: AppColors.darkDivider, indent: 16, endIndent: 16),
+          _item(Icons.exit_to_app, 'العودة لتطبيق العميل', () { Navigator.pop(context); context.go('/products'); }, color: AppColors.warning),
+          _item(Icons.logout, 'تسجيل الخروج', () async {
+            Navigator.pop(context);
+            await ref.read(authProvider.notifier).logout();
+            if (context.mounted) context.go('/login');
+          }, color: AppColors.error),
+          const SizedBox(height: 16),
         ],
       ),
     );

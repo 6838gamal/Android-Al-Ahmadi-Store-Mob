@@ -106,7 +106,8 @@ class _MainShellState extends ConsumerState<MainShell> {
 
     return Drawer(
       backgroundColor: AppColors.darkSurface,
-      child: Column(
+      child: ListView(
+        padding: EdgeInsets.zero,
         children: [
           // Header
           Container(
@@ -115,7 +116,6 @@ class _MainShellState extends ConsumerState<MainShell> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Shop Info (double tap for admin)
                 GestureDetector(
                   onDoubleTap: () => _showAdminLogin(context),
                   child: Row(
@@ -145,7 +145,6 @@ class _MainShellState extends ConsumerState<MainShell> {
                 const SizedBox(height: 16),
                 const Divider(color: Colors.white24),
                 const SizedBox(height: 12),
-                // User Info
                 if (user != null) ...[
                   CircleAvatar(
                     radius: 28,
@@ -166,40 +165,34 @@ class _MainShellState extends ConsumerState<MainShell> {
             ),
           ),
           // Menu Items
-          Expanded(
-            child: ListView(
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              children: [
-                _DrawerItem(icon: Icons.home_outlined, label: 'الرئيسية', onTap: () { Navigator.pop(context); context.go('/products'); }),
-                _DrawerItem(icon: Icons.inventory_2_outlined, label: 'المنتجات', onTap: () { Navigator.pop(context); context.go('/products'); }),
-                _DrawerItem(icon: Icons.receipt_long_outlined, label: 'طلباتي', onTap: () { Navigator.pop(context); context.go('/orders'); }),
-                _DrawerItem(icon: Icons.track_changes_rounded, label: 'تتبع الطلبات', onTap: () { Navigator.pop(context); context.go('/orders'); }),
-                _DrawerItem(icon: Icons.bookmark_outline, label: 'الحجوزات', onTap: () { Navigator.pop(context); context.go('/reservations'); }),
-                _DrawerItem(icon: Icons.build_outlined, label: 'الصيانة', onTap: () { Navigator.pop(context); context.go('/maintenance'); }),
-                _DrawerItem(icon: Icons.notifications_outlined, label: 'الإشعارات', onTap: () { Navigator.pop(context); context.go('/notifications'); }),
-                const Divider(color: AppColors.darkDivider, indent: 16, endIndent: 16),
-                _DrawerItem(icon: Icons.person_outline, label: 'الملف الشخصي', onTap: () { Navigator.pop(context); context.go('/profile'); }),
-                _DrawerItem(icon: Icons.settings_outlined, label: 'الإعدادات', onTap: () { Navigator.pop(context); }),
-                _DrawerItem(icon: Icons.support_agent_outlined, label: 'تواصل معنا', onTap: () { Navigator.pop(context); }),
-                const Divider(color: AppColors.darkDivider, indent: 16, endIndent: 16),
-                // Shop Info Section
-                _ShopInfoSection(),
-                if (user != null) ...[
-                  const Divider(color: AppColors.darkDivider, indent: 16, endIndent: 16),
-                  _DrawerItem(
-                    icon: Icons.logout,
-                    label: 'تسجيل الخروج',
-                    color: AppColors.error,
-                    onTap: () async {
-                      Navigator.pop(context);
-                      await ref.read(authProvider.notifier).logout();
-                      if (context.mounted) context.go('/login');
-                    },
-                  ),
-                ],
-              ],
+          const SizedBox(height: 8),
+          _DrawerItem(icon: Icons.home_outlined, label: 'الرئيسية', onTap: () { Navigator.pop(context); context.go('/products'); }),
+          _DrawerItem(icon: Icons.inventory_2_outlined, label: 'المنتجات', onTap: () { Navigator.pop(context); context.go('/products'); }),
+          _DrawerItem(icon: Icons.receipt_long_outlined, label: 'طلباتي', onTap: () { Navigator.pop(context); context.go('/orders'); }),
+          _DrawerItem(icon: Icons.track_changes_rounded, label: 'تتبع الطلبات', onTap: () { Navigator.pop(context); context.go('/orders'); }),
+          _DrawerItem(icon: Icons.bookmark_outline, label: 'الحجوزات', onTap: () { Navigator.pop(context); context.go('/reservations'); }),
+          _DrawerItem(icon: Icons.build_outlined, label: 'الصيانة', onTap: () { Navigator.pop(context); context.go('/maintenance'); }),
+          _DrawerItem(icon: Icons.notifications_outlined, label: 'الإشعارات', onTap: () { Navigator.pop(context); context.go('/notifications'); }),
+          const Divider(color: AppColors.darkDivider, indent: 16, endIndent: 16),
+          _DrawerItem(icon: Icons.person_outline, label: 'الملف الشخصي', onTap: () { Navigator.pop(context); context.go('/profile'); }),
+          _DrawerItem(icon: Icons.settings_outlined, label: 'الإعدادات', onTap: () { Navigator.pop(context); }),
+          _DrawerItem(icon: Icons.support_agent_outlined, label: 'تواصل معنا', onTap: () { Navigator.pop(context); }),
+          const Divider(color: AppColors.darkDivider, indent: 16, endIndent: 16),
+          _ShopInfoSection(),
+          if (user != null) ...[
+            const Divider(color: AppColors.darkDivider, indent: 16, endIndent: 16),
+            _DrawerItem(
+              icon: Icons.logout,
+              label: 'تسجيل الخروج',
+              color: AppColors.error,
+              onTap: () async {
+                Navigator.pop(context);
+                await ref.read(authProvider.notifier).logout();
+                if (context.mounted) context.go('/login');
+              },
             ),
-          ),
+          ],
+          const SizedBox(height: 16),
         ],
       ),
     );
