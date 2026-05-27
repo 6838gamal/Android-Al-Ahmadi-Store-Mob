@@ -33,10 +33,10 @@ class _AdminDashboardPageState extends ConsumerState<AdminDashboardPage> {
             expandedHeight: 130,
             pinned: true,
             backgroundColor: AppColors.darkSurface,
-            leading: Builder(builder: (ctx) => IconButton(
+            leading: IconButton(
               icon: const Icon(Icons.menu, color: Colors.white),
-              onPressed: () => Scaffold.of(ctx).openDrawer(),
-            )),
+              onPressed: () => Scaffold.of(context).openDrawer(),
+            ),
             actions: [
               IconButton(
                 icon: const Icon(Icons.refresh, color: Colors.white),

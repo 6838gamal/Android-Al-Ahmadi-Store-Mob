@@ -35,6 +35,10 @@ class _OrdersPageState extends ConsumerState<OrdersPage> {
       backgroundColor: AppColors.darkBg,
       appBar: AppBar(
         backgroundColor: AppColors.darkSurface,
+        leading: IconButton(
+          icon: const Icon(Icons.menu, color: Colors.white),
+          onPressed: () => Scaffold.of(context).openDrawer(),
+        ),
         title: const Text('طلباتي', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.w700)),
         actions: [
           TextButton.icon(

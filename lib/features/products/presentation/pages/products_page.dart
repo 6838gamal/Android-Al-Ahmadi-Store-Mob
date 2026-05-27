@@ -41,10 +41,10 @@ class _ProductsPageState extends ConsumerState<ProductsPage> {
             expandedHeight: 160,
             pinned: true,
             backgroundColor: AppColors.darkSurface,
-            leading: Builder(builder: (ctx) => IconButton(
+            leading: IconButton(
               icon: const Icon(Icons.menu, color: Colors.white),
-              onPressed: () => Scaffold.of(ctx).openDrawer(),
-            )),
+              onPressed: () => Scaffold.of(context).openDrawer(),
+            ),
             actions: [
               if (!auth.isAuthenticated)
                 TextButton.icon(

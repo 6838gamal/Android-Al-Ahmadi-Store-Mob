@@ -32,6 +32,10 @@ class _AdminProductsPageState extends ConsumerState<AdminProductsPage> {
       backgroundColor: AppColors.darkBg,
       appBar: AppBar(
         backgroundColor: AppColors.darkSurface,
+        leading: IconButton(
+          icon: const Icon(Icons.menu, color: Colors.white),
+          onPressed: () => Scaffold.of(context).openDrawer(),
+        ),
         title: const Text('إدارة المنتجات', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.w700)),
         actions: [
           IconButton(icon: const Icon(Icons.add, color: AppColors.primary, size: 28),

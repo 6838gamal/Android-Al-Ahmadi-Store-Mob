@@ -26,6 +26,10 @@ class _AdminCustomersPageState extends ConsumerState<AdminCustomersPage> {
       backgroundColor: AppColors.darkBg,
       appBar: AppBar(
         backgroundColor: AppColors.darkSurface,
+        leading: IconButton(
+          icon: const Icon(Icons.menu, color: Colors.white),
+          onPressed: () => Scaffold.of(context).openDrawer(),
+        ),
         title: Text('العملاء (${state.customers.length})', style: const TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.w700)),
         actions: [IconButton(icon: const Icon(Icons.refresh, color: Colors.white), onPressed: () => ref.read(adminProvider.notifier).loadCustomers())],
       ),

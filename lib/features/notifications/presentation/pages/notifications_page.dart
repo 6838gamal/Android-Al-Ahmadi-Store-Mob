@@ -18,6 +18,10 @@ class NotificationsPage extends StatelessWidget {
       backgroundColor: AppColors.darkBg,
       appBar: AppBar(
         backgroundColor: AppColors.darkSurface,
+        leading: IconButton(
+          icon: const Icon(Icons.menu, color: Colors.white),
+          onPressed: () => Scaffold.of(context).openDrawer(),
+        ),
         title: const Text('الإشعارات', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.w700)),
         actions: [TextButton(onPressed: () {}, child: const Text('مسح الكل', style: TextStyle(fontFamily: 'Cairo', color: AppColors.primary, fontSize: 12)))],
       ),

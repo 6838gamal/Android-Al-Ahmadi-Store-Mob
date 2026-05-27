@@ -2,3 +2,4 @@
 - [Passlib bcrypt compat](passlib-bcrypt.md) — bcrypt must be pinned to 4.0.1; 5.x breaks passlib with AttributeError on __about__
 - [Node proxy redirects](node-proxy.md) — FastAPI 307-redirects bare paths to trailing-slash; proxy must follow redirects internally
 - [Backend workflow binding](backend-workflow.md) — uvicorn must bind 0.0.0.0 (not localhost) for Replit workflow port detection
+- [ShellRoute nested Scaffold drawer bug](shell-drawer-bug.md) — Scaffold.of(ctx) inside Builder inside a child page finds the inner Scaffold (no drawer); use build's context directly instead
