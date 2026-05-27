@@ -1,4 +1,4 @@
-name: Build Flutter APK (Ultra Optimized)
+name: minimal release Build Flutter APK (Ultra Optimized)
 
 on:
   workflow_dispatch:
