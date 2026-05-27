@@ -1,4 +1,4 @@
-name: Build Flutter APK (ARM64 Only)
+name: Build Lightweight Flutter APK
 
 on:
   workflow_dispatch:
@@ -26,22 +26,20 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
-      - name: Clean project
-        run: flutter clean
-
-      - name: Build ARM64 APK only
+      # 🔥 أهم خطوة للتخفيف الحقيقي
+      - name: Build minimal APK
         run: |
           flutter build apk --release \
-          --target-platform android-arm64 \
           --tree-shake-icons \
           --obfuscate \
           --split-debug-info=build/debug-info \
+          --target-platform=android-arm64 \
           --dart-define=API_BASE_URL=https://android-al-ahmadi-store-api.onrender.com/
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: arm64-release-apk
+          name: lightweight-apk
           path: build/app/outputs/flutter-apk/app-arm64-v8a-release.apk
 
       - name: Upload debug symbols
