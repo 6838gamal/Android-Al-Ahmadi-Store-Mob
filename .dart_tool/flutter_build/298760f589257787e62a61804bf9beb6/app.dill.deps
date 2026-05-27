@@ -1542,6 +1542,7 @@ file:///home/runner/workspace/lib/features/auth/presentation/pages/register_page
 file:///home/runner/workspace/lib/features/auth/presentation/pages/splash_page.dart
 file:///home/runner/workspace/lib/features/auth/presentation/providers/auth_provider.dart
 file:///home/runner/workspace/lib/features/auth/presentation/widgets/admin_login_dialog.dart
+file:///home/runner/workspace/lib/features/contact/presentation/pages/contact_page.dart
 file:///home/runner/workspace/lib/features/home/presentation/pages/main_shell.dart
 file:///home/runner/workspace/lib/features/maintenance/presentation/pages/maintenance_page.dart
 file:///home/runner/workspace/lib/features/notifications/presentation/pages/notifications_page.dart
@@ -1554,6 +1555,7 @@ file:///home/runner/workspace/lib/features/products/presentation/pages/products_
 file:///home/runner/workspace/lib/features/products/presentation/providers/products_provider.dart
 file:///home/runner/workspace/lib/features/profile/presentation/pages/profile_page.dart
 file:///home/runner/workspace/lib/features/reservations/presentation/pages/reservations_page.dart
+file:///home/runner/workspace/lib/features/settings/presentation/pages/settings_page.dart
 file:///home/runner/workspace/lib/main.dart
 file:///home/runner/workspace/lib/shared/widgets/app_button.dart
 file:///home/runner/workspace/lib/shared/widgets/app_text_field.dart

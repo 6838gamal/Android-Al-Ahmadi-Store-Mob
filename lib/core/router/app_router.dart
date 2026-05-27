@@ -16,6 +16,8 @@ import '../../features/reservations/presentation/pages/reservations_page.dart';
 import '../../features/maintenance/presentation/pages/maintenance_page.dart';
 import '../../features/notifications/presentation/pages/notifications_page.dart';
 import '../../features/profile/presentation/pages/profile_page.dart';
+import '../../features/settings/presentation/pages/settings_page.dart';
+import '../../features/contact/presentation/pages/contact_page.dart';
 import '../../features/admin/presentation/pages/admin_shell.dart';
 import '../../features/admin/presentation/pages/admin_dashboard_page.dart';
 import '../../features/admin/presentation/pages/admin_orders_page.dart';
@@ -60,6 +62,8 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(path: '/maintenance', builder: (ctx, state) => const MaintenancePage()),
           GoRoute(path: '/notifications', builder: (ctx, state) => const NotificationsPage()),
           GoRoute(path: '/profile', builder: (ctx, state) => const ProfilePage()),
+          GoRoute(path: '/settings', builder: (ctx, state) => const SettingsPage()),
+          GoRoute(path: '/contact', builder: (ctx, state) => const ContactPage()),
         ],
       ),
 

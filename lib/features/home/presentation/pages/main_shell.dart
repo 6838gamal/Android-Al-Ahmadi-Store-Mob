@@ -175,8 +175,8 @@ class _MainShellState extends ConsumerState<MainShell> {
           _DrawerItem(icon: Icons.notifications_outlined, label: 'الإشعارات', onTap: () { Navigator.pop(context); context.go('/notifications'); }),
           const Divider(color: AppColors.darkDivider, indent: 16, endIndent: 16),
           _DrawerItem(icon: Icons.person_outline, label: 'الملف الشخصي', onTap: () { Navigator.pop(context); context.go('/profile'); }),
-          _DrawerItem(icon: Icons.settings_outlined, label: 'الإعدادات', onTap: () { Navigator.pop(context); }),
-          _DrawerItem(icon: Icons.support_agent_outlined, label: 'تواصل معنا', onTap: () { Navigator.pop(context); }),
+          _DrawerItem(icon: Icons.settings_outlined, label: 'الإعدادات', onTap: () { Navigator.pop(context); context.go('/settings'); }),
+          _DrawerItem(icon: Icons.support_agent_outlined, label: 'تواصل معنا', onTap: () { Navigator.pop(context); context.go('/contact'); }),
           const Divider(color: AppColors.darkDivider, indent: 16, endIndent: 16),
           _ShopInfoSection(),
           if (user != null) ...[
