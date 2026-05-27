@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../home/presentation/pages/main_shell.dart';
 import '../../../../shared/widgets/loading_widget.dart';
 
 class MaintenancePage extends StatelessWidget {
@@ -13,7 +14,7 @@ class MaintenancePage extends StatelessWidget {
         backgroundColor: AppColors.darkSurface,
         leading: IconButton(
           icon: const Icon(Icons.menu, color: Colors.white),
-          onPressed: () => Scaffold.of(context).openDrawer(),
+          onPressed: () => MainShell.scaffoldKey.currentState?.openDrawer(),
         ),
         title: const Text('الصيانة', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.w700)),
       ),

@@ -11,6 +11,8 @@ class MainShell extends ConsumerStatefulWidget {
   final Widget child;
   const MainShell({super.key, required this.child});
 
+  static final scaffoldKey = GlobalKey<ScaffoldState>();
+
   @override
   ConsumerState<MainShell> createState() => _MainShellState();
 }
@@ -29,6 +31,7 @@ class _MainShellState extends ConsumerState<MainShell> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      key: MainShell.scaffoldKey,
       backgroundColor: AppColors.darkBg,
       drawer: _buildDrawer(context),
       body: widget.child,

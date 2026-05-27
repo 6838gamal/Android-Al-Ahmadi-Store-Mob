@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../home/presentation/pages/main_shell.dart';
 import '../../../../shared/widgets/loading_widget.dart';
 
 class NotificationsPage extends StatelessWidget {
@@ -20,7 +21,7 @@ class NotificationsPage extends StatelessWidget {
         backgroundColor: AppColors.darkSurface,
         leading: IconButton(
           icon: const Icon(Icons.menu, color: Colors.white),
-          onPressed: () => Scaffold.of(context).openDrawer(),
+          onPressed: () => MainShell.scaffoldKey.currentState?.openDrawer(),
         ),
         title: const Text('الإشعارات', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.w700)),
         actions: [TextButton(onPressed: () {}, child: const Text('مسح الكل', style: TextStyle(fontFamily: 'Cairo', color: AppColors.primary, fontSize: 12)))],

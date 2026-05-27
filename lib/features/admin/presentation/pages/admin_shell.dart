@@ -7,6 +7,8 @@ class AdminShell extends StatefulWidget {
   final Widget child;
   const AdminShell({super.key, required this.child});
 
+  static final scaffoldKey = GlobalKey<ScaffoldState>();
+
   @override
   State<AdminShell> createState() => _AdminShellState();
 }
@@ -25,6 +27,7 @@ class _AdminShellState extends State<AdminShell> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      key: AdminShell.scaffoldKey,
       backgroundColor: AppColors.darkBg,
       drawer: _buildDrawer(context),
       body: widget.child,

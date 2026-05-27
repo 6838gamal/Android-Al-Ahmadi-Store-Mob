@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../home/presentation/pages/main_shell.dart';
 import '../../../../core/utils/app_utils.dart';
 import '../../../../shared/widgets/loading_widget.dart';
 import '../../../../shared/widgets/status_badge.dart';
@@ -37,7 +38,7 @@ class _OrdersPageState extends ConsumerState<OrdersPage> {
         backgroundColor: AppColors.darkSurface,
         leading: IconButton(
           icon: const Icon(Icons.menu, color: Colors.white),
-          onPressed: () => Scaffold.of(context).openDrawer(),
+          onPressed: () => MainShell.scaffoldKey.currentState?.openDrawer(),
         ),
         title: const Text('طلباتي', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.w700)),
         actions: [

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../../../../core/theme/app_colors.dart';
+import 'admin_shell.dart';
 import '../../../../core/utils/app_utils.dart';
 import '../../../../core/constants/app_constants.dart';
 import '../../../../shared/widgets/loading_widget.dart';
@@ -34,7 +35,7 @@ class _AdminProductsPageState extends ConsumerState<AdminProductsPage> {
         backgroundColor: AppColors.darkSurface,
         leading: IconButton(
           icon: const Icon(Icons.menu, color: Colors.white),
-          onPressed: () => Scaffold.of(context).openDrawer(),
+          onPressed: () => AdminShell.scaffoldKey.currentState?.openDrawer(),
         ),
         title: const Text('إدارة المنتجات', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.w700)),
         actions: [

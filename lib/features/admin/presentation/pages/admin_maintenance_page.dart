@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../../../../core/theme/app_colors.dart';
+import 'admin_shell.dart';
 import '../../../../core/utils/app_utils.dart';
 import '../../../../core/constants/app_constants.dart';
 import '../../../../shared/widgets/loading_widget.dart';
@@ -33,7 +34,7 @@ class _AdminMaintenancePageState extends ConsumerState<AdminMaintenancePage> {
         backgroundColor: AppColors.darkSurface,
         leading: IconButton(
           icon: const Icon(Icons.menu, color: Colors.white),
-          onPressed: () => Scaffold.of(context).openDrawer(),
+          onPressed: () => AdminShell.scaffoldKey.currentState?.openDrawer(),
         ),
         title: const Text('إدارة الصيانة', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.w700)),
         actions: [
