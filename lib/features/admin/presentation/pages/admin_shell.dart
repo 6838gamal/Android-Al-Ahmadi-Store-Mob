@@ -1,19 +1,21 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/constants/app_constants.dart';
+import '../../../auth/presentation/providers/auth_provider.dart';
 
-class AdminShell extends StatefulWidget {
+class AdminShell extends ConsumerStatefulWidget {
   final Widget child;
   const AdminShell({super.key, required this.child});
 
   static final scaffoldKey = GlobalKey<ScaffoldState>();
 
   @override
-  State<AdminShell> createState() => _AdminShellState();
+  ConsumerState<AdminShell> createState() => _AdminShellState();
 }
 
-class _AdminShellState extends State<AdminShell> {
+class _AdminShellState extends ConsumerState<AdminShell> {
   int _selectedIndex = 0;
 
   static const _tabs = [
@@ -123,6 +125,11 @@ class _AdminShellState extends State<AdminShell> {
                 _item(Icons.people_outline, 'العملاء', () { Navigator.pop(context); context.go('/admin/customers'); }),
                 const Divider(color: AppColors.darkDivider, indent: 16, endIndent: 16),
                 _item(Icons.exit_to_app, 'العودة لتطبيق العميل', () { Navigator.pop(context); context.go('/products'); }, color: AppColors.warning),
+                _item(Icons.logout, 'تسجيل الخروج', () async {
+                  Navigator.pop(context);
+                  await ref.read(authProvider.notifier).logout();
+                  if (context.mounted) context.go('/login');
+                }, color: AppColors.error),
               ],
             ),
           ),
