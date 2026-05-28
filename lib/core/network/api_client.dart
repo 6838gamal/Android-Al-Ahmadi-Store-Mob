@@ -1,9 +1,13 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../constants/app_constants.dart';
 import '../utils/storage_service.dart';
 
 String _resolveBaseUrl() {
+  if (kIsWeb) {
+    return '${Uri.base.origin}${AppConstants.apiVersion}';
+  }
   return '${AppConstants.baseUrl}${AppConstants.apiVersion}';
 }
 
