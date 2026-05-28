@@ -1,15 +1,7 @@
 import 'package:dio/dio.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../constants/app_constants.dart';
 import '../utils/storage_service.dart';
-
-String _resolveBaseUrl() {
-  if (kIsWeb) {
-    return '${Uri.base.origin}${AppConstants.apiVersion}';
-  }
-  return '${AppConstants.baseUrl}${AppConstants.apiVersion}';
-}
 
 final apiClientProvider = Provider<ApiClient>((ref) => ApiClient());
 
@@ -18,7 +10,7 @@ class ApiClient {
 
   ApiClient() {
     _dio = Dio(BaseOptions(
-      baseUrl: _resolveBaseUrl(),
+      baseUrl: '${AppConstants.baseUrl}${AppConstants.apiVersion}',
       connectTimeout: const Duration(seconds: 30),
       receiveTimeout: const Duration(seconds: 30),
       headers: {'Content-Type': 'application/json'},
