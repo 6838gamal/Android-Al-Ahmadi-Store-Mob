@@ -21,7 +21,7 @@ from backend.models.reservation import Reservation, ReservationStatus
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="لوحة إدارة اندرويد الاحمدي", docs_url=None, redoc_url=None)
-app.add_middleware(SessionMiddleware, secret_key="admin-alahmadi-panel-secret-2026", max_age=86400)
+app.add_middleware(SessionMiddleware, secret_key=os.getenv("SECRET_KEY", "admin-alahmadi-panel-secret-2026"), max_age=86400)
 
 UPLOAD_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "uploads")
 os.makedirs(UPLOAD_DIR, exist_ok=True)

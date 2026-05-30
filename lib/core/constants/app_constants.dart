@@ -14,7 +14,7 @@ class AppConstants {
   };
 
   // API
-  static const String baseUrl = 'https://android-al-ahmadi-store-api.onrender.com';
+  static const String baseUrl = '';
   static const String apiVersion = '/api';
 
   // Storage Keys

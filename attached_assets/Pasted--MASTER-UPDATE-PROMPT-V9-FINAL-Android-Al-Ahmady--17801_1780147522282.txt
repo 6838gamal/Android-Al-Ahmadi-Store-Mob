@@ -1,0 +1,502 @@
+# MASTER UPDATE PROMPT V9 FINAL
+
+## Android Al-Ahmady | أندرويد الأحمدي
+
+### قواعد أساسية
+
+هذا المشروع موجود بالفعل ويعمل حالياً.
+
+يحتوي على:
+
+* Flutter Application
+* FastAPI Backend
+* PostgreSQL Database
+* APIs جاهزة
+* نظام مستخدمين
+* نظام منتجات
+* نظام طلبات
+* نظام صيانة
+* نظام مخزون
+* نظام صلاحيات
+* بيانات حقيقية
+
+المطلوب:
+
+تطوير وتوسعة النظام فقط.
+
+ممنوع:
+
+* إعادة بناء المشروع من الصفر
+* حذف الجداول الحالية
+* حذف البيانات الحالية
+* حذف APIs الحالية
+* تغيير البنية الأساسية دون ضرورة
+* تنفيذ Refactor جذري
+* كسر التوافق مع النظام الحالي
+
+يجب تطبيق:
+
+Safe Incremental Updates Only
+
+━━━━━━━━━━━━━━━━━━
+
+## الأولويات
+
+1. الحفاظ على البيانات الحالية
+2. الحفاظ على استقرار النظام
+3. عدم كسر أي وظيفة حالية
+4. الحفاظ على Backward Compatibility
+5. إضافة الميزات الجديدة بأقل تغيير ممكن
+
+━━━━━━━━━━━━━━━━━━
+
+## البيئة التقنية
+
+Frontend
+
+* Flutter
+* Riverpod
+* GoRouter
+* Material 3
+
+Backend
+
+* FastAPI
+
+Database
+
+* PostgreSQL
+
+Cache
+
+* Redis
+
+Realtime
+
+* WebSockets
+
+Storage
+
+* MinIO
+
+Authentication
+
+* JWT
+* OTP
+
+Deployment
+
+* Docker
+* Nginx
+* Ubuntu Server
+
+Documentation
+
+* Swagger/OpenAPI
+
+ممنوع استخدام Firebase حالياً.
+
+━━━━━━━━━━━━━━━━━━
+
+## فحص الروابط قبل الإنتاج
+
+يجب تنفيذ فحص شامل للتأكد من عدم وجود:
+
+* localhost
+* 127.0.0.1
+* 192.168.x.x
+* 10.x.x.x
+
+داخل:
+
+* API URLs
+* Image URLs
+* File URLs
+* WebSocket URLs
+
+جميع الروابط يجب أن تكون:
+
+* HTTPS
+* Production URLs
+* قابلة للوصول من الإنترنت
+
+يجب دعم:
+
+* Development
+* Staging
+* Production
+
+بإعدادات منفصلة.
+
+━━━━━━━━━━━━━━━━━━
+
+## وضع الإدارة
+
+التطبيق الحالي مهيأ للأدوار التشغيلية الموجودة.
+
+لا يتم إنشاء أي واجهات إدارة جديدة داخل Flutter.
+
+الإدارة تكون حصراً عبر:
+
+Web Admin Dashboard
+
+إذا وُجدت أي شاشات إدارية داخل Flutter فيجب إزالتها فقط.
+
+لا يتم حذف:
+
+* APIs
+* Database Logic
+* Permissions
+* Business Rules
+
+لأنها ستستخدم من لوحة التحكم الويب.
+
+Flutter مخصص فقط لـ:
+
+* Customer
+* Staff
+* Branch Manager (إن وجد)
+
+━━━━━━━━━━━━━━━━━━
+
+## نظام الصلاحيات
+
+اعتماد:
+
+RBAC + Permissions
+
+وليس مجرد إخفاء عناصر الواجهة.
+
+التحقق يجب أن يتم على:
+
+* UI
+* API
+* Backend Services
+
+━━━━━━━━━━━━━━━━━━
+
+## الأدوار الحالية
+
+### Customer
+
+يمكنه:
+
+* تصفح المنتجات
+* الحجز
+* الطلب
+* متابعة الطلبات
+* متابعة الصيانة
+* الإحالة
+* الضمان
+* الإشعارات
+
+### Staff
+
+يمكنه فقط:
+
+* الرد على طلبات الفحص
+* تسجيل الشاشة كمباعة
+* إعادة الشاشة للمخزون
+* تحديث حالة الطلبات
+* تحديث حالة الصيانة
+
+لا يمكنه:
+
+* رؤية الأرباح
+* رؤية التقارير المالية
+* تعديل الأسعار الأساسية
+* إدارة المستخدمين
+* إدارة الصلاحيات
+* إدارة الإعلانات
+* إدارة النسخ الاحتياطية
+
+### Branch Manager
+
+إدارة الفرع الخاص به فقط.
+
+### Super Admin
+
+يعمل فقط من خلال Web Admin Dashboard.
+
+━━━━━━━━━━━━━━━━━━
+
+## مراجعة نظام الأدوار الحالي
+
+إذا كانت جداول الأدوار والصلاحيات موجودة:
+
+* لا يتم حذفها
+* لا يتم إعادة إنشائها
+* لا يتم تغيير معرفاتها
+
+يتم توسيعها فقط عند الحاجة.
+
+يجب الحفاظ على جميع المستخدمين الحاليين وصلاحياتهم.
+
+━━━━━━━━━━━━━━━━━━
+
+## نظام الفروع
+
+إضافة وربط:
+
+* Branch
+* Warehouse
+* Responsible Employee
+
+بجميع السجلات الجديدة.
+
+مع الحفاظ على السجلات القديمة.
+
+━━━━━━━━━━━━━━━━━━
+
+## نظام المخزون والشاشات
+
+كل شاشة تعتبر:
+
+Unique Item
+
+وتحتوي على:
+
+* Item ID
+* Serial Number
+* Category
+* Model
+* Grade
+* Images
+* Status
+
+Grades:
+
+* A+
+* A
+* B
+* C
+
+Status:
+
+* Available
+* Reserved
+* Sold
+
+━━━━━━━━━━━━━━━━━━
+
+## إدارة الصور
+
+الحد الأقصى:
+
+1 MB
+
+الصيغ:
+
+* JPG
+* PNG
+* WEBP
+
+المزايا:
+
+* Auto Compression
+* Watermark
+* Thumbnail Generation
+* Preview
+* Upload Progress
+* Cache
+* Lazy Loading
+
+الحد الأقصى:
+
+10 صور لكل عنصر.
+
+━━━━━━━━━━━━━━━━━━
+
+## الطلبات
+
+رقم تلقائي:
+
+ORD-YYYY-XXXXXX
+
+الحالات:
+
+* Received
+* Under Review
+* Confirmed
+* Preparing
+* Shipped
+* In Transit
+* Delivered
+* Cancelled
+
+مع:
+
+* Timeline
+* Tracking History
+* Notifications
+* Realtime Updates
+
+━━━━━━━━━━━━━━━━━━
+
+## الصيانة
+
+الحالات:
+
+* Received
+* Under Inspection
+* Repairing
+* Waiting For Part
+* Completed
+* Ready For Pickup
+* Delivered
+
+مع:
+
+* صور
+* فيديو
+* ملاحظات
+* Timeline
+
+━━━━━━━━━━━━━━━━━━
+
+## عيادة الفحص
+
+العميل يرسل:
+
+* موديل الجهاز
+* صور
+* فيديو
+* وصف المشكلة
+
+الموظف يرد يدوياً:
+
+* التشخيص
+* السعر
+* الملاحظات
+* الصور
+
+━━━━━━━━━━━━━━━━━━
+
+## الإحالة
+
+رابط إحالة فريد.
+
+الهدف:
+
+50 مستخدم حقيقي.
+
+التحقق عبر:
+
+* رقم هاتف فريد
+* Device Fingerprint
+
+عدم احتساب نفس الجهاز مرتين.
+
+━━━━━━━━━━━━━━━━━━
+
+## الضمان
+
+مدة الضمان:
+
+7 أيام
+
+زر:
+
+طلب إرجاع
+
+خلال مدة الضمان فقط.
+
+━━━━━━━━━━━━━━━━━━
+
+## النظام المالي
+
+دعم:
+
+* Multi Currency
+
+العملات:
+
+* YER
+* SAR
+* USD
+
+مع قابلية إضافة عملات أخرى مستقبلاً.
+
+دعم:
+
+* Negative Wallet
+* Flexible Pricing
+* Invoice Validation
+
+━━━━━━━━━━━━━━━━━━
+
+## البحث والإشعارات
+
+Global Search:
+
+* Products
+* Orders
+* Repairs
+* Customers
+* Invoices
+
+Notification Center:
+
+* Read
+* Unread
+* Important
+
+━━━━━━━━━━━━━━━━━━
+
+## Audit Log
+
+تسجيل:
+
+* User
+* Role
+* Action
+* Timestamp
+* Device
+* IP Address
+* Before Value
+* After Value
+
+للعمليات الحساسة.
+
+━━━━━━━━━━━━━━━━━━
+
+## النسخ الاحتياطي
+
+* Daily Backup
+* Weekly Backup
+* One Click Restore
+
+━━━━━━━━━━━━━━━━━━
+
+## التقارير
+
+* Sales Reports
+* Profit Reports
+* Inventory Reports
+* Repair Reports
+* Referral Reports
+* Warranty Reports
+
+تصدير:
+
+* PDF
+* Excel
+
+━━━━━━━━━━━━━━━━━━
+
+## قبل تنفيذ أي تحديث
+
+يجب تقديم:
+
+1. Impact Analysis
+2. Existing Files To Modify
+3. New Files To Create
+4. Database Migration Plan
+5. API Changes
+6. UI Changes
+7. Backward Compatibility Plan
+8. Rollback Plan
+
+أي تعديل قد يؤثر على النظام الحالي يجب الإبلاغ عنه مسبقاً.
+
+تعامل مع المشروع على أنه نظام إنتاجي حقيقي يحتوي على مستخدمين وبيانات حقيقية ويجب الحفاظ عليه بالكامل أثناء إضافة الميزات الجديدة.

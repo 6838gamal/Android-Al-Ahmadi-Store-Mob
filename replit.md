@@ -1,32 +1,38 @@
-# Flutter Hello World
+# Android Al-Ahmadi Store
 
-A basic Flutter web application showing "Hello, World!" built with Flutter 3.32.0 and Dart 3.8.0.
+A comprehensive mobile phone shop management system consisting of:
+- **Flutter Web App** — customer-facing storefront (served on port 5000)
+- **FastAPI Backend** — REST API for data management (port 8000)
+- **Admin Panel** — Jinja2-based admin dashboard (port 8080)
 
 ## Project Structure
 
-- `lib/main.dart` — Flutter app source code
-- `build/web/` — Compiled Flutter web output (served in development)
-- `server.js` — Node.js static file server (serves `build/web/` on port 5000)
-- `pubspec.yaml` — Flutter project manifest and dependencies
+- `lib/` — Flutter frontend source (Clean Architecture)
+- `backend/` — Python FastAPI REST API
+- `admin_panel/` — Server-side rendered admin dashboard (Jinja2 + FastAPI)
+- `build/web/` — Pre-compiled Flutter web output
+- `server.js` — Node.js static server + API proxy (port 5000)
+- `run_backend.py` — Starts the FastAPI backend on port 8000
+- `run_admin.py` — Starts the admin panel on port 8080
 
 ## Running the App
 
-The workflow `Start application` runs `node server.js` which serves the pre-built Flutter web output on port 5000.
+Three workflows run in parallel:
+1. **Start application** — `node server.js` (serves Flutter web + proxies /api to backend)
+2. **Backend API** — `python run_backend.py` (FastAPI on port 8000)
+3. **Admin Panel** — `python run_admin.py` (Admin dashboard on port 8080)
 
-If you modify `lib/main.dart`, rebuild the web output first:
+## Default Admin Credentials
 
-```bash
-flutter build web --release
-```
-
-Then restart the workflow to serve the new build.
+- Email: `admin@alahmadi.com`
+- Password: `Admin@2026`
 
 ## Tech Stack
 
-- **Framework**: Flutter 3.32.0
-- **Language**: Dart 3.8.0
-- **Platforms**: Web (served via Node.js static server)
-- **Package manager**: pub (Flutter)
+- **Frontend**: Flutter 3.x (Dart)
+- **Backend**: Python FastAPI + SQLAlchemy
+- **Database**: SQLite (default) or PostgreSQL via DATABASE_URL env var
+- **Admin**: FastAPI + Jinja2 templates
 
 ## User Preferences
 
