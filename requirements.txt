@@ -1,7 +1,10 @@
 aiofiles==25.1.0
 alembic==1.18.4
+bcrypt==4.0.1
 fastapi==0.136.3
 httpx==0.28.1
+itsdangerous==2.2.0
+Jinja2==3.1.6
 passlib==1.7.4
 pillow==12.2.0
 psycopg2-binary==2.9.12
@@ -11,4 +14,5 @@ pydantic_core==2.46.4
 python-dotenv==1.2.2
 python-jose==3.5.0
 python-multipart==0.0.29
+SQLAlchemy==2.0.50
 uvicorn==0.48.0
