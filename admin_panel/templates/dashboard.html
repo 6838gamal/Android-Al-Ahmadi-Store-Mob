@@ -1,0 +1,124 @@
+{% extends "layout.html" %}
+{% block title %}لوحة التحكم{% endblock %}
+{% block page_title %}لوحة التحكم{% endblock %}
+
+{% block content %}
+<!-- Header -->
+<div class="page-header flex items-center justify-between">
+  <div>
+    <h1 class="text-white text-2xl font-extrabold">لوحة التحكم</h1>
+    <p class="text-white/70 text-sm mt-1">مرحباً، {{ admin_name }} 👋</p>
+  </div>
+  <a href="/dashboard" class="bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-xl text-sm font-bold transition">
+    <i class="fa-solid fa-rotate-right me-2"></i>تحديث
+  </a>
+</div>
+
+<!-- Stats Grid -->
+<div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
+  {% set stats = [
+    ('إجمالي الإيرادات', total_revenue | string + ' ر.س', 'fa-sack-dollar', '#1A73E8', '#7B1FA2'),
+    ('الطلبات النشطة', active_orders, 'fa-receipt', '#7B1FA2', '#E91E63'),
+    ('إجمالي الطلبات', total_orders, 'fa-shopping-bag', '#00695C', '#26A69A'),
+    ('المنتجات', total_products, 'fa-box-open', '#E65100', '#FF9800'),
+    ('العملاء', total_customers, 'fa-users', '#0D47A1', '#2196F3'),
+    ('الصيانة', maintenance_count, 'fa-screwdriver-wrench', '#880E4F', '#F48FB1'),
+  ] %}
+  {% for label, value, icon, c1, c2 in stats %}
+  <div class="stat-card flex flex-col justify-between min-h-[110px]" style="background: linear-gradient(135deg, {{ c1 }}, {{ c2 }}); border-color: transparent;">
+    <i class="fa-solid {{ icon }} text-white/70 text-xl"></i>
+    <div>
+      <div class="text-white text-xl font-extrabold leading-tight">{{ value }}</div>
+      <div class="text-white/70 text-xs mt-1">{{ label }}</div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+{% if low_stock > 0 %}
+<div class="flex items-center gap-3 bg-yellow-500/10 border border-yellow-500/30 text-yellow-400 rounded-xl p-4 mb-6">
+  <i class="fa-solid fa-triangle-exclamation text-xl"></i>
+  <span class="font-bold">تنبيه: {{ low_stock }} منتجات بمخزون منخفض (3 قطع أو أقل)</span>
+  <a href="/products" class="mr-auto text-sm underline">عرض المنتجات</a>
+</div>
+{% endif %}
+
+<!-- Quick Actions -->
+<div class="mb-6">
+  <h2 class="text-white font-bold text-base mb-3">إجراءات سريعة</h2>
+  <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+    <a href="/products/add" class="card p-4 flex flex-col items-center gap-2 hover:border-primary/50 transition group">
+      <div class="w-10 h-10 rounded-xl bg-primary-light flex items-center justify-center">
+        <i class="fa-solid fa-plus text-primary"></i>
+      </div>
+      <span class="text-gray-300 text-sm font-semibold group-hover:text-white">إضافة منتج</span>
+    </a>
+    <a href="/orders" class="card p-4 flex flex-col items-center gap-2 hover:border-primary/50 transition group">
+      <div class="w-10 h-10 rounded-xl bg-purple-500/15 flex items-center justify-center">
+        <i class="fa-solid fa-receipt text-purple-400"></i>
+      </div>
+      <span class="text-gray-300 text-sm font-semibold group-hover:text-white">إدارة الطلبات</span>
+    </a>
+    <a href="/maintenance" class="card p-4 flex flex-col items-center gap-2 hover:border-primary/50 transition group">
+      <div class="w-10 h-10 rounded-xl bg-emerald-500/15 flex items-center justify-center">
+        <i class="fa-solid fa-screwdriver-wrench text-emerald-400"></i>
+      </div>
+      <span class="text-gray-300 text-sm font-semibold group-hover:text-white">إضافة صيانة</span>
+    </a>
+    <a href="/reservations" class="card p-4 flex flex-col items-center gap-2 hover:border-primary/50 transition group">
+      <div class="w-10 h-10 rounded-xl bg-cyan-500/15 flex items-center justify-center">
+        <i class="fa-solid fa-calendar-check text-cyan-400"></i>
+      </div>
+      <span class="text-gray-300 text-sm font-semibold group-hover:text-white">الحجوزات</span>
+    </a>
+  </div>
+</div>
+
+<!-- Recent Orders -->
+<div class="card overflow-hidden">
+  <div class="flex items-center justify-between p-5 border-b border-dark-border">
+    <h2 class="text-white font-bold text-base">آخر الطلبات</h2>
+    <a href="/orders" class="text-primary text-sm font-semibold hover:underline">عرض الكل</a>
+  </div>
+  {% if recent_orders %}
+  <div class="overflow-x-auto">
+    <table class="w-full text-sm">
+      <thead>
+        <tr class="border-b border-dark-border text-gray-500 text-xs">
+          <th class="px-5 py-3 text-right font-semibold">رقم الطلب</th>
+          <th class="px-5 py-3 text-right font-semibold">العميل</th>
+          <th class="px-5 py-3 text-right font-semibold">المبلغ</th>
+          <th class="px-5 py-3 text-right font-semibold">الحالة</th>
+          <th class="px-5 py-3 text-right font-semibold">التاريخ</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for order in recent_orders %}
+        <tr class="table-row">
+          <td class="px-5 py-3">
+            <a href="/orders/{{ order.id }}" class="text-primary font-bold hover:underline">{{ order.order_number }}</a>
+          </td>
+          <td class="px-5 py-3 text-gray-300">{{ order.customer_name }}</td>
+          <td class="px-5 py-3 text-white font-bold">{{ "%.2f"|format(order.total) }} ر.س</td>
+          <td class="px-5 py-3">
+            {% set s = order.status.value %}
+            <span class="badge" style="background: {{ status_colors[s] }}22; color: {{ status_colors[s] }}">
+              {{ status_labels.get(s, s) }}
+            </span>
+          </td>
+          <td class="px-5 py-3 text-gray-500 text-xs">{{ order.created_at.strftime('%Y-%m-%d') if order.created_at else '' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="p-10 text-center text-gray-600">
+    <i class="fa-solid fa-receipt text-4xl mb-3 block"></i>
+    لا توجد طلبات حتى الآن
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% set active = 'dashboard' %}

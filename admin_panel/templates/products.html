@@ -1,0 +1,99 @@
+{% extends "layout.html" %}
+{% set active = 'products' %}
+{% block title %}إدارة المنتجات{% endblock %}
+{% block page_title %}المنتجات{% endblock %}
+
+{% block content %}
+<div class="page-header flex flex-wrap items-center justify-between gap-3">
+  <div>
+    <h1 class="text-white text-2xl font-extrabold">إدارة المنتجات</h1>
+    <p class="text-white/70 text-sm mt-1">{{ products|length }} منتج</p>
+  </div>
+  <a href="/products/add" class="btn-primary">
+    <i class="fa-solid fa-plus"></i> إضافة منتج
+  </a>
+</div>
+
+<!-- Search -->
+<form method="get" class="mb-5">
+  <div class="relative max-w-sm">
+    <i class="fa-solid fa-search absolute top-1/2 -translate-y-1/2 right-4 text-gray-500"></i>
+    <input type="text" name="search" value="{{ search }}" placeholder="بحث بالاسم أو الماركة..."
+      class="input-field pr-11" onchange="this.form.submit()">
+  </div>
+</form>
+
+{% if products %}
+<div class="card overflow-hidden">
+  <div class="overflow-x-auto">
+    <table class="w-full text-sm">
+      <thead>
+        <tr class="border-b border-dark-border text-gray-500 text-xs">
+          <th class="px-5 py-3 text-right font-semibold">المنتج</th>
+          <th class="px-5 py-3 text-right font-semibold">الفئة</th>
+          <th class="px-5 py-3 text-right font-semibold">السعر</th>
+          <th class="px-5 py-3 text-right font-semibold">الكمية</th>
+          <th class="px-5 py-3 text-right font-semibold">الحالة</th>
+          <th class="px-5 py-3 text-right font-semibold">إجراءات</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in products %}
+        {% set s = p.status.value %}
+        {% set status_colors = {'available':'#22C55E','reserved':'#F59E0B','sold':'#6B7280','unavailable':'#EF4444'} %}
+        {% set status_labels_map = {'available':'متوفر','reserved':'محجوز','sold':'مباع','unavailable':'غير متوفر'} %}
+        <tr class="table-row">
+          <td class="px-5 py-3">
+            <div class="flex items-center gap-3">
+              {% if p.image_url %}
+              <img src="{{ p.image_url }}" class="w-10 h-10 rounded-xl object-cover bg-dark-alt">
+              {% else %}
+              <div class="w-10 h-10 rounded-xl bg-dark-alt flex items-center justify-center">
+                <i class="fa-solid fa-mobile-screen text-gray-500"></i>
+              </div>
+              {% endif %}
+              <div>
+                <div class="text-white font-bold">{{ p.name }}</div>
+                {% if p.brand %}<div class="text-gray-500 text-xs">{{ p.brand }} {% if p.model %}· {{ p.model }}{% endif %}</div>{% endif %}
+              </div>
+            </div>
+          </td>
+          <td class="px-5 py-3 text-gray-400">{{ cat_map.get(p.category.value, p.category.value) }}</td>
+          <td class="px-5 py-3 text-primary font-bold">{{ "%.2f"|format(p.price) }} ر.س</td>
+          <td class="px-5 py-3">
+            <span class="font-bold {% if p.quantity <= 3 %}text-yellow-400{% else %}text-white{% endif %}">
+              {{ p.quantity }}
+              {% if p.quantity <= 3 %}<i class="fa-solid fa-triangle-exclamation ms-1 text-xs"></i>{% endif %}
+            </span>
+          </td>
+          <td class="px-5 py-3">
+            <span class="badge" style="background:{{ status_colors.get(s,'#6B7280') }}22; color:{{ status_colors.get(s,'#6B7280') }}">
+              {{ status_labels_map.get(s, s) }}
+            </span>
+          </td>
+          <td class="px-5 py-3">
+            <div class="flex items-center gap-2">
+              <a href="/products/edit/{{ p.id }}" class="text-primary hover:text-blue-300 p-2 rounded-lg hover:bg-primary-light transition">
+                <i class="fa-solid fa-pen-to-square"></i>
+              </a>
+              <form method="post" action="/products/delete/{{ p.id }}" onsubmit="return confirm('هل تريد حذف هذا المنتج؟')">
+                <button type="submit" class="text-red-400 hover:text-red-300 p-2 rounded-lg hover:bg-red-500/10 transition">
+                  <i class="fa-solid fa-trash"></i>
+                </button>
+              </form>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% else %}
+<div class="card p-16 text-center">
+  <i class="fa-solid fa-box-open text-5xl text-gray-600 mb-4 block"></i>
+  <p class="text-gray-500 font-semibold mb-4">لا توجد منتجات{% if search %} تطابق البحث{% endif %}</p>
+  <a href="/products/add" class="btn-primary">إضافة منتج جديد</a>
+</div>
+{% endif %}
+{% endblock %}

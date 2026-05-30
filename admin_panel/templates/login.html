@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>تسجيل الدخول — اندرويد الاحمدي</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>* { font-family: 'Cairo', sans-serif; } body { background: #0D1117; }</style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-4">
+  <div class="w-full max-w-md">
+    <!-- Logo -->
+    <div class="text-center mb-8">
+      <div class="inline-flex items-center justify-center w-20 h-20 rounded-2xl mb-4" style="background: linear-gradient(135deg,#7B1FA2,#1A73E8)">
+        <i class="fa-solid fa-mobile-screen text-white text-4xl"></i>
+      </div>
+      <h1 class="text-white text-2xl font-extrabold">اندرويد الاحمدي</h1>
+      <p class="text-gray-500 text-sm mt-1">لوحة إدارة النظام</p>
+    </div>
+
+    <!-- Card -->
+    <div class="bg-[#161B22] border border-[#2D3748] rounded-2xl p-8">
+      <h2 class="text-white text-xl font-bold mb-6 text-center">تسجيل الدخول</h2>
+
+      {% if error %}
+      <div class="bg-red-500/10 border border-red-500/30 text-red-400 rounded-xl p-4 mb-6 flex items-center gap-3">
+        <i class="fa-solid fa-circle-exclamation"></i>
+        <span class="text-sm font-semibold">{{ error }}</span>
+      </div>
+      {% endif %}
+
+      <form method="post" action="/login" class="space-y-5">
+        <div>
+          <label class="text-gray-400 text-sm font-semibold mb-2 block">البريد الإلكتروني أو رقم الجوال</label>
+          <div class="relative">
+            <i class="fa-solid fa-user absolute top-1/2 -translate-y-1/2 right-4 text-gray-500"></i>
+            <input type="text" name="identifier" placeholder="admin@alahmadi.com" required
+              class="w-full bg-[#1C2230] border border-[#2D3748] text-white placeholder-gray-600 rounded-xl py-3 px-4 pr-11 text-sm outline-none focus:border-blue-500 transition">
+          </div>
+        </div>
+        <div>
+          <label class="text-gray-400 text-sm font-semibold mb-2 block">كلمة المرور</label>
+          <div class="relative">
+            <i class="fa-solid fa-lock absolute top-1/2 -translate-y-1/2 right-4 text-gray-500"></i>
+            <input type="password" name="password" placeholder="••••••••" required
+              class="w-full bg-[#1C2230] border border-[#2D3748] text-white placeholder-gray-600 rounded-xl py-3 px-4 pr-11 text-sm outline-none focus:border-blue-500 transition">
+          </div>
+        </div>
+        <button type="submit"
+          class="w-full py-3 rounded-xl text-white font-bold text-base transition hover:opacity-90 active:scale-95"
+          style="background: linear-gradient(135deg,#7B1FA2,#1A73E8)">
+          <i class="fa-solid fa-right-to-bracket me-2"></i>دخول
+        </button>
+      </form>
+    </div>
+
+    <p class="text-center text-gray-600 text-xs mt-6">نظام إدارة محل الجوالات &copy; 2026</p>
+  </div>
+</body>
+</html>

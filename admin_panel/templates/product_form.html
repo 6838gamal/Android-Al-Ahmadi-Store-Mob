@@ -1,0 +1,133 @@
+{% extends "layout.html" %}
+{% set active = 'products' %}
+{% block title %}{% if product %}تعديل المنتج{% else %}إضافة منتج{% endif %}{% endblock %}
+{% block page_title %}{% if product %}تعديل{% else %}إضافة منتج{% endif %}{% endblock %}
+
+{% block content %}
+<div class="flex items-center gap-3 mb-6">
+  <a href="/products" class="btn-secondary"><i class="fa-solid fa-arrow-right"></i> رجوع</a>
+  <div>
+    <h1 class="text-white text-xl font-extrabold">{% if product %}تعديل: {{ product.name }}{% else %}إضافة منتج جديد{% endif %}</h1>
+  </div>
+</div>
+
+{% if error %}
+<div class="bg-red-500/10 border border-red-500/30 text-red-400 rounded-xl p-4 mb-5 flex items-center gap-3">
+  <i class="fa-solid fa-circle-exclamation"></i> {{ error }}
+</div>
+{% endif %}
+
+<form method="post" enctype="multipart/form-data"
+  action="{% if product %}/products/edit/{{ product.id }}{% else %}/products/add{% endif %}">
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+    <!-- Main Info -->
+    <div class="lg:col-span-2 space-y-5">
+      <div class="card p-6 space-y-4">
+        <h2 class="text-white font-bold border-b border-dark-border pb-3">معلومات المنتج</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label class="text-gray-400 text-sm font-semibold mb-2 block">اسم المنتج <span class="text-red-400">*</span></label>
+            <input type="text" name="name" value="{{ product.name if product else '' }}" required class="input-field" placeholder="مثال: Samsung Galaxy S24">
+          </div>
+          <div>
+            <label class="text-gray-400 text-sm font-semibold mb-2 block">الاسم بالعربي</label>
+            <input type="text" name="name_ar" value="{{ product.name_ar or '' if product else '' }}" class="input-field" placeholder="سامسونج جالكسي">
+          </div>
+          <div>
+            <label class="text-gray-400 text-sm font-semibold mb-2 block">الماركة</label>
+            <input type="text" name="brand" value="{{ product.brand or '' if product else '' }}" class="input-field" placeholder="Samsung, Apple...">
+          </div>
+          <div>
+            <label class="text-gray-400 text-sm font-semibold mb-2 block">الموديل</label>
+            <input type="text" name="model" value="{{ product.model or '' if product else '' }}" class="input-field" placeholder="S24, iPhone 15...">
+          </div>
+          <div>
+            <label class="text-gray-400 text-sm font-semibold mb-2 block">الفئة <span class="text-red-400">*</span></label>
+            <select name="category" required class="select-field w-full">
+              {% for val, label in categories %}
+              <option value="{{ val }}" {% if product and product.category.value == val %}selected{% endif %}>{{ label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div>
+            <label class="text-gray-400 text-sm font-semibold mb-2 block">الحالة</label>
+            <select name="status" class="select-field w-full">
+              {% for val, lbl in [('available','متوفر'),('reserved','محجوز'),('sold','مباع'),('unavailable','غير متوفر')] %}
+              <option value="{{ val }}" {% if product and product.status.value == val %}selected{% endif %}>{{ lbl }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+        <div>
+          <label class="text-gray-400 text-sm font-semibold mb-2 block">الوصف</label>
+          <textarea name="description" rows="3" class="input-field resize-none" placeholder="وصف تفصيلي للمنتج...">{{ product.description or '' if product else '' }}</textarea>
+        </div>
+        <div>
+          <label class="text-gray-400 text-sm font-semibold mb-2 block">ملاحظات</label>
+          <textarea name="notes" rows="2" class="input-field resize-none" placeholder="ملاحظات داخلية...">{{ product.notes or '' if product else '' }}</textarea>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sidebar info -->
+    <div class="space-y-5">
+      <!-- Pricing & Stock -->
+      <div class="card p-6 space-y-4">
+        <h2 class="text-white font-bold border-b border-dark-border pb-3">السعر والمخزون</h2>
+        <div>
+          <label class="text-gray-400 text-sm font-semibold mb-2 block">السعر (ر.س) <span class="text-red-400">*</span></label>
+          <input type="number" name="price" value="{{ product.price if product else '' }}" required step="0.01" min="0" class="input-field" placeholder="0.00">
+        </div>
+        <div>
+          <label class="text-gray-400 text-sm font-semibold mb-2 block">الكمية</label>
+          <input type="number" name="quantity" value="{{ product.quantity if product else '0' }}" min="0" class="input-field">
+        </div>
+        <label class="flex items-center gap-3 cursor-pointer">
+          <input type="checkbox" name="is_featured" value="1" {% if product and product.is_featured %}checked{% endif %}
+            class="w-4 h-4 rounded accent-blue-500">
+          <span class="text-gray-300 text-sm font-semibold">منتج مميز</span>
+        </label>
+      </div>
+
+      <!-- Image -->
+      <div class="card p-6 space-y-4">
+        <h2 class="text-white font-bold border-b border-dark-border pb-3">صورة المنتج</h2>
+        {% if product and product.image_url %}
+        <img src="{{ product.image_url }}" class="w-full h-40 object-cover rounded-xl mb-3">
+        {% endif %}
+        <label class="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-dark-border rounded-xl cursor-pointer hover:border-primary/50 transition">
+          <i class="fa-solid fa-cloud-arrow-up text-gray-500 text-2xl mb-2"></i>
+          <span class="text-gray-500 text-sm">اختر صورة</span>
+          <input type="file" name="image" accept="image/*" class="hidden" onchange="previewImage(this)">
+        </label>
+        <img id="preview" class="hidden w-full h-40 object-cover rounded-xl">
+      </div>
+
+      <div class="flex gap-3">
+        <button type="submit" class="btn-primary flex-1 justify-center py-3">
+          <i class="fa-solid fa-floppy-disk"></i>
+          {% if product %}حفظ التعديلات{% else %}إضافة المنتج{% endif %}
+        </button>
+        <a href="/products" class="btn-secondary py-3 px-4">إلغاء</a>
+      </div>
+    </div>
+  </div>
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function previewImage(input) {
+  if (input.files && input.files[0]) {
+    const reader = new FileReader();
+    reader.onload = e => {
+      const img = document.getElementById('preview');
+      img.src = e.target.result;
+      img.classList.remove('hidden');
+    };
+    reader.readAsDataURL(input.files[0]);
+  }
+}
+</script>
+{% endblock %}

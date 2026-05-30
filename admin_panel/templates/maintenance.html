@@ -1,0 +1,133 @@
+{% extends "layout.html" %}
+{% set active = 'maintenance' %}
+{% block title %}إدارة الصيانة{% endblock %}
+{% block page_title %}الصيانة{% endblock %}
+
+{% block content %}
+<div class="page-header flex flex-wrap items-center justify-between gap-3">
+  <div>
+    <h1 class="text-white text-2xl font-extrabold">إدارة الصيانة</h1>
+    <p class="text-white/70 text-sm mt-1">{{ orders|length }} طلب صيانة</p>
+  </div>
+  <button onclick="document.getElementById('addModal').classList.remove('hidden')" class="btn-primary">
+    <i class="fa-solid fa-plus"></i> إضافة صيانة
+  </button>
+</div>
+
+<!-- Search -->
+<form method="get" class="mb-5">
+  <div class="relative max-w-sm">
+    <i class="fa-solid fa-search absolute top-1/2 -translate-y-1/2 right-4 text-gray-500"></i>
+    <input type="text" name="search" value="{{ search }}" placeholder="بحث بالاسم أو الرقم..."
+      class="input-field pr-11" onchange="this.form.submit()">
+  </div>
+</form>
+
+{% if orders %}
+<div class="space-y-4">
+  {% for order in orders %}
+  {% set ms = order.maintenance_status.value if order.maintenance_status else 'received' %}
+  <div class="card p-5">
+    <div class="flex flex-wrap items-start justify-between gap-4">
+      <div class="flex-1 min-w-0">
+        <div class="flex flex-wrap items-center gap-3 mb-2">
+          <span class="text-primary font-bold">{{ order.order_number }}</span>
+          <span class="badge" style="background:{{ maint_colors.get(ms,'#6B7280') }}22; color:{{ maint_colors.get(ms,'#6B7280') }}">
+            {{ maint_labels.get(ms, ms) }}
+          </span>
+          <span class="text-gray-500 text-xs">{{ order.created_at.strftime('%Y-%m-%d') if order.created_at else '' }}</span>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
+          <div><span class="text-gray-500">العميل:</span> <span class="text-white font-semibold mr-1">{{ order.customer_name }}</span></div>
+          <div><span class="text-gray-500">الجوال:</span> <span class="text-white mr-1">{{ order.customer_phone }}</span></div>
+          {% if order.total > 0 %}
+          <div><span class="text-gray-500">التكلفة:</span> <span class="text-primary font-bold mr-1">{{ "%.2f"|format(order.total) }} ر.س</span></div>
+          {% endif %}
+        </div>
+        {% if order.items %}
+        {% set item = order.items[0] if order.items else {} %}
+        <div class="mt-2 text-sm">
+          <span class="text-gray-500">الجهاز:</span> <span class="text-gray-300 mr-1">{{ item.get('device','—') }}</span>
+          <span class="text-gray-500 mr-3">المشكلة:</span> <span class="text-gray-300 mr-1">{{ item.get('problem','—') }}</span>
+        </div>
+        {% endif %}
+        {% if order.admin_notes %}
+        <div class="mt-2 text-xs text-yellow-400"><i class="fa-solid fa-note-sticky me-1"></i>{{ order.admin_notes }}</div>
+        {% endif %}
+      </div>
+      <!-- Update form -->
+      <div class="w-full md:w-72">
+        <form method="post" action="/maintenance/{{ order.id }}/status" class="space-y-2">
+          <select name="maintenance_status" class="select-field w-full text-sm">
+            {% for val, lbl in all_maint_statuses %}
+            <option value="{{ val }}" {% if ms == val %}selected{% endif %}>{{ lbl }}</option>
+            {% endfor %}
+          </select>
+          <input type="text" name="note" class="input-field text-sm" placeholder="ملاحظة...">
+          <input type="text" name="estimated_time" class="input-field text-sm" placeholder="الوقت المتوقع..." value="{{ order.estimated_time or '' }}">
+          <button type="submit" class="btn-primary w-full justify-center text-sm py-2">
+            <i class="fa-solid fa-rotate"></i> تحديث الحالة
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="card p-16 text-center">
+  <i class="fa-solid fa-screwdriver-wrench text-5xl text-gray-600 mb-4 block"></i>
+  <p class="text-gray-500 font-semibold mb-4">لا توجد طلبات صيانة{% if search %} تطابق البحث{% endif %}</p>
+  <button onclick="document.getElementById('addModal').classList.remove('hidden')" class="btn-primary">إضافة طلب صيانة</button>
+</div>
+{% endif %}
+
+<!-- Add Maintenance Modal -->
+<div id="addModal" class="hidden fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+  <div class="bg-dark-surface border border-dark-border rounded-2xl w-full max-w-lg p-6">
+    <div class="flex items-center justify-between mb-5">
+      <h2 class="text-white text-lg font-extrabold">إضافة طلب صيانة</h2>
+      <button onclick="document.getElementById('addModal').classList.add('hidden')" class="text-gray-500 hover:text-white">
+        <i class="fa-solid fa-xmark text-xl"></i>
+      </button>
+    </div>
+    <form method="post" action="/maintenance/add" class="space-y-4">
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label class="text-gray-400 text-sm font-semibold mb-1 block">اسم العميل <span class="text-red-400">*</span></label>
+          <input type="text" name="customer_name" required class="input-field text-sm" placeholder="محمد أحمد">
+        </div>
+        <div>
+          <label class="text-gray-400 text-sm font-semibold mb-1 block">رقم الجوال <span class="text-red-400">*</span></label>
+          <input type="text" name="customer_phone" required class="input-field text-sm" placeholder="05xxxxxxxx">
+        </div>
+      </div>
+      <div>
+        <label class="text-gray-400 text-sm font-semibold mb-1 block">نوع الجهاز <span class="text-red-400">*</span></label>
+        <input type="text" name="device_type" required class="input-field text-sm" placeholder="Samsung Galaxy S24">
+      </div>
+      <div>
+        <label class="text-gray-400 text-sm font-semibold mb-1 block">وصف المشكلة <span class="text-red-400">*</span></label>
+        <textarea name="problem_description" required rows="2" class="input-field text-sm resize-none" placeholder="اذكر المشكلة بالتفصيل..."></textarea>
+      </div>
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label class="text-gray-400 text-sm font-semibold mb-1 block">التكلفة (ر.س)</label>
+          <input type="number" name="price" value="0" min="0" step="0.01" class="input-field text-sm">
+        </div>
+        <div>
+          <label class="text-gray-400 text-sm font-semibold mb-1 block">ملاحظات</label>
+          <input type="text" name="notes" class="input-field text-sm" placeholder="اختياري...">
+        </div>
+      </div>
+      <div class="flex gap-3 pt-2">
+        <button type="submit" class="btn-primary flex-1 justify-center py-3">
+          <i class="fa-solid fa-plus"></i> إضافة الطلب
+        </button>
+        <button type="button" onclick="document.getElementById('addModal').classList.add('hidden')"
+          class="btn-secondary py-3 px-5">إلغاء</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
