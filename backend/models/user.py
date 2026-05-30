@@ -1,4 +1,5 @@
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, Enum
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, Enum, Float, ForeignKey
+from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from backend.core.database import Base
 import enum
@@ -6,6 +7,8 @@ import enum
 
 class UserRole(str, enum.Enum):
     customer = "customer"
+    staff = "staff"
+    branch_manager = "branch_manager"
     admin = "admin"
 
 
@@ -21,5 +24,20 @@ class User(Base):
     avatar_url = Column(String(500), nullable=True)
     is_active = Column(Boolean, default=True)
     fcm_token = Column(String(500), nullable=True)
+
+    # Branch linkage
+    branch_id = Column(Integer, ForeignKey("branches.id"), nullable=True)
+
+    # Referral
+    referral_code = Column(String(20), nullable=True, index=True)
+    referred_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+
+    # Wallet
+    wallet_balance = Column(Float, default=0.0)
+    wallet_currency = Column(String(3), default="YER")
+
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    branch = relationship("Branch", foreign_keys=[branch_id])
+    referred_by = relationship("User", foreign_keys=[referred_by_id], remote_side="User.id")

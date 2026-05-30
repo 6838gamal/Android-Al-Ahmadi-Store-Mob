@@ -1,0 +1,99 @@
+{% extends "layout.html" %}
+{% block title %}الإحالات{% endblock %}
+{% block page_title %}الإحالات{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1 class="text-white text-2xl font-extrabold">نظام الإحالات</h1>
+  <p class="text-white/70 text-sm mt-1">الهدف: 50 مستخدم حقيقي لكل مُحيل</p>
+</div>
+
+<!-- Stats -->
+<div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+  <div class="stat-card text-center">
+    <div class="text-2xl font-extrabold text-blue-400">{{ total }}</div>
+    <div class="text-gray-400 text-sm mt-1">إجمالي الإحالات</div>
+  </div>
+  <div class="stat-card text-center">
+    <div class="text-2xl font-extrabold text-green-400">{{ verified }}</div>
+    <div class="text-gray-400 text-sm mt-1">محققة</div>
+  </div>
+  <div class="stat-card text-center">
+    <div class="text-2xl font-extrabold text-yellow-400">{{ total - verified }}</div>
+    <div class="text-gray-400 text-sm mt-1">غير محققة</div>
+  </div>
+  <div class="stat-card text-center">
+    <div class="text-2xl font-extrabold text-purple-400">{{ top_referrers | length }}</div>
+    <div class="text-gray-400 text-sm mt-1">محيلون نشطون</div>
+  </div>
+</div>
+
+<!-- Top Referrers -->
+{% if top_referrers %}
+<div class="card p-5 mb-6">
+  <h2 class="text-white font-bold mb-4">أكثر المحيلين نشاطاً</h2>
+  <div class="space-y-3">
+    {% for r in top_referrers %}
+    <div class="flex items-center justify-between p-3 bg-dark-alt rounded-xl">
+      <div class="flex items-center gap-3">
+        <div class="w-8 h-8 rounded-full bg-primary-light flex items-center justify-center text-primary font-bold text-sm">{{ loop.index }}</div>
+        <div>
+          <div class="text-white font-bold text-sm">{{ r.referrer.name }}</div>
+          <div class="text-gray-400 text-xs">{{ r.referrer.phone }}</div>
+        </div>
+      </div>
+      <div class="text-center">
+        <div class="text-white font-bold">{{ r.count }}</div>
+        <div class="text-gray-500 text-xs">إحالة</div>
+      </div>
+      <div class="w-24 bg-dark-border rounded-full h-2">
+        <div class="bg-primary h-2 rounded-full" style="width:{{ [r.count / 50 * 100, 100] | min }}%"></div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+<!-- Referrals Table -->
+<div class="card overflow-hidden">
+  <div class="p-4 border-b border-dark-border">
+    <h2 class="text-white font-bold">جميع الإحالات</h2>
+  </div>
+  <div class="overflow-x-auto">
+    <table class="w-full">
+      <thead>
+        <tr class="border-b border-dark-border">
+          {% for h in ['#','المُحيل','المُحال','التحقق','التاريخ'] %}
+          <th class="px-4 py-3 text-right text-gray-400 text-xs font-bold">{{ h }}</th>
+          {% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for ref in referrals %}
+        <tr class="table-row">
+          <td class="px-4 py-3 text-gray-500 text-sm">{{ ref.id }}</td>
+          <td class="px-4 py-3">
+            <div class="text-white text-sm font-bold">{{ ref.referrer.name }}</div>
+            <div class="text-gray-500 text-xs">{{ ref.referrer.phone }}</div>
+          </td>
+          <td class="px-4 py-3">
+            <div class="text-white text-sm">{{ ref.referred.name }}</div>
+            <div class="text-gray-500 text-xs">{{ ref.referred.phone }}</div>
+          </td>
+          <td class="px-4 py-3">
+            {% if ref.is_verified %}
+            <span class="badge" style="background:#22C55E22;color:#22C55E">محقق ✓</span>
+            {% else %}
+            <span class="badge" style="background:#F59E0B22;color:#F59E0B">غير محقق</span>
+            {% endif %}
+          </td>
+          <td class="px-4 py-3 text-gray-400 text-sm">{{ ref.created_at.strftime('%Y-%m-%d') }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="5" class="px-4 py-8 text-center text-gray-500">لا توجد إحالات بعد</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

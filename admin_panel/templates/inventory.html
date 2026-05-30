@@ -1,0 +1,154 @@
+{% extends "layout.html" %}
+{% block title %}مخزون العناصر{% endblock %}
+{% block page_title %}مخزون العناصر{% endblock %}
+{% block content %}
+<div class="page-header flex items-center justify-between">
+  <div>
+    <h1 class="text-white text-2xl font-extrabold">مخزون العناصر الفردية</h1>
+    <p class="text-white/70 text-sm mt-1">كل عنصر برقم تسلسلي ودرجة جودة مستقلة</p>
+  </div>
+  <button onclick="document.getElementById('addModal').classList.remove('hidden')" class="btn-primary">
+    <i class="fa-solid fa-plus"></i> إضافة عنصر
+  </button>
+</div>
+
+<!-- Stats Row -->
+<div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+  {% for label, val, color in [
+    ('الإجمالي', stats.total, '#1A73E8'),
+    ('متوفر', stats.available, '#22C55E'),
+    ('محجوز', stats.reserved, '#F59E0B'),
+    ('مباع', stats.sold, '#EF4444'),
+  ] %}
+  <div class="stat-card text-center">
+    <div class="text-2xl font-extrabold" style="color:{{ color }}">{{ val }}</div>
+    <div class="text-gray-400 text-sm mt-1">{{ label }}</div>
+  </div>
+  {% endfor %}
+</div>
+
+<!-- Filters -->
+<form method="get" class="card p-4 mb-6 flex flex-wrap gap-3 items-end">
+  <div class="flex-1 min-w-[160px]">
+    <label class="block text-gray-400 text-xs mb-1">بحث</label>
+    <input name="search" value="{{ search }}" class="input-field" placeholder="سيريال / موديل / براند...">
+  </div>
+  <div>
+    <label class="block text-gray-400 text-xs mb-1">الحالة</label>
+    <select name="status" class="select-field">
+      <option value="">الكل</option>
+      <option value="available" {% if status_filter=='available' %}selected{% endif %}>متوفر</option>
+      <option value="reserved" {% if status_filter=='reserved' %}selected{% endif %}>محجوز</option>
+      <option value="sold" {% if status_filter=='sold' %}selected{% endif %}>مباع</option>
+    </select>
+  </div>
+  <div>
+    <label class="block text-gray-400 text-xs mb-1">الدرجة</label>
+    <select name="grade" class="select-field">
+      <option value="">الكل</option>
+      {% for g in ['A+','A','B','C'] %}
+      <option value="{{ g }}" {% if grade_filter==g %}selected{% endif %}>{{ g }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <button type="submit" class="btn-primary">بحث</button>
+</form>
+
+<!-- Table -->
+<div class="card overflow-hidden">
+  <div class="overflow-x-auto">
+    <table class="w-full">
+      <thead>
+        <tr class="border-b border-dark-border">
+          {% for h in ['#','الرقم التسلسلي','الفئة','الموديل','الدرجة','السعر','الحالة','الفرع','إجراءات'] %}
+          <th class="px-4 py-3 text-right text-gray-400 text-xs font-bold">{{ h }}</th>
+          {% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in items %}
+        <tr class="table-row">
+          <td class="px-4 py-3 text-gray-500 text-sm">{{ item.id }}</td>
+          <td class="px-4 py-3 text-white font-mono text-sm">{{ item.serial_number or '—' }}</td>
+          <td class="px-4 py-3 text-gray-300 text-sm">{{ item.category }}</td>
+          <td class="px-4 py-3 text-gray-300 text-sm">{{ item.brand or '' }} {{ item.model or '' }}</td>
+          <td class="px-4 py-3">
+            {% set grade_colors = {'A+':'#22C55E','A':'#3B82F6','B':'#F59E0B','C':'#EF4444'} %}
+            <span class="badge" style="background:{{ grade_colors.get(item.grade.value,'#6B7280') }}22;color:{{ grade_colors.get(item.grade.value,'#6B7280') }}">{{ item.grade.value }}</span>
+          </td>
+          <td class="px-4 py-3 text-white font-bold text-sm">{{ item.price }}</td>
+          <td class="px-4 py-3">
+            {% set sc = {'available':'#22C55E','reserved':'#F59E0B','sold':'#EF4444'} %}
+            {% set sl = {'available':'متوفر','reserved':'محجوز','sold':'مباع'} %}
+            <span class="badge" style="background:{{ sc.get(item.status.value,'#6B7280') }}22;color:{{ sc.get(item.status.value,'#6B7280') }}">{{ sl.get(item.status.value, item.status.value) }}</span>
+          </td>
+          <td class="px-4 py-3 text-gray-400 text-sm">{{ item.branch.name if item.branch else '—' }}</td>
+          <td class="px-4 py-3">
+            {% if item.status.value == 'sold' %}
+            <form method="post" action="/inventory/{{ item.id }}/return-stock" class="inline">
+              <button class="text-xs text-yellow-400 hover:text-yellow-300 font-bold">إعادة للمخزون</button>
+            </form>
+            {% elif item.status.value == 'available' %}
+            <form method="post" action="/inventory/{{ item.id }}/sell" class="inline">
+              <button class="text-xs text-green-400 hover:text-green-300 font-bold">تسجيل بيع</button>
+            </form>
+            {% endif %}
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="9" class="px-4 py-8 text-center text-gray-500">لا توجد عناصر</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Add Modal -->
+<div id="addModal" class="hidden fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+  <div class="card w-full max-w-lg p-6">
+    <h2 class="text-white font-bold text-lg mb-4">إضافة عنصر جديد</h2>
+    <form method="post" action="/inventory/add">
+      <div class="grid grid-cols-2 gap-4 mb-4">
+        <div>
+          <label class="block text-gray-400 text-xs mb-1">الرقم التسلسلي</label>
+          <input name="serial_number" class="input-field" placeholder="اختياري">
+        </div>
+        <div>
+          <label class="block text-gray-400 text-xs mb-1">الفئة *</label>
+          <select name="category" class="select-field w-full" required>
+            {% for c in ['screen','battery','camera','speaker','charger','device','spare_part','other'] %}
+            <option value="{{ c }}">{{ c }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label class="block text-gray-400 text-xs mb-1">البراند</label>
+          <input name="brand" class="input-field" placeholder="Apple / Samsung...">
+        </div>
+        <div>
+          <label class="block text-gray-400 text-xs mb-1">الموديل</label>
+          <input name="model" class="input-field" placeholder="iPhone 15...">
+        </div>
+        <div>
+          <label class="block text-gray-400 text-xs mb-1">الدرجة *</label>
+          <select name="grade" class="select-field w-full">
+            {% for g in ['A+','A','B','C'] %}<option value="{{ g }}">{{ g }}</option>{% endfor %}
+          </select>
+        </div>
+        <div>
+          <label class="block text-gray-400 text-xs mb-1">السعر *</label>
+          <input name="price" type="number" step="0.01" class="input-field" required>
+        </div>
+        <div class="col-span-2">
+          <label class="block text-gray-400 text-xs mb-1">ملاحظات</label>
+          <textarea name="notes" class="input-field" rows="2"></textarea>
+        </div>
+      </div>
+      <div class="flex gap-3 justify-end">
+        <button type="button" onclick="document.getElementById('addModal').classList.add('hidden')" class="btn-secondary">إلغاء</button>
+        <button type="submit" class="btn-primary">إضافة</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

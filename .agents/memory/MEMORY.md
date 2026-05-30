@@ -3,3 +3,5 @@
 - [Node proxy redirects](node-proxy.md) — FastAPI 307-redirects bare paths to trailing-slash; proxy must follow redirects internally
 - [Backend workflow binding](backend-workflow.md) — uvicorn must bind 0.0.0.0 (not localhost) for Replit workflow port detection
 - [ShellRoute nested Scaffold drawer bug](shell-drawer-bug.md) — Scaffold.of(ctx) inside Builder inside a child page finds the inner Scaffold (no drawer); use build's context directly instead
+- [Postgres enum migration](postgres-enum-migration.md) — ALTER TYPE userrole ADD VALUE needs AUTOCOMMIT + engine.url object (not str); str() masks password in SQLAlchemy 1.4+
+- [Model import order](model-import-order.md) — Branch must import before User in models/__init__.py; User has FK branch_id → branches table

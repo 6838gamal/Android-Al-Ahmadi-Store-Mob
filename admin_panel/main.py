@@ -10,14 +10,27 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 from typing import Optional
 import shutil, uuid
+from datetime import datetime, timedelta
 
 from backend.core.database import SessionLocal, engine, Base
 from backend.core.security import verify_password, get_password_hash
+from backend.core.migrations import run_migrations
+
+# Load models in correct order (Branch before User)
+from backend.models.branch import Branch, Warehouse
 from backend.models.user import User, UserRole
 from backend.models.product import Product, ProductCategory, ProductStatus
 from backend.models.order import Order, OrderUpdate, OrderStatus, OrderType, MaintenanceStatus, PaymentMethod
 from backend.models.reservation import Reservation, ReservationStatus
+from backend.models.inventory_item import InventoryItem, ItemGrade, ItemStatus
+from backend.models.referral import Referral
+from backend.models.warranty import Warranty
+from backend.models.inspection import InspectionRequest, InspectionStatus
+from backend.models.wallet import WalletTransaction, TransactionType, WalletCurrency
+from backend.models.notification import Notification
+from backend.models.audit_log import AuditLog, AuditAction
 
+run_migrations()
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="لوحة إدارة اندرويد الاحمدي", docs_url=None, redoc_url=None)
@@ -529,6 +542,364 @@ async def customers_list(request: Request, search: str = "", db: Session = Depen
         "admin_name": request.session.get("admin_name"),
         "customers": customers, "search": search,
     })
+
+
+# ─── Inventory Items ───────────────────────────────────────────────────────────
+
+@app.get("/inventory", response_class=HTMLResponse)
+async def inventory_list(request: Request, search: str = "", status_filter: str = "", grade_filter: str = "", db: Session = Depends(get_db)):
+    if not request.session.get("admin_id"):
+        return RedirectResponse("/login", status_code=302)
+    q = db.query(InventoryItem).filter(InventoryItem.is_active == True)
+    if search:
+        q = q.filter(
+            InventoryItem.serial_number.ilike(f"%{search}%") |
+            InventoryItem.brand.ilike(f"%{search}%") |
+            InventoryItem.model.ilike(f"%{search}%")
+        )
+    if status_filter:
+        q = q.filter(InventoryItem.status == ItemStatus(status_filter))
+    if grade_filter:
+        q = q.filter(InventoryItem.grade == grade_filter)
+    items = q.order_by(InventoryItem.created_at.desc()).all()
+    total = db.query(InventoryItem).filter(InventoryItem.is_active == True).count()
+    available = db.query(InventoryItem).filter(InventoryItem.is_active == True, InventoryItem.status == ItemStatus.available).count()
+    reserved = db.query(InventoryItem).filter(InventoryItem.is_active == True, InventoryItem.status == ItemStatus.reserved).count()
+    sold = db.query(InventoryItem).filter(InventoryItem.is_active == True, InventoryItem.status == ItemStatus.sold).count()
+    return templates.TemplateResponse(request, "inventory.html", {
+        "admin_name": request.session.get("admin_name"), "active": "inventory",
+        "items": items, "search": search, "status_filter": status_filter, "grade_filter": grade_filter,
+        "stats": {"total": total, "available": available, "reserved": reserved, "sold": sold},
+    })
+
+
+@app.post("/inventory/add")
+async def inventory_add(
+    request: Request,
+    serial_number: str = Form(""), category: str = Form(...),
+    brand: str = Form(""), model: str = Form(""), grade: str = Form("A"),
+    price: float = Form(...), notes: str = Form(""),
+    db: Session = Depends(get_db)
+):
+    if not request.session.get("admin_id"):
+        return RedirectResponse("/login", status_code=302)
+    item = InventoryItem(
+        serial_number=serial_number or None,
+        category=category, brand=brand or None, model=model or None,
+        grade=grade, price=price, notes=notes or None,
+    )
+    db.add(item)
+    db.commit()
+    return RedirectResponse("/inventory", status_code=302)
+
+
+@app.post("/inventory/{item_id}/sell")
+async def inventory_sell(item_id: int, request: Request, db: Session = Depends(get_db)):
+    if not request.session.get("admin_id"):
+        return RedirectResponse("/login", status_code=302)
+    item = db.query(InventoryItem).filter(InventoryItem.id == item_id).first()
+    if item:
+        item.status = ItemStatus.sold
+        db.commit()
+    return RedirectResponse("/inventory", status_code=302)
+
+
+@app.post("/inventory/{item_id}/return-stock")
+async def inventory_return_stock(item_id: int, request: Request, db: Session = Depends(get_db)):
+    if not request.session.get("admin_id"):
+        return RedirectResponse("/login", status_code=302)
+    item = db.query(InventoryItem).filter(InventoryItem.id == item_id).first()
+    if item:
+        item.status = ItemStatus.available
+        item.sold_to_id = None
+        db.commit()
+    return RedirectResponse("/inventory", status_code=302)
+
+
+# ─── Inspection ────────────────────────────────────────────────────────────────
+
+@app.get("/inspection", response_class=HTMLResponse)
+async def inspection_list(request: Request, status: str = "", db: Session = Depends(get_db)):
+    if not request.session.get("admin_id"):
+        return RedirectResponse("/login", status_code=302)
+    q = db.query(InspectionRequest)
+    if status:
+        q = q.filter(InspectionRequest.status == InspectionStatus(status))
+    requests = q.order_by(InspectionRequest.created_at.desc()).all()
+    return templates.TemplateResponse(request, "inspection.html", {
+        "admin_name": request.session.get("admin_name"), "active": "inspection",
+        "requests": requests,
+    })
+
+
+@app.post("/inspection/{req_id}/respond")
+async def inspection_respond(
+    req_id: int, request: Request,
+    diagnosis: str = Form(...), estimated_price: str = Form(""),
+    response_notes: str = Form(""), db: Session = Depends(get_db)
+):
+    if not request.session.get("admin_id"):
+        return RedirectResponse("/login", status_code=302)
+    req = db.query(InspectionRequest).filter(InspectionRequest.id == req_id).first()
+    if req:
+        req.staff_id = request.session.get("admin_id")
+        req.diagnosis = diagnosis
+        req.estimated_price = estimated_price or None
+        req.response_notes = response_notes or None
+        req.status = InspectionStatus.responded
+        req.responded_at = datetime.utcnow()
+        db.commit()
+    return RedirectResponse("/inspection", status_code=302)
+
+
+@app.post("/inspection/{req_id}/close")
+async def inspection_close(req_id: int, request: Request, db: Session = Depends(get_db)):
+    if not request.session.get("admin_id"):
+        return RedirectResponse("/login", status_code=302)
+    req = db.query(InspectionRequest).filter(InspectionRequest.id == req_id).first()
+    if req:
+        req.status = InspectionStatus.closed
+        db.commit()
+    return RedirectResponse("/inspection", status_code=302)
+
+
+# ─── Referrals ─────────────────────────────────────────────────────────────────
+
+@app.get("/referrals", response_class=HTMLResponse)
+async def referrals_list(request: Request, db: Session = Depends(get_db)):
+    if not request.session.get("admin_id"):
+        return RedirectResponse("/login", status_code=302)
+    referrals = db.query(Referral).order_by(Referral.created_at.desc()).all()
+    total = len(referrals)
+    verified = sum(1 for r in referrals if r.is_verified)
+    from sqlalchemy import func as sqlfunc
+    top_referrers = (
+        db.query(User, sqlfunc.count(Referral.id).label("count"))
+        .join(Referral, Referral.referrer_id == User.id)
+        .group_by(User.id)
+        .order_by(sqlfunc.count(Referral.id).desc())
+        .limit(10).all()
+    )
+    return templates.TemplateResponse(request, "referrals.html", {
+        "admin_name": request.session.get("admin_name"), "active": "referrals",
+        "referrals": referrals, "total": total, "verified": verified,
+        "top_referrers": [type("R", (), {"referrer": u, "count": c})() for u, c in top_referrers],
+    })
+
+
+# ─── Warranty ──────────────────────────────────────────────────────────────────
+
+@app.get("/warranty", response_class=HTMLResponse)
+async def warranty_list(request: Request, db: Session = Depends(get_db)):
+    if not request.session.get("admin_id"):
+        return RedirectResponse("/login", status_code=302)
+    warranties = db.query(Warranty).order_by(Warranty.created_at.desc()).all()
+    return_requests = sum(1 for w in warranties if w.is_return_requested and not w.return_resolved)
+    return templates.TemplateResponse(request, "warranty.html", {
+        "admin_name": request.session.get("admin_name"), "active": "warranty",
+        "warranties": warranties, "return_requests": return_requests,
+        "now_dt": datetime.utcnow(),
+    })
+
+
+@app.post("/warranty/add")
+async def warranty_add(
+    request: Request,
+    product_name: str = Form(...), product_serial: str = Form(""),
+    order_id: int = Form(None), warranty_days: int = Form(7),
+    db: Session = Depends(get_db)
+):
+    if not request.session.get("admin_id"):
+        return RedirectResponse("/login", status_code=302)
+    starts = datetime.utcnow()
+    w = Warranty(
+        product_name=product_name,
+        product_serial=product_serial or None,
+        order_id=order_id,
+        warranty_days=warranty_days,
+        starts_at=starts,
+        ends_at=starts + timedelta(days=warranty_days),
+    )
+    db.add(w)
+    db.commit()
+    return RedirectResponse("/warranty", status_code=302)
+
+
+@app.post("/warranty/{warranty_id}/resolve")
+async def warranty_resolve(warranty_id: int, request: Request, db: Session = Depends(get_db)):
+    if not request.session.get("admin_id"):
+        return RedirectResponse("/login", status_code=302)
+    w = db.query(Warranty).filter(Warranty.id == warranty_id).first()
+    if w:
+        w.return_resolved = True
+        w.return_notes = "تم الحل من لوحة الإدارة"
+        db.commit()
+    return RedirectResponse("/warranty", status_code=302)
+
+
+# ─── Staff Management ──────────────────────────────────────────────────────────
+
+@app.get("/staff", response_class=HTMLResponse)
+async def staff_list(request: Request, db: Session = Depends(get_db)):
+    if not request.session.get("admin_id"):
+        return RedirectResponse("/login", status_code=302)
+    staff = db.query(User).filter(User.role.in_([UserRole.staff, UserRole.branch_manager, UserRole.admin])).order_by(User.created_at.desc()).all()
+    return templates.TemplateResponse(request, "staff.html", {
+        "admin_name": request.session.get("admin_name"), "active": "staff",
+        "staff": staff,
+    })
+
+
+@app.post("/staff/add")
+async def staff_add(
+    request: Request,
+    name: str = Form(...), phone: str = Form(""), email: str = Form(""),
+    role: str = Form("staff"), password: str = Form(...),
+    db: Session = Depends(get_db)
+):
+    if not request.session.get("admin_id"):
+        return RedirectResponse("/login", status_code=302)
+    import random, string
+    code = "".join(random.choices(string.ascii_uppercase + string.digits, k=8))
+    user = User(
+        name=name, phone=phone or None, email=email or None,
+        hashed_password=get_password_hash(password),
+        role=UserRole(role), is_active=True, referral_code=code,
+    )
+    db.add(user)
+    db.commit()
+    return RedirectResponse("/staff", status_code=302)
+
+
+@app.post("/staff/{user_id}/toggle-active")
+async def staff_toggle(user_id: int, request: Request, db: Session = Depends(get_db)):
+    if not request.session.get("admin_id"):
+        return RedirectResponse("/login", status_code=302)
+    user = db.query(User).filter(User.id == user_id).first()
+    if user:
+        user.is_active = not user.is_active
+        db.commit()
+    return RedirectResponse("/staff", status_code=302)
+
+
+# ─── Reports ───────────────────────────────────────────────────────────────────
+
+@app.get("/reports", response_class=HTMLResponse)
+async def reports_page(request: Request, period: str = "month", db: Session = Depends(get_db)):
+    if not request.session.get("admin_id"):
+        return RedirectResponse("/login", status_code=302)
+
+    now = datetime.utcnow()
+    period_map = {"today": 0, "week": 7, "month": 30, "year": 365}
+    days = period_map.get(period, 30)
+    start = now.replace(hour=0, minute=0, second=0) if period == "today" else now - timedelta(days=days)
+
+    from backend.models.order import OrderType as OT
+    q = db.query(Order).filter(Order.status == OrderStatus.delivered)
+    if days:
+        q = q.filter(Order.created_at >= start)
+    delivered = q.all()
+    total_revenue = sum(o.total for o in delivered)
+    total_discount = sum(o.discount or 0 for o in delivered)
+
+    maint_q = db.query(Order).filter(Order.order_type == OT.maintenance)
+    if days:
+        maint_q = maint_q.filter(Order.created_at >= start)
+    maint_orders = maint_q.all()
+    maint_done = [o for o in maint_orders if o.status == OrderStatus.delivered]
+
+    inv_total = db.query(InventoryItem).filter(InventoryItem.is_active == True).count()
+    inv_avail = db.query(InventoryItem).filter(InventoryItem.is_active == True, InventoryItem.status == ItemStatus.available).count()
+    inv_sold = db.query(InventoryItem).filter(InventoryItem.is_active == True, InventoryItem.status == ItemStatus.sold).count()
+    inv_res = db.query(InventoryItem).filter(InventoryItem.is_active == True, InventoryItem.status == ItemStatus.reserved).count()
+    low_stock = db.query(Product).filter(Product.is_active == True, Product.quantity <= 3).all()
+
+    ref_total = db.query(Referral).count()
+    ref_verified = db.query(Referral).filter(Referral.is_verified == True).count()
+
+    war_total = db.query(Warranty).count()
+    war_ret = db.query(Warranty).filter(Warranty.is_return_requested == True).count()
+    war_res = db.query(Warranty).filter(Warranty.return_resolved == True).count()
+
+    sales = {"total_orders": len(delivered), "total_revenue": round(total_revenue, 2),
+             "average_order_value": round(total_revenue / len(delivered), 2) if delivered else 0}
+    profit = {"net_revenue": round(total_revenue - total_discount, 2), "total_discount": round(total_discount, 2)}
+    inv = {"total_items": inv_total, "available": inv_avail, "sold": inv_sold, "reserved": inv_res,
+           "low_stock_products": low_stock}
+    maint = {"total_requests": len(maint_orders), "completed": len(maint_done),
+              "total_revenue": round(sum(o.total for o in maint_done), 2)}
+    ref = {"total_referrals": ref_total, "verified_referrals": ref_verified}
+    war = {"total_warranties": war_total, "return_requests": war_ret, "resolved_returns": war_res,
+           "pending_returns": war_ret - war_res}
+
+    return templates.TemplateResponse(request, "reports.html", {
+        "admin_name": request.session.get("admin_name"), "active": "reports",
+        "period": period, "sales": sales, "profit": profit,
+        "inv": inv, "maint": maint, "ref": ref, "war": war,
+    })
+
+
+# ─── Audit Log ─────────────────────────────────────────────────────────────────
+
+@app.get("/audit", response_class=HTMLResponse)
+async def audit_list(request: Request, db: Session = Depends(get_db)):
+    if not request.session.get("admin_id"):
+        return RedirectResponse("/login", status_code=302)
+    logs = db.query(AuditLog).order_by(AuditLog.created_at.desc()).limit(200).all()
+    return templates.TemplateResponse(request, "audit.html", {
+        "admin_name": request.session.get("admin_name"), "active": "audit",
+        "logs": logs,
+    })
+
+
+# ─── Wallet Management ─────────────────────────────────────────────────────────
+
+@app.get("/wallet", response_class=HTMLResponse)
+async def wallet_list(request: Request, search: str = "", db: Session = Depends(get_db)):
+    if not request.session.get("admin_id"):
+        return RedirectResponse("/login", status_code=302)
+    q = db.query(User).filter(User.role == UserRole.customer)
+    if search:
+        q = q.filter(
+            User.name.ilike(f"%{search}%") |
+            User.phone.ilike(f"%{search}%") |
+            User.email.ilike(f"%{search}%")
+        )
+    users = q.order_by(User.created_at.desc()).all()
+    return templates.TemplateResponse(request, "wallet.html", {
+        "admin_name": request.session.get("admin_name"), "active": "wallet",
+        "users": users, "search": search,
+    })
+
+
+@app.post("/wallet/{user_id}/credit")
+async def wallet_credit(user_id: int, request: Request, amount: float = Form(...), db: Session = Depends(get_db)):
+    if not request.session.get("admin_id"):
+        return RedirectResponse("/login", status_code=302)
+    user = db.query(User).filter(User.id == user_id).first()
+    if user:
+        user.wallet_balance = (user.wallet_balance or 0.0) + amount
+        tx = WalletTransaction(user_id=user_id, amount=amount, currency="YER",
+                               transaction_type=TransactionType.credit, reason="إضافة من لوحة الإدارة",
+                               balance_after=user.wallet_balance)
+        db.add(tx)
+        db.commit()
+    return RedirectResponse("/wallet", status_code=302)
+
+
+@app.post("/wallet/{user_id}/debit")
+async def wallet_debit(user_id: int, request: Request, amount: float = Form(...), db: Session = Depends(get_db)):
+    if not request.session.get("admin_id"):
+        return RedirectResponse("/login", status_code=302)
+    user = db.query(User).filter(User.id == user_id).first()
+    if user:
+        user.wallet_balance = (user.wallet_balance or 0.0) - amount
+        tx = WalletTransaction(user_id=user_id, amount=amount, currency="YER",
+                               transaction_type=TransactionType.debit, reason="خصم من لوحة الإدارة",
+                               balance_after=user.wallet_balance)
+        db.add(tx)
+        db.commit()
+    return RedirectResponse("/wallet", status_code=302)
 
 
 if __name__ == "__main__":

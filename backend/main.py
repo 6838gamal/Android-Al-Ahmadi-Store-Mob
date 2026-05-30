@@ -3,43 +3,47 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
 import asyncio
-import httpx
 import os
 
 from backend.core.database import engine, Base, SessionLocal
-from backend.api.routes import auth, products, orders, reservations, maintenance, customers, dashboard, uploads
+from backend.core.migrations import run_migrations
 
-Base.metadata.create_all(bind=engine)
+# Import all models so create_all sees them — branch must load before user
+from backend.models.branch import Branch, Warehouse  # noqa — loaded first
+from backend.models import (  # noqa
+    user, product, order, reservation,
+    inventory_item, referral, warranty,
+    inspection, wallet, notification, audit_log,
+)
 
-SELF_URL = os.getenv("RENDER_EXTERNAL_URL", "")
+from backend.api.routes import (
+    auth, products, orders, reservations, maintenance,
+    customers, dashboard, uploads,
+    branches, inventory, referrals, warranty as warranty_routes,
+    inspection as inspection_routes, wallet as wallet_routes,
+    notifications, search, reports, audit,
+)
 
-async def _keep_alive():
-    """Ping the health endpoint every 10 minutes to prevent render.com from sleeping."""
-    if not SELF_URL:
-        return
-    await asyncio.sleep(60)
-    async with httpx.AsyncClient(timeout=10) as client:
-        while True:
-            try:
-                await client.get(f"{SELF_URL}/api/health")
-                print("🔔 Keep-alive ping sent")
-            except Exception as e:
-                print(f"⚠️  Keep-alive ping failed: {e}")
-            await asyncio.sleep(600)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    asyncio.create_task(_keep_alive())
     yield
+
 
 app = FastAPI(
     title="اندرويد الاحمدي API",
     description="نظام إدارة محل الجوالات",
-    version="1.0.0",
+    version="2.0.0",
     docs_url="/api/docs",
     redoc_url="/api/redoc",
     lifespan=lifespan,
 )
+
+# Run safe migrations first (adds new columns to existing tables)
+run_migrations()
+
+# Create all new tables
+Base.metadata.create_all(bind=engine)
 
 
 def _seed_admin():
@@ -79,6 +83,7 @@ app.add_middleware(
 os.makedirs("uploads", exist_ok=True)
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
+# ── Existing routes (preserved) ───────────────────────────────────────────────
 app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
 app.include_router(products.router, prefix="/api/products", tags=["Products"])
 app.include_router(orders.router, prefix="/api/orders", tags=["Orders"])
@@ -88,6 +93,19 @@ app.include_router(customers.router, prefix="/api/customers", tags=["Customers"]
 app.include_router(dashboard.router, prefix="/api/dashboard", tags=["Dashboard"])
 app.include_router(uploads.router, prefix="/api/uploads", tags=["Uploads"])
 
+# ── New routes ────────────────────────────────────────────────────────────────
+app.include_router(branches.router, prefix="/api/branches", tags=["Branches"])
+app.include_router(inventory.router, prefix="/api/inventory", tags=["Inventory"])
+app.include_router(referrals.router, prefix="/api/referrals", tags=["Referrals"])
+app.include_router(warranty_routes.router, prefix="/api/warranty", tags=["Warranty"])
+app.include_router(inspection_routes.router, prefix="/api/inspection", tags=["Inspection"])
+app.include_router(wallet_routes.router, prefix="/api/wallet", tags=["Wallet"])
+app.include_router(notifications.router, prefix="/api/notifications", tags=["Notifications"])
+app.include_router(search.router, prefix="/api/search", tags=["Search"])
+app.include_router(reports.router, prefix="/api/reports", tags=["Reports"])
+app.include_router(audit.router, prefix="/api/audit", tags=["Audit"])
+
+
 @app.get("/api/health")
 def health_check():
-    return {"status": "ok", "app": "اندرويد الاحمدي"}
+    return {"status": "ok", "app": "اندرويد الاحمدي", "version": "2.0.0"}

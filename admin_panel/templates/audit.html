@@ -1,0 +1,47 @@
+{% extends "layout.html" %}
+{% block title %}سجل المراجعة{% endblock %}
+{% block page_title %}سجل المراجعة{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1 class="text-white text-2xl font-extrabold">سجل المراجعة — Audit Log</h1>
+  <p class="text-white/70 text-sm mt-1">تسجيل كامل للعمليات الحساسة</p>
+</div>
+
+<div class="card overflow-hidden">
+  <div class="overflow-x-auto">
+    <table class="w-full">
+      <thead>
+        <tr class="border-b border-dark-border">
+          {% for h in ['#','المستخدم','الدور','الإجراء','الكيان','التفاصيل','IP','التاريخ'] %}
+          <th class="px-4 py-3 text-right text-gray-400 text-xs font-bold">{{ h }}</th>
+          {% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for log in logs %}
+        <tr class="table-row">
+          <td class="px-4 py-3 text-gray-500 text-sm">{{ log.id }}</td>
+          <td class="px-4 py-3 text-white text-sm">{{ log.user.name if log.user else 'نظام' }}</td>
+          <td class="px-4 py-3 text-gray-400 text-xs">{{ log.user_role or '—' }}</td>
+          <td class="px-4 py-3">
+            {% set ac = {'create':'#22C55E','update':'#3B82F6','delete':'#EF4444','login':'#8B5CF6','logout':'#6B7280','view':'#06B6D4','export':'#F59E0B','other':'#9CA3AF'} %}
+            {% set al = {'create':'إنشاء','update':'تعديل','delete':'حذف','login':'دخول','logout':'خروج','view':'عرض','export':'تصدير','other':'أخرى'} %}
+            <span class="badge" style="background:{{ ac.get(log.action.value,'#6B7280') }}22;color:{{ ac.get(log.action.value,'#6B7280') }}">
+              {{ al.get(log.action.value, log.action.value) }}
+            </span>
+          </td>
+          <td class="px-4 py-3 text-gray-300 text-sm">
+            {{ log.entity_type or '—' }}{% if log.entity_id %} #{{ log.entity_id }}{% endif %}
+          </td>
+          <td class="px-4 py-3 text-gray-400 text-xs max-w-[200px] truncate">{{ log.description or '—' }}</td>
+          <td class="px-4 py-3 text-gray-500 text-xs font-mono">{{ log.ip_address or '—' }}</td>
+          <td class="px-4 py-3 text-gray-400 text-xs">{{ log.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="8" class="px-4 py-8 text-center text-gray-500">لا توجد سجلات بعد</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

@@ -71,23 +71,52 @@
 
       <!-- Nav -->
       <nav class="flex-1 p-4 space-y-1 overflow-y-auto">
+        <div class="text-gray-600 text-xs font-bold uppercase px-2 pb-1 pt-2">الرئيسية</div>
         <a href="/dashboard" class="sidebar-link {% if active == 'dashboard' %}active{% endif %}">
           <i class="fa-solid fa-chart-pie"></i> لوحة التحكم
         </a>
+        <div class="text-gray-600 text-xs font-bold uppercase px-2 pb-1 pt-3">المتجر</div>
         <a href="/products" class="sidebar-link {% if active == 'products' %}active{% endif %}">
           <i class="fa-solid fa-box-open"></i> المنتجات
+        </a>
+        <a href="/inventory" class="sidebar-link {% if active == 'inventory' %}active{% endif %}">
+          <i class="fa-solid fa-barcode"></i> مخزون العناصر
         </a>
         <a href="/orders" class="sidebar-link {% if active == 'orders' %}active{% endif %}">
           <i class="fa-solid fa-receipt"></i> الطلبات
         </a>
-        <a href="/maintenance" class="sidebar-link {% if active == 'maintenance' %}active{% endif %}">
-          <i class="fa-solid fa-screwdriver-wrench"></i> الصيانة
-        </a>
         <a href="/reservations" class="sidebar-link {% if active == 'reservations' %}active{% endif %}">
           <i class="fa-solid fa-calendar-check"></i> الحجوزات
         </a>
+        <a href="/warranty" class="sidebar-link {% if active == 'warranty' %}active{% endif %}">
+          <i class="fa-solid fa-shield-halved"></i> الضمانات
+        </a>
+        <div class="text-gray-600 text-xs font-bold uppercase px-2 pb-1 pt-3">الخدمات</div>
+        <a href="/maintenance" class="sidebar-link {% if active == 'maintenance' %}active{% endif %}">
+          <i class="fa-solid fa-screwdriver-wrench"></i> الصيانة
+        </a>
+        <a href="/inspection" class="sidebar-link {% if active == 'inspection' %}active{% endif %}">
+          <i class="fa-solid fa-stethoscope"></i> عيادة الفحص
+        </a>
+        <div class="text-gray-600 text-xs font-bold uppercase px-2 pb-1 pt-3">العملاء</div>
         <a href="/customers" class="sidebar-link {% if active == 'customers' %}active{% endif %}">
           <i class="fa-solid fa-users"></i> العملاء
+        </a>
+        <a href="/referrals" class="sidebar-link {% if active == 'referrals' %}active{% endif %}">
+          <i class="fa-solid fa-share-nodes"></i> الإحالات
+        </a>
+        <a href="/wallet" class="sidebar-link {% if active == 'wallet' %}active{% endif %}">
+          <i class="fa-solid fa-wallet"></i> المحافظ
+        </a>
+        <div class="text-gray-600 text-xs font-bold uppercase px-2 pb-1 pt-3">الإدارة</div>
+        <a href="/staff" class="sidebar-link {% if active == 'staff' %}active{% endif %}">
+          <i class="fa-solid fa-user-tie"></i> الموظفون
+        </a>
+        <a href="/reports" class="sidebar-link {% if active == 'reports' %}active{% endif %}">
+          <i class="fa-solid fa-chart-line"></i> التقارير
+        </a>
+        <a href="/audit" class="sidebar-link {% if active == 'audit' %}active{% endif %}">
+          <i class="fa-solid fa-clock-rotate-left"></i> سجل المراجعة
         </a>
       </nav>
 

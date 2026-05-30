@@ -1,0 +1,61 @@
+{% extends "layout.html" %}
+{% block title %}المحافظ{% endblock %}
+{% block page_title %}المحافظ{% endblock %}
+{% block content %}
+<div class="page-header flex items-center justify-between">
+  <div>
+    <h1 class="text-white text-2xl font-extrabold">إدارة المحافظ</h1>
+    <p class="text-white/70 text-sm mt-1">متعدد العملات: YER · SAR · USD</p>
+  </div>
+</div>
+
+<!-- Search -->
+<form method="get" class="card p-4 mb-6 flex gap-3">
+  <input name="search" value="{{ search }}" class="input-field flex-1" placeholder="بحث بالاسم أو الهاتف...">
+  <button type="submit" class="btn-primary">بحث</button>
+</form>
+
+<div class="card overflow-hidden">
+  <div class="overflow-x-auto">
+    <table class="w-full">
+      <thead>
+        <tr class="border-b border-dark-border">
+          {% for h in ['#','العميل','الهاتف','الرصيد','العملة','آخر معاملة','إجراء'] %}
+          <th class="px-4 py-3 text-right text-gray-400 text-xs font-bold">{{ h }}</th>
+          {% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for u in users %}
+        <tr class="table-row">
+          <td class="px-4 py-3 text-gray-500 text-sm">{{ u.id }}</td>
+          <td class="px-4 py-3 text-white font-bold text-sm">{{ u.name }}</td>
+          <td class="px-4 py-3 text-gray-400 text-sm">{{ u.phone or '—' }}</td>
+          <td class="px-4 py-3">
+            <span class="font-bold {{ 'text-red-400' if (u.wallet_balance or 0) < 0 else 'text-white' }} text-sm">
+              {{ u.wallet_balance or 0 | round(2) }}
+            </span>
+          </td>
+          <td class="px-4 py-3 text-gray-400 text-sm">{{ u.wallet_currency or 'YER' }}</td>
+          <td class="px-4 py-3 text-gray-500 text-xs">{{ u.updated_at.strftime('%Y-%m-%d') if u.updated_at else '—' }}</td>
+          <td class="px-4 py-3">
+            <div class="flex gap-2">
+              <form method="post" action="/wallet/{{ u.id }}/credit" class="inline flex gap-1">
+                <input name="amount" type="number" step="0.01" class="input-field w-20 text-xs py-1" placeholder="مبلغ" required>
+                <button class="btn-primary text-xs px-2 py-1">إضافة</button>
+              </form>
+              <form method="post" action="/wallet/{{ u.id }}/debit" class="inline flex gap-1">
+                <input name="amount" type="number" step="0.01" class="input-field w-20 text-xs py-1" placeholder="مبلغ" required>
+                <button class="btn-danger text-xs px-2 py-1">خصم</button>
+              </form>
+            </div>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="7" class="px-4 py-8 text-center text-gray-500">لا يوجد عملاء</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

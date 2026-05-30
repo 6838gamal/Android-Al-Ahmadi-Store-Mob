@@ -1,0 +1,95 @@
+{% extends "layout.html" %}
+{% block title %}الموظفون{% endblock %}
+{% block page_title %}الموظفون{% endblock %}
+{% block content %}
+<div class="page-header flex items-center justify-between">
+  <div>
+    <h1 class="text-white text-2xl font-extrabold">إدارة الموظفين</h1>
+    <p class="text-white/70 text-sm mt-1">موظفو المتجر ومديرو الفروع</p>
+  </div>
+  <button onclick="document.getElementById('addStaffModal').classList.remove('hidden')" class="btn-primary">
+    <i class="fa-solid fa-plus"></i> إضافة موظف
+  </button>
+</div>
+
+<div class="card overflow-hidden">
+  <div class="overflow-x-auto">
+    <table class="w-full">
+      <thead>
+        <tr class="border-b border-dark-border">
+          {% for h in ['#','الاسم','الهاتف','البريد','الدور','الفرع','الحالة','إجراء'] %}
+          <th class="px-4 py-3 text-right text-gray-400 text-xs font-bold">{{ h }}</th>
+          {% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for s in staff %}
+        <tr class="table-row">
+          <td class="px-4 py-3 text-gray-500 text-sm">{{ s.id }}</td>
+          <td class="px-4 py-3">
+            <div class="flex items-center gap-2">
+              <div class="w-8 h-8 rounded-full bg-primary-light flex items-center justify-center text-primary font-bold text-xs">
+                {{ s.name[0] }}
+              </div>
+              <span class="text-white font-bold text-sm">{{ s.name }}</span>
+            </div>
+          </td>
+          <td class="px-4 py-3 text-gray-300 text-sm">{{ s.phone or '—' }}</td>
+          <td class="px-4 py-3 text-gray-300 text-sm">{{ s.email or '—' }}</td>
+          <td class="px-4 py-3">
+            {% set role_colors = {'staff':'#3B82F6','branch_manager':'#8B5CF6','admin':'#EF4444'} %}
+            {% set role_labels = {'staff':'موظف','branch_manager':'مدير فرع','admin':'مدير عام'} %}
+            <span class="badge" style="background:{{ role_colors.get(s.role.value,'#6B7280') }}22;color:{{ role_colors.get(s.role.value,'#6B7280') }}">
+              {{ role_labels.get(s.role.value, s.role.value) }}
+            </span>
+          </td>
+          <td class="px-4 py-3 text-gray-400 text-sm">{{ s.branch.name if s.branch else '—' }}</td>
+          <td class="px-4 py-3">
+            {% if s.is_active %}
+            <span class="badge" style="background:#22C55E22;color:#22C55E">نشط</span>
+            {% else %}
+            <span class="badge" style="background:#EF444422;color:#EF4444">معطّل</span>
+            {% endif %}
+          </td>
+          <td class="px-4 py-3">
+            <form method="post" action="/staff/{{ s.id }}/toggle-active" class="inline">
+              <button class="text-xs {{ 'text-red-400 hover:text-red-300' if s.is_active else 'text-green-400 hover:text-green-300' }} font-bold">
+                {{ 'تعطيل' if s.is_active else 'تفعيل' }}
+              </button>
+            </form>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="8" class="px-4 py-8 text-center text-gray-500">لا يوجد موظفون بعد</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Add Staff Modal -->
+<div id="addStaffModal" class="hidden fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+  <div class="card w-full max-w-md p-6">
+    <h2 class="text-white font-bold text-lg mb-4">إضافة موظف</h2>
+    <form method="post" action="/staff/add">
+      <div class="space-y-3 mb-4">
+        <div><label class="block text-gray-400 text-xs mb-1">الاسم *</label><input name="name" class="input-field" required></div>
+        <div><label class="block text-gray-400 text-xs mb-1">رقم الهاتف</label><input name="phone" class="input-field"></div>
+        <div><label class="block text-gray-400 text-xs mb-1">البريد الإلكتروني</label><input name="email" type="email" class="input-field"></div>
+        <div>
+          <label class="block text-gray-400 text-xs mb-1">الدور *</label>
+          <select name="role" class="select-field w-full">
+            <option value="staff">موظف</option>
+            <option value="branch_manager">مدير فرع</option>
+          </select>
+        </div>
+        <div><label class="block text-gray-400 text-xs mb-1">كلمة المرور *</label><input name="password" type="password" class="input-field" required></div>
+      </div>
+      <div class="flex gap-3 justify-end">
+        <button type="button" onclick="document.getElementById('addStaffModal').classList.add('hidden')" class="btn-secondary">إلغاء</button>
+        <button type="submit" class="btn-primary">إضافة</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

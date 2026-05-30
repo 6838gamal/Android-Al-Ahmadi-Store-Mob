@@ -1,0 +1,116 @@
+{% extends "layout.html" %}
+{% block title %}الضمانات{% endblock %}
+{% block page_title %}الضمانات{% endblock %}
+{% block content %}
+<div class="page-header flex items-center justify-between">
+  <div>
+    <h1 class="text-white text-2xl font-extrabold">الضمانات</h1>
+    <p class="text-white/70 text-sm mt-1">ضمان 7 أيام — طلبات الإرجاع</p>
+  </div>
+  <button onclick="document.getElementById('addWarrantyModal').classList.remove('hidden')" class="btn-primary">
+    <i class="fa-solid fa-plus"></i> إضافة ضمان
+  </button>
+</div>
+
+{% if return_requests %}
+<div class="bg-red-500/10 border border-red-500/30 rounded-xl p-4 mb-6">
+  <div class="flex items-center gap-2 text-red-400 font-bold mb-2">
+    <i class="fa-solid fa-triangle-exclamation"></i>
+    {{ return_requests }} طلب إرجاع يحتاج مراجعة
+  </div>
+</div>
+{% endif %}
+
+<div class="card overflow-hidden">
+  <div class="overflow-x-auto">
+    <table class="w-full">
+      <thead>
+        <tr class="border-b border-dark-border">
+          {% for h in ['#','المنتج','العميل','ينتهي','الحالة','طلب إرجاع','إجراء'] %}
+          <th class="px-4 py-3 text-right text-gray-400 text-xs font-bold">{{ h }}</th>
+          {% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for w in warranties %}
+        <tr class="table-row">
+          <td class="px-4 py-3 text-gray-500 text-sm">{{ w.id }}</td>
+          <td class="px-4 py-3">
+            <div class="text-white font-bold text-sm">{{ w.product_name }}</div>
+            {% if w.product_serial %}<div class="text-gray-500 text-xs font-mono">{{ w.product_serial }}</div>{% endif %}
+          </td>
+          <td class="px-4 py-3 text-gray-300 text-sm">{{ w.customer.name if w.customer else '—' }}</td>
+          <td class="px-4 py-3 text-sm">
+            {% if w.ends_at %}
+              {% set now = now_dt %}
+              <span class="{{ 'text-green-400' if w.ends_at > now_dt else 'text-red-400' }}">
+                {{ w.ends_at.strftime('%Y-%m-%d') }}
+              </span>
+            {% endif %}
+          </td>
+          <td class="px-4 py-3">
+            {% if w.ends_at and w.ends_at > now_dt %}
+            <span class="badge" style="background:#22C55E22;color:#22C55E">ساري</span>
+            {% else %}
+            <span class="badge" style="background:#6B728022;color:#6B7280">منتهي</span>
+            {% endif %}
+          </td>
+          <td class="px-4 py-3">
+            {% if w.is_return_requested %}
+              {% if w.return_resolved %}
+              <span class="badge" style="background:#22C55E22;color:#22C55E">تم الحل</span>
+              {% else %}
+              <span class="badge" style="background:#EF444422;color:#EF4444">طلب إرجاع</span>
+              <div class="text-gray-400 text-xs mt-1">{{ w.return_reason }}</div>
+              {% endif %}
+            {% else %}
+            <span class="text-gray-500 text-xs">لا</span>
+            {% endif %}
+          </td>
+          <td class="px-4 py-3">
+            {% if w.is_return_requested and not w.return_resolved %}
+            <form method="post" action="/warranty/{{ w.id }}/resolve" class="inline">
+              <button class="btn-primary text-xs px-3 py-1">حل الطلب</button>
+            </form>
+            {% endif %}
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="7" class="px-4 py-8 text-center text-gray-500">لا توجد ضمانات</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Add Warranty Modal -->
+<div id="addWarrantyModal" class="hidden fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+  <div class="card w-full max-w-md p-6">
+    <h2 class="text-white font-bold text-lg mb-4">إضافة ضمان</h2>
+    <form method="post" action="/warranty/add">
+      <div class="space-y-3 mb-4">
+        <div>
+          <label class="block text-gray-400 text-xs mb-1">اسم المنتج *</label>
+          <input name="product_name" class="input-field" required>
+        </div>
+        <div>
+          <label class="block text-gray-400 text-xs mb-1">الرقم التسلسلي</label>
+          <input name="product_serial" class="input-field">
+        </div>
+        <div>
+          <label class="block text-gray-400 text-xs mb-1">رقم الطلب (اختياري)</label>
+          <input name="order_id" type="number" class="input-field">
+        </div>
+        <div>
+          <label class="block text-gray-400 text-xs mb-1">مدة الضمان (أيام)</label>
+          <input name="warranty_days" type="number" value="7" class="input-field">
+        </div>
+      </div>
+      <div class="flex gap-3 justify-end">
+        <button type="button" onclick="document.getElementById('addWarrantyModal').classList.add('hidden')" class="btn-secondary">إلغاء</button>
+        <button type="submit" class="btn-primary">إضافة</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

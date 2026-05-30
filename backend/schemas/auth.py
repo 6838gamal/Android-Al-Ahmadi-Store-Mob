@@ -23,6 +23,10 @@ class UserResponse(BaseModel):
     role: UserRole
     avatar_url: Optional[str]
     is_active: bool
+    branch_id: Optional[int] = None
+    referral_code: Optional[str] = None
+    wallet_balance: Optional[float] = 0.0
+    wallet_currency: Optional[str] = "YER"
 
     class Config:
         from_attributes = True

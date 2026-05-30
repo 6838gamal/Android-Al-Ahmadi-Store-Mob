@@ -1,3 +1,4 @@
+import random, string
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from backend.core.database import get_db
@@ -8,6 +9,15 @@ from backend.api.dependencies import get_current_user
 
 router = APIRouter()
 
+STAFF_ROLES = [UserRole.staff, UserRole.branch_manager, UserRole.admin]
+
+
+def _gen_referral_code(db: Session) -> str:
+    while True:
+        code = "".join(random.choices(string.ascii_uppercase + string.digits, k=8))
+        if not db.query(User).filter(User.referral_code == code).first():
+            return code
+
 
 @router.post("/register", response_model=TokenResponse)
 def register(user_data: UserCreate, db: Session = Depends(get_db)):
@@ -15,13 +25,11 @@ def register(user_data: UserCreate, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail="Email or phone required")
 
     if user_data.email:
-        existing = db.query(User).filter(User.email == user_data.email).first()
-        if existing:
+        if db.query(User).filter(User.email == user_data.email).first():
             raise HTTPException(status_code=400, detail="Email already registered")
 
     if user_data.phone:
-        existing = db.query(User).filter(User.phone == user_data.phone).first()
-        if existing:
+        if db.query(User).filter(User.phone == user_data.phone).first():
             raise HTTPException(status_code=400, detail="Phone already registered")
 
     user = User(
@@ -30,6 +38,7 @@ def register(user_data: UserCreate, db: Session = Depends(get_db)):
         phone=user_data.phone,
         hashed_password=get_password_hash(user_data.password),
         role=UserRole.customer,
+        referral_code=_gen_referral_code(db),
     )
     db.add(user)
     db.commit()
@@ -54,6 +63,27 @@ def login(login_data: UserLogin, db: Session = Depends(get_db)):
 
     if not user.is_active:
         raise HTTPException(status_code=403, detail="Account disabled")
+
+    token = create_access_token({"sub": str(user.id), "role": user.role.value})
+    return TokenResponse(access_token=token, user=UserResponse.from_orm(user))
+
+
+@router.post("/staff-login", response_model=TokenResponse)
+def staff_login(login_data: UserLogin, db: Session = Depends(get_db)):
+    """Login for staff, branch_manager, and admin roles."""
+    identifier = login_data.identifier.strip()
+    user = None
+
+    if "@" in identifier:
+        user = db.query(User).filter(User.email == identifier, User.role.in_(STAFF_ROLES)).first()
+    else:
+        user = db.query(User).filter(User.phone == identifier, User.role.in_(STAFF_ROLES)).first()
+
+    if not user or not verify_password(login_data.password, user.hashed_password):
+        raise HTTPException(status_code=401, detail="بيانات الدخول غير صحيحة")
+
+    if not user.is_active:
+        raise HTTPException(status_code=403, detail="الحساب معطّل")
 
     token = create_access_token({"sub": str(user.id), "role": user.role.value})
     return TokenResponse(access_token=token, user=UserResponse.from_orm(user))
@@ -92,6 +122,7 @@ def seed_admin(db: Session = Depends(get_db)):
         phone="0501234567",
         hashed_password=get_password_hash("Admin@2026"),
         role=UserRole.admin,
+        referral_code=_gen_referral_code(db),
     )
     db.add(admin)
     db.commit()

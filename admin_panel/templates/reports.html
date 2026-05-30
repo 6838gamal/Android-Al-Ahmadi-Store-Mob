@@ -1,0 +1,101 @@
+{% extends "layout.html" %}
+{% block title %}التقارير{% endblock %}
+{% block page_title %}التقارير{% endblock %}
+{% block content %}
+<div class="page-header flex items-center justify-between">
+  <div>
+    <h1 class="text-white text-2xl font-extrabold">التقارير والإحصاءات</h1>
+    <p class="text-white/70 text-sm mt-1">تقارير شاملة للمبيعات والمخزون والصيانة</p>
+  </div>
+  <div class="flex gap-2">
+    {% for p, label in [('today','اليوم'),('week','الأسبوع'),('month','الشهر'),('year','السنة')] %}
+    <a href="?period={{ p }}" class="badge {% if period == p %}bg-primary text-white{% else %}bg-dark-border text-gray-400{% endif %}" style="cursor:pointer;padding:6px 14px">{{ label }}</a>
+    {% endfor %}
+  </div>
+</div>
+
+<!-- Sales Report -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+  <div class="stat-card" style="background:linear-gradient(135deg,#1A73E8,#0D47A1)">
+    <div class="text-white/70 text-sm mb-1">إجمالي الإيرادات</div>
+    <div class="text-white text-2xl font-extrabold">{{ sales.total_revenue | round(2) }}</div>
+    <div class="text-white/50 text-xs mt-1">{{ sales.total_orders }} طلب مكتمل</div>
+  </div>
+  <div class="stat-card" style="background:linear-gradient(135deg,#22C55E,#16A34A)">
+    <div class="text-white/70 text-sm mb-1">صافي الإيرادات</div>
+    <div class="text-white text-2xl font-extrabold">{{ profit.net_revenue | round(2) }}</div>
+    <div class="text-white/50 text-xs mt-1">خصم {{ profit.total_discount | round(2) }}</div>
+  </div>
+  <div class="stat-card" style="background:linear-gradient(135deg,#8B5CF6,#6D28D9)">
+    <div class="text-white/70 text-sm mb-1">متوسط قيمة الطلب</div>
+    <div class="text-white text-2xl font-extrabold">{{ sales.average_order_value | round(2) }}</div>
+    <div class="text-white/50 text-xs mt-1">{{ sales.total_orders }} طلب</div>
+  </div>
+</div>
+
+<div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+  <!-- Inventory -->
+  <div class="card p-5">
+    <h2 class="text-white font-bold mb-4"><i class="fa-solid fa-barcode text-blue-400 me-2"></i>تقرير المخزون</h2>
+    {% for label, val, color in [
+      ('إجمالي العناصر', inv.total_items, '#9CA3AF'),
+      ('متوفر', inv.available, '#22C55E'),
+      ('مباع', inv.sold, '#EF4444'),
+      ('محجوز', inv.reserved, '#F59E0B'),
+    ] %}
+    <div class="flex justify-between items-center py-2 border-b border-dark-border last:border-0">
+      <span class="text-gray-400 text-sm">{{ label }}</span>
+      <span class="font-bold" style="color:{{ color }}">{{ val }}</span>
+    </div>
+    {% endfor %}
+    {% if inv.low_stock_products %}
+    <div class="mt-3 text-yellow-400 text-xs font-bold">⚠️ {{ inv.low_stock_products | length }} منتجات بمخزون منخفض</div>
+    {% endif %}
+  </div>
+
+  <!-- Maintenance -->
+  <div class="card p-5">
+    <h2 class="text-white font-bold mb-4"><i class="fa-solid fa-screwdriver-wrench text-purple-400 me-2"></i>تقرير الصيانة</h2>
+    {% for label, val, color in [
+      ('إجمالي الطلبات', maint.total_requests, '#9CA3AF'),
+      ('مكتمل', maint.completed, '#22C55E'),
+      ('إيرادات الصيانة', maint.total_revenue | round(2), '#1A73E8'),
+    ] %}
+    <div class="flex justify-between items-center py-2 border-b border-dark-border last:border-0">
+      <span class="text-gray-400 text-sm">{{ label }}</span>
+      <span class="font-bold" style="color:{{ color }}">{{ val }}</span>
+    </div>
+    {% endfor %}
+  </div>
+
+  <!-- Referrals -->
+  <div class="card p-5">
+    <h2 class="text-white font-bold mb-4"><i class="fa-solid fa-share-nodes text-green-400 me-2"></i>تقرير الإحالات</h2>
+    {% for label, val, color in [
+      ('إجمالي الإحالات', ref.total_referrals, '#9CA3AF'),
+      ('محققة', ref.verified_referrals, '#22C55E'),
+    ] %}
+    <div class="flex justify-between items-center py-2 border-b border-dark-border last:border-0">
+      <span class="text-gray-400 text-sm">{{ label }}</span>
+      <span class="font-bold" style="color:{{ color }}">{{ val }}</span>
+    </div>
+    {% endfor %}
+  </div>
+
+  <!-- Warranty -->
+  <div class="card p-5">
+    <h2 class="text-white font-bold mb-4"><i class="fa-solid fa-shield-halved text-yellow-400 me-2"></i>تقرير الضمانات</h2>
+    {% for label, val, color in [
+      ('إجمالي الضمانات', war.total_warranties, '#9CA3AF'),
+      ('طلبات إرجاع', war.return_requests, '#EF4444'),
+      ('محلولة', war.resolved_returns, '#22C55E'),
+      ('معلقة', war.pending_returns, '#F59E0B'),
+    ] %}
+    <div class="flex justify-between items-center py-2 border-b border-dark-border last:border-0">
+      <span class="text-gray-400 text-sm">{{ label }}</span>
+      <span class="font-bold" style="color:{{ color }}">{{ val }}</span>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}
