@@ -155,6 +155,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     String? email,
     required String password,
     String role = 'customer',
+    String? referralCode,
   }) async {
     state = state.copyWith(isLoading: true, error: null);
     try {
@@ -162,10 +163,13 @@ class AuthNotifier extends StateNotifier<AuthState> {
         'name': name,
         'phone': phone,
         'password': password,
-        'role': role,
+        'role': 'customer',
       };
       if (email != null && email.isNotEmpty) {
         data['email'] = email;
+      }
+      if (referralCode != null && referralCode.isNotEmpty) {
+        data['referral_code'] = referralCode;
       }
       final res = await _api.post('/auth/register', data: data);
       final user = UserModel.fromJson(res.data['user']);

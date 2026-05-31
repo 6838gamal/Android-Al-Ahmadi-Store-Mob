@@ -21,7 +21,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
   final _emailCtrl = TextEditingController();
   final _passCtrl = TextEditingController();
   final _confirmCtrl = TextEditingController();
-  String _selectedRole = 'customer';
+  final _referralCtrl = TextEditingController();
 
   @override
   void dispose() {
@@ -30,6 +30,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
     _emailCtrl.dispose();
     _passCtrl.dispose();
     _confirmCtrl.dispose();
+    _referralCtrl.dispose();
     super.dispose();
   }
 
@@ -42,16 +43,14 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
               ? null
               : _emailCtrl.text.trim(),
           password: _passCtrl.text,
-          role: _selectedRole,
+          role: 'customer',
+          referralCode: _referralCtrl.text.trim().isEmpty
+              ? null
+              : _referralCtrl.text.trim().toUpperCase(),
         );
     if (!mounted) return;
     if (ok) {
-      final auth = ref.read(authProvider);
-      if (auth.isStaffOrAbove) {
-        context.go('/staff');
-      } else {
-        context.go('/products');
-      }
+      context.go('/products');
     } else {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text(
@@ -68,7 +67,6 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
   @override
   Widget build(BuildContext context) {
     final auth = ref.watch(authProvider);
-    final isStaff = _selectedRole == 'staff';
 
     return Scaffold(
       backgroundColor: AppColors.darkBg,
@@ -97,87 +95,13 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Role Selector
-                  const Text(
-                    'نوع الحساب',
-                    style: TextStyle(
-                        fontFamily: 'Cairo',
-                        color: AppColors.textSecondary,
-                        fontSize: 13),
-                  ).animate().fadeIn(),
-                  const SizedBox(height: 10),
-                  Container(
-                    decoration: BoxDecoration(
-                      color: AppColors.darkCard,
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: AppColors.darkBorder),
-                    ),
-                    padding: const EdgeInsets.all(4),
-                    child: Row(
-                      children: [
-                        _RoleOption(
-                          label: 'عميل',
-                          subtitle: 'تسوق وتتبع طلباتك',
-                          icon: Icons.person_outline,
-                          selected: _selectedRole == 'customer',
-                          onTap: () =>
-                              setState(() => _selectedRole = 'customer'),
-                        ),
-                        _RoleOption(
-                          label: 'موظف',
-                          subtitle: 'إدارة الطلبات والصيانة',
-                          icon: Icons.badge_outlined,
-                          selected: _selectedRole == 'staff',
-                          onTap: () =>
-                              setState(() => _selectedRole = 'staff'),
-                        ),
-                      ],
-                    ),
-                  ).animate(delay: 40.ms).fadeIn().slideY(begin: 0.15, end: 0),
-
-                  if (isStaff) ...[
-                    const SizedBox(height: 10),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 14, vertical: 10),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF7B1FA2).withOpacity(0.08),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                            color:
-                                const Color(0xFF7B1FA2).withOpacity(0.25)),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(Icons.info_outline,
-                              size: 15,
-                              color:
-                                  const Color(0xFF9C4DCC).withOpacity(0.8)),
-                          const SizedBox(width: 8),
-                          const Expanded(
-                            child: Text(
-                              'سيتطلب حساب الموظف موافقة الإدارة للوصول الكامل',
-                              style: TextStyle(
-                                  fontFamily: 'Cairo',
-                                  fontSize: 11,
-                                  color: AppColors.textSecondary),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ).animate().fadeIn(),
-                  ],
-
-                  const SizedBox(height: 20),
-
-                  // Account Info
                   const Text(
                     'معلومات الحساب',
                     style: TextStyle(
                         fontFamily: 'Cairo',
                         color: AppColors.textSecondary,
                         fontSize: 13),
-                  ).animate(delay: 80.ms).fadeIn(),
+                  ).animate().fadeIn(),
                   const SizedBox(height: 12),
                   AppTextField(
                     label: 'الاسم الكامل *',
@@ -185,7 +109,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                     prefixIcon: Icons.person_outline,
                     validator: (v) =>
                         (v?.isEmpty ?? true) ? 'الاسم مطلوب' : null,
-                  ).animate(delay: 100.ms).fadeIn().slideY(begin: 0.2, end: 0),
+                  ).animate(delay: 40.ms).fadeIn().slideY(begin: 0.2, end: 0),
                   const SizedBox(height: 14),
                   AppTextField(
                     label: 'رقم الجوال *',
@@ -199,7 +123,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                       if (v.trim().length < 9) return 'رقم الجوال غير صحيح';
                       return null;
                     },
-                  ).animate(delay: 140.ms).fadeIn().slideY(begin: 0.2, end: 0),
+                  ).animate(delay: 80.ms).fadeIn().slideY(begin: 0.2, end: 0),
                   const SizedBox(height: 14),
                   AppTextField(
                     label: 'البريد الإلكتروني (اختياري)',
@@ -214,7 +138,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                       }
                       return null;
                     },
-                  ).animate(delay: 180.ms).fadeIn().slideY(begin: 0.2, end: 0),
+                  ).animate(delay: 120.ms).fadeIn().slideY(begin: 0.2, end: 0),
 
                   const SizedBox(height: 20),
                   const Text(
@@ -223,7 +147,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                         fontFamily: 'Cairo',
                         color: AppColors.textSecondary,
                         fontSize: 13),
-                  ).animate(delay: 220.ms).fadeIn(),
+                  ).animate(delay: 160.ms).fadeIn(),
                   const SizedBox(height: 12),
                   AppTextField(
                     label: 'كلمة المرور *',
@@ -236,7 +160,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                       }
                       return null;
                     },
-                  ).animate(delay: 260.ms).fadeIn().slideY(begin: 0.2, end: 0),
+                  ).animate(delay: 200.ms).fadeIn().slideY(begin: 0.2, end: 0),
                   const SizedBox(height: 14),
                   AppTextField(
                     label: 'تأكيد كلمة المرور *',
@@ -249,16 +173,30 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                       }
                       return null;
                     },
+                  ).animate(delay: 240.ms).fadeIn().slideY(begin: 0.2, end: 0),
+
+                  const SizedBox(height: 20),
+                  const Text(
+                    'رمز الإحالة (اختياري)',
+                    style: TextStyle(
+                        fontFamily: 'Cairo',
+                        color: AppColors.textSecondary,
+                        fontSize: 13),
+                  ).animate(delay: 280.ms).fadeIn(),
+                  const SizedBox(height: 12),
+                  AppTextField(
+                    label: 'رمز الإحالة',
+                    controller: _referralCtrl,
+                    prefixIcon: Icons.card_giftcard_outlined,
+                    keyboardType: TextInputType.text,
                   ).animate(delay: 300.ms).fadeIn().slideY(begin: 0.2, end: 0),
 
                   const SizedBox(height: 32),
                   AppButton(
-                    text: isStaff ? 'إنشاء حساب موظف' : 'إنشاء الحساب',
+                    text: 'إنشاء الحساب',
                     isLoading: auth.isLoading,
                     onPressed: _register,
-                    icon: isStaff
-                        ? Icons.badge_outlined
-                        : Icons.person_add_outlined,
+                    icon: Icons.person_add_outlined,
                   ).animate(delay: 340.ms).fadeIn().slideY(begin: 0.3, end: 0),
 
                   const SizedBox(height: 16),
@@ -282,74 +220,6 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                 ],
               ),
             ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _RoleOption extends StatelessWidget {
-  final String label;
-  final String subtitle;
-  final IconData icon;
-  final bool selected;
-  final VoidCallback onTap;
-
-  const _RoleOption({
-    required this.label,
-    required this.subtitle,
-    required this.icon,
-    required this.selected,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      child: GestureDetector(
-        onTap: onTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 220),
-          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
-          decoration: BoxDecoration(
-            gradient: selected
-                ? const LinearGradient(
-                    colors: [Color(0xFF1A73E8), Color(0xFF7B1FA2)],
-                    begin: Alignment.centerRight,
-                    end: Alignment.centerLeft,
-                  )
-                : null,
-            color: selected ? null : Colors.transparent,
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: Column(
-            children: [
-              Icon(icon,
-                  size: 22,
-                  color: selected ? Colors.white : AppColors.textMuted),
-              const SizedBox(height: 4),
-              Text(
-                label,
-                style: TextStyle(
-                  fontFamily: 'Cairo',
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
-                  color: selected ? Colors.white : AppColors.textMuted,
-                ),
-              ),
-              Text(
-                subtitle,
-                style: TextStyle(
-                  fontFamily: 'Cairo',
-                  fontSize: 10,
-                  color: selected
-                      ? Colors.white.withOpacity(0.75)
-                      : AppColors.textMuted.withOpacity(0.6),
-                ),
-                textAlign: TextAlign.center,
-              ),
-            ],
           ),
         ),
       ),

@@ -4,6 +4,7 @@ from typing import List, Optional
 from datetime import datetime
 from backend.core.database import get_db
 from backend.models.order import Order, OrderUpdate, OrderType, MaintenanceStatus, OrderStatus, PaymentMethod
+from backend.models.notification import Notification, NotificationType
 from backend.api.dependencies import get_admin_user, require_staff_or_above
 from backend.models.user import User
 from pydantic import BaseModel
@@ -48,6 +49,44 @@ class MaintenanceResponse(BaseModel):
         from_attributes = True
 
 
+MAINT_STATUS_NOTIFICATIONS = {
+    "received":     ("تم استلام جهازك ✅", "تم استلام جهازك بنجاح وسيبدأ الفحص قريباً"),
+    "inspecting":   ("جاري فحص جهازك 🔍", "فريق الصيانة يفحص جهازك الآن"),
+    "repairing":    ("جاري إصلاح جهازك 🔧", "بدأنا العمل على إصلاح جهازك"),
+    "waiting_part": ("بانتظار قطعة الغيار ⏳", "جهازك بانتظار قطعة غيار. سيتم إعلامك عند توفرها"),
+    "repaired":     ("تم إصلاح جهازك ✅", "تم إصلاح جهازك بنجاح"),
+    "ready":        ("جهازك جاهز للاستلام 🎉", "جهازك جاهز، يمكنك استلامه من المتجر"),
+    "delivered":    ("تم تسليم جهازك 🎉", "تم تسليم جهازك. شكراً لثقتك بنا"),
+}
+
+
+def _create_maintenance_notification(db: Session, order: Order, status_value: str):
+    """Push a notification to the customer on maintenance status change."""
+    if status_value not in MAINT_STATUS_NOTIFICATIONS:
+        return
+    title, body = MAINT_STATUS_NOTIFICATIONS[status_value]
+
+    customer_id = getattr(order, "customer_id", None)
+    if not customer_id and order.customer_phone:
+        customer = db.query(User).filter(User.phone == order.customer_phone).first()
+        if customer:
+            customer_id = customer.id
+
+    if not customer_id:
+        return
+
+    notif = Notification(
+        user_id=customer_id,
+        title=title,
+        body=f"{body} — رقم الطلب: {order.order_number}",
+        notification_type=NotificationType.maintenance,
+        is_important=status_value in ("ready", "delivered"),
+        reference_id=order.id,
+        reference_type="maintenance",
+    )
+    db.add(notif)
+
+
 def gen_maint_number(db):
     count = db.query(Order).filter(Order.order_type == OrderType.maintenance).count() + 1
     return f"MAINT-{datetime.now().year}-{count:04d}"
@@ -72,6 +111,7 @@ def create_maintenance(data: MaintenanceCreate, db: Session = Depends(get_db), c
     db.add(order)
     db.flush()
     db.add(OrderUpdate(order_id=order.id, status="received", note="تم استلام الجهاز"))
+    _create_maintenance_notification(db, order, "received")
     db.commit()
     db.refresh(order)
     return order
@@ -115,6 +155,7 @@ def update_maintenance_status(
         employee_name=current_user.name,
     )
     db.add(upd)
+    _create_maintenance_notification(db, order, data.maintenance_status)
     db.commit()
     db.refresh(order)
     return order

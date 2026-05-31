@@ -30,10 +30,23 @@ def _date_range(period: str):
     return start, now
 
 
+def _apply_branch_filter(query, model, current_user):
+    """Filter query to branch_manager's branch when applicable."""
+    if current_user.role == UserRole.branch_manager and current_user.branch_id:
+        if hasattr(model, "branch_id"):
+            query = query.filter(model.branch_id == current_user.branch_id)
+    return query
+
+
 @router.get("/sales")
-def sales_report(period: str = "month", db: Session = Depends(get_db), current_user=Depends(require_branch_manager_or_above)):
+def sales_report(
+    period: str = "month",
+    db: Session = Depends(get_db),
+    current_user=Depends(require_branch_manager_or_above)
+):
     start, end = _date_range(period)
     q = db.query(Order).filter(Order.order_type == OrderType.product, Order.status == OrderStatus.delivered)
+    q = _apply_branch_filter(q, Order, current_user)
     if start:
         q = q.filter(Order.created_at >= start)
     orders = q.all()
@@ -42,6 +55,7 @@ def sales_report(period: str = "month", db: Session = Depends(get_db), current_u
     avg_order = total_revenue / total_orders if total_orders else 0
     return {
         "period": period,
+        "branch_id": current_user.branch_id if current_user.role == UserRole.branch_manager else None,
         "total_orders": total_orders,
         "total_revenue": round(total_revenue, 2),
         "average_order_value": round(avg_order, 2),
@@ -51,9 +65,14 @@ def sales_report(period: str = "month", db: Session = Depends(get_db), current_u
 
 
 @router.get("/profit")
-def profit_report(period: str = "month", db: Session = Depends(get_db), current_user=Depends(require_branch_manager_or_above)):
+def profit_report(
+    period: str = "month",
+    db: Session = Depends(get_db),
+    current_user=Depends(require_branch_manager_or_above)
+):
     start, end = _date_range(period)
     q = db.query(Order).filter(Order.status == OrderStatus.delivered)
+    q = _apply_branch_filter(q, Order, current_user)
     if start:
         q = q.filter(Order.created_at >= start)
     orders = q.all()
@@ -61,6 +80,7 @@ def profit_report(period: str = "month", db: Session = Depends(get_db), current_
     total_discount = sum(o.discount or 0 for o in orders)
     return {
         "period": period,
+        "branch_id": current_user.branch_id if current_user.role == UserRole.branch_manager else None,
         "total_revenue": round(total_revenue, 2),
         "total_discount": round(total_discount, 2),
         "net_revenue": round(total_revenue - total_discount, 2),
@@ -69,25 +89,44 @@ def profit_report(period: str = "month", db: Session = Depends(get_db), current_
 
 
 @router.get("/inventory")
-def inventory_report(db: Session = Depends(get_db), current_user=Depends(require_branch_manager_or_above)):
-    total = db.query(InventoryItem).filter(InventoryItem.is_active == True).count()
-    available = db.query(InventoryItem).filter(InventoryItem.is_active == True, InventoryItem.status == ItemStatus.available).count()
-    sold = db.query(InventoryItem).filter(InventoryItem.is_active == True, InventoryItem.status == ItemStatus.sold).count()
-    reserved = db.query(InventoryItem).filter(InventoryItem.is_active == True, InventoryItem.status == ItemStatus.reserved).count()
-    low_stock_products = db.query(Product).filter(Product.is_active == True, Product.quantity <= 3).all()
+def inventory_report(
+    db: Session = Depends(get_db),
+    current_user=Depends(require_branch_manager_or_above)
+):
+    q = db.query(InventoryItem).filter(InventoryItem.is_active == True)
+    q = _apply_branch_filter(q, InventoryItem, current_user)
+
+    total = q.count()
+    available = q.filter(InventoryItem.status == ItemStatus.available).count()
+    sold = db.query(InventoryItem).filter(InventoryItem.is_active == True, InventoryItem.status == ItemStatus.sold)
+    sold = _apply_branch_filter(sold, InventoryItem, current_user)
+    reserved = db.query(InventoryItem).filter(InventoryItem.is_active == True, InventoryItem.status == ItemStatus.reserved)
+    reserved = _apply_branch_filter(reserved, InventoryItem, current_user)
+
+    low_stock_q = db.query(Product).filter(Product.is_active == True, Product.quantity <= 3)
+    if current_user.role == UserRole.branch_manager and current_user.branch_id:
+        low_stock_q = low_stock_q.filter(Product.branch_id == current_user.branch_id)
+    low_stock_products = low_stock_q.all()
+
     return {
+        "branch_id": current_user.branch_id if current_user.role == UserRole.branch_manager else None,
         "total_items": total,
         "available": available,
-        "sold": sold,
-        "reserved": reserved,
+        "sold": sold.count(),
+        "reserved": reserved.count(),
         "low_stock_products": [{"id": p.id, "name": p.name, "quantity": p.quantity} for p in low_stock_products],
     }
 
 
 @router.get("/maintenance")
-def maintenance_report(period: str = "month", db: Session = Depends(get_db), current_user=Depends(require_branch_manager_or_above)):
+def maintenance_report(
+    period: str = "month",
+    db: Session = Depends(get_db),
+    current_user=Depends(require_branch_manager_or_above)
+):
     start, end = _date_range(period)
     q = db.query(Order).filter(Order.order_type == OrderType.maintenance)
+    q = _apply_branch_filter(q, Order, current_user)
     if start:
         q = q.filter(Order.created_at >= start)
     orders = q.all()
@@ -95,6 +134,7 @@ def maintenance_report(period: str = "month", db: Session = Depends(get_db), cur
     total_revenue = sum(o.total for o in completed)
     return {
         "period": period,
+        "branch_id": current_user.branch_id if current_user.role == UserRole.branch_manager else None,
         "total_requests": len(orders),
         "completed": len(completed),
         "total_revenue": round(total_revenue, 2),

@@ -7,15 +7,16 @@ def _is_postgres():
     return engine.dialect.name == "postgresql"
 
 
+def _is_sqlite():
+    return engine.dialect.name == "sqlite"
+
+
 def run_migrations():
     """Safely add new columns and enum values without losing data."""
     inspector = inspect(engine)
     existing_tables = inspector.get_table_names()
 
     # ── PostgreSQL: extend userrole enum BEFORE table ops ──────────────────
-    # ALTER TYPE ... ADD VALUE cannot run inside a regular transaction.
-    # We create a separate AUTOCOMMIT engine using engine.url (URL object,
-    # not str — str() masks the password in SQLAlchemy 1.4+).
     if _is_postgres():
         raw_engine = create_engine(
             engine.url, isolation_level="AUTOCOMMIT", poolclass=NullPool
@@ -28,9 +29,9 @@ def run_migrations():
                             f"ALTER TYPE userrole ADD VALUE IF NOT EXISTS '{val}'"
                         ))
                     except Exception:
-                        pass  # value already exists or type not yet created
+                        pass
         except Exception:
-            pass  # DB unreachable — tables may not be created yet
+            pass
         finally:
             raw_engine.dispose()
 
@@ -65,4 +66,35 @@ def run_migrations():
                     ))
 
         conn.commit()
+
+    # ── Unique index on users.referral_code ─────────────────────────────────
+    # Must be outside the main transaction on some DBs
+    try:
+        with engine.connect() as conn:
+            if _is_sqlite():
+                conn.execute(text(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS "
+                    "ix_users_referral_code_uniq ON users (referral_code)"
+                ))
+            else:
+                conn.execute(text(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS "
+                    "ix_users_referral_code_uniq ON users (referral_code) "
+                    "WHERE referral_code IS NOT NULL"
+                ))
+            conn.commit()
+    except Exception:
+        pass  # index may already exist
+
+    # ── Index on referrals.device_fingerprint ──────────────────────────────
+    try:
+        with engine.connect() as conn:
+            conn.execute(text(
+                "CREATE INDEX IF NOT EXISTS "
+                "ix_referrals_device_fingerprint ON referrals (device_fingerprint)"
+            ))
+            conn.commit()
+    except Exception:
+        pass  # index may already exist
+
     print("✅ Migrations applied successfully")

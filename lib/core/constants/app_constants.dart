@@ -1,6 +1,9 @@
+import 'package:flutter/foundation.dart';
+
 class AppConstants {
-  static const String appName = 'اندرويد الاحمدي';
-  static const String appNameEn = 'Android Al-Ahmadi';
+  static const String appName = 'أندرويد الأحمدي';
+  static const String appNameEn = 'Android Al-Ahmady';
+  static const String appSubtitle = 'شاشات وصيانة الهواتف';
   static const String ownerName = 'أحمد الأحمدي';
   static const String shopPhone = '0501234567';
   static const String shopWhatsApp = '966501234567';
@@ -13,8 +16,17 @@ class AppConstants {
     'الجمعة': '4:00 م - 11:00 م',
   };
 
-  // API
-  static const String baseUrl = 'https://android-al-ahmadi-store-api.onrender.com';
+  // API — dynamic on web (uses same origin as the Flutter app),
+  // falls back to production URL on native (Android/iOS).
+  static String get baseUrl {
+    if (kIsWeb) {
+      // On web the app is served from the same host as the API proxy,
+      // so we use the window origin to avoid cross-origin issues.
+      return Uri.base.origin;
+    }
+    return 'https://android-al-ahmadi-store-api.onrender.com';
+  }
+
   static const String apiVersion = '/api';
 
   // Storage Keys

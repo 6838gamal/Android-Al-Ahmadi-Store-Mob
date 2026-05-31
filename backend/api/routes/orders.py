@@ -4,9 +4,10 @@ from typing import Optional, List
 from datetime import datetime
 from backend.core.database import get_db
 from backend.models.order import Order, OrderUpdate, OrderStatus, OrderType
+from backend.models.notification import Notification, NotificationType
 from backend.schemas.order import OrderCreate, OrderUpdateStatus, OrderResponse
-from backend.api.dependencies import get_admin_user, get_current_user, require_staff_or_above
-from backend.models.user import User
+from backend.api.dependencies import get_admin_user, get_current_user, get_current_user_optional, require_staff_or_above
+from backend.models.user import User, UserRole
 import random
 
 router = APIRouter()
@@ -16,6 +17,45 @@ def generate_order_number(db: Session) -> str:
     year = datetime.now().year
     count = db.query(Order).count() + 1
     return f"ORD-{year}-{count:04d}"
+
+
+ORDER_STATUS_NOTIFICATIONS = {
+    "received":   ("تم استلام طلبك ✅", "تم استلام طلبك بنجاح وسيتم مراجعته قريباً"),
+    "reviewing":  ("طلبك قيد المراجعة 🔍", "جاري مراجعة طلبك والتحقق من التفاصيل"),
+    "confirmed":  ("تم تأكيد طلبك ✅", "تم تأكيد طلبك وسيبدأ التجهيز近"),
+    "preparing":  ("جاري تجهيز طلبك 📦", "فريقنا يجهّز طلبك الآن"),
+    "shipped":    ("تم شحن طلبك 🚚", "طلبك في طريقه إليك"),
+    "on_the_way": ("طلبك في الطريق 🛵", "المندوب في طريقه إليك"),
+    "delivered":  ("تم تسليم طلبك 🎉", "تم تسليم طلبك بنجاح. شكراً لثقتك بنا"),
+    "cancelled":  ("تم إلغاء طلبك ❌", "تم إلغاء طلبك. للاستفسار تواصل معنا"),
+}
+
+
+def _create_order_notification(db: Session, order: Order, status_value: str):
+    """Push a notification to the order customer when status changes."""
+    if status_value not in ORDER_STATUS_NOTIFICATIONS:
+        return
+    title, body = ORDER_STATUS_NOTIFICATIONS[status_value]
+
+    customer_id = getattr(order, "customer_id", None)
+    if not customer_id and order.customer_phone:
+        customer = db.query(User).filter(User.phone == order.customer_phone).first()
+        if customer:
+            customer_id = customer.id
+
+    if not customer_id:
+        return
+
+    notif = Notification(
+        user_id=customer_id,
+        title=title,
+        body=f"{body} — رقم الطلب: {order.order_number}",
+        notification_type=NotificationType.order,
+        is_important=status_value in ("delivered", "cancelled"),
+        reference_id=order.id,
+        reference_type="order",
+    )
+    db.add(notif)
 
 
 @router.post("/", response_model=OrderResponse)
@@ -49,6 +89,7 @@ def create_order(
         note="تم استلام الطلب بنجاح",
     )
     db.add(update)
+    _create_order_notification(db, order, "received")
     db.commit()
     db.refresh(order)
     return order
@@ -65,6 +106,11 @@ def get_orders(
     current_user: User = Depends(require_staff_or_above)
 ):
     query = db.query(Order)
+
+    # Branch manager sees only their branch's orders
+    if current_user.role == UserRole.branch_manager and current_user.branch_id:
+        query = query.filter(Order.branch_id == current_user.branch_id)
+
     if status:
         query = query.filter(Order.status == status)
     if order_type:
@@ -78,21 +124,67 @@ def get_orders(
     return query.order_by(Order.created_at.desc()).offset(skip).limit(limit).all()
 
 
+@router.get("/my", response_model=List[OrderResponse])
+def get_my_orders(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Authenticated customer sees only their own orders."""
+    return (
+        db.query(Order)
+        .filter(Order.customer_phone == current_user.phone)
+        .order_by(Order.created_at.desc())
+        .all()
+    )
+
+
 @router.get("/my/{phone}", response_model=List[OrderResponse])
-def get_my_orders(phone: str, db: Session = Depends(get_db)):
-    return db.query(Order).filter(Order.customer_phone == phone).order_by(Order.created_at.desc()).all()
+def get_orders_by_phone(
+    phone: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Returns orders for a phone number.
+    Customers may only view their own phone's orders.
+    Staff and above may view any phone.
+    """
+    if current_user.role == UserRole.customer:
+        if current_user.phone != phone:
+            raise HTTPException(status_code=403, detail="غير مصرح: لا يمكنك الاطلاع على طلبات هاتف آخر")
+    return (
+        db.query(Order)
+        .filter(Order.customer_phone == phone)
+        .order_by(Order.created_at.desc())
+        .all()
+    )
 
 
 @router.get("/{order_id}", response_model=OrderResponse)
-def get_order(order_id: int, db: Session = Depends(get_db)):
+def get_order(
+    order_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user_optional),
+):
     order = db.query(Order).filter(Order.id == order_id).first()
     if not order:
         raise HTTPException(status_code=404, detail="Order not found")
+
+    # Customers can only see their own orders
+    if current_user and current_user.role == UserRole.customer:
+        if order.customer_phone != current_user.phone:
+            raise HTTPException(status_code=403, detail="غير مصرح: هذا الطلب لا ينتمي إلى حسابك")
+
+    # Unauthenticated users cannot view orders by ID
+    if not current_user:
+        raise HTTPException(status_code=401, detail="يجب تسجيل الدخول لعرض تفاصيل الطلب")
+
     return order
 
 
 @router.get("/track/{order_number}", response_model=OrderResponse)
 def track_order(order_number: str, db: Session = Depends(get_db)):
+    """Public order tracking by order number."""
     order = db.query(Order).filter(Order.order_number == order_number).first()
     if not order:
         raise HTTPException(status_code=404, detail="Order not found")
@@ -129,6 +221,11 @@ def update_order_status(
         employee_name=update_data.employee_name or current_user.name,
     )
     db.add(upd)
+
+    # Auto-notify customer on order status change
+    if update_data.status:
+        _create_order_notification(db, order, update_data.status.value)
+
     db.commit()
     db.refresh(order)
     return order

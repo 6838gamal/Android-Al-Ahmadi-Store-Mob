@@ -28,8 +28,8 @@ class User(Base):
     # Branch linkage
     branch_id = Column(Integer, ForeignKey("branches.id"), nullable=True)
 
-    # Referral
-    referral_code = Column(String(20), nullable=True, index=True)
+    # Referral — unique so no two users share the same code
+    referral_code = Column(String(20), unique=True, nullable=True, index=True)
     referred_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
 
     # Wallet

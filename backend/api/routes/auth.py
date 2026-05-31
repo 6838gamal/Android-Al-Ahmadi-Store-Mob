@@ -1,5 +1,6 @@
-import random, string
-from fastapi import APIRouter, Depends, HTTPException, status
+import random, string, time, os
+from collections import defaultdict
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 from backend.core.database import get_db
 from backend.core.security import verify_password, get_password_hash, create_access_token
@@ -11,6 +12,19 @@ router = APIRouter()
 
 STAFF_ROLES = [UserRole.staff, UserRole.branch_manager, UserRole.admin]
 
+_rate_store: dict = defaultdict(list)
+
+
+def _check_rate_limit(key: str, limit: int = 10, window: int = 60):
+    now = time.time()
+    _rate_store[key] = [t for t in _rate_store[key] if now - t < window]
+    if len(_rate_store[key]) >= limit:
+        raise HTTPException(
+            status_code=429,
+            detail="محاولات كثيرة. يرجى الانتظار دقيقة ثم المحاولة مجدداً."
+        )
+    _rate_store[key].append(now)
+
 
 def _gen_referral_code(db: Session) -> str:
     while True:
@@ -20,7 +34,10 @@ def _gen_referral_code(db: Session) -> str:
 
 
 @router.post("/register", response_model=TokenResponse)
-def register(user_data: UserCreate, db: Session = Depends(get_db)):
+def register(user_data: UserCreate, request: Request, db: Session = Depends(get_db)):
+    client_ip = request.client.host if request.client else "unknown"
+    _check_rate_limit(f"register:{client_ip}", limit=5, window=60)
+
     if not user_data.email and not user_data.phone:
         raise HTTPException(status_code=400, detail="Email or phone required")
 
@@ -32,34 +49,49 @@ def register(user_data: UserCreate, db: Session = Depends(get_db)):
         if db.query(User).filter(User.phone == user_data.phone).first():
             raise HTTPException(status_code=400, detail="Phone already registered")
 
-    allowed_roles = {UserRole.customer, UserRole.staff}
-    requested_role = UserRole.customer
-    if user_data.role:
-        try:
-            requested_role = UserRole(user_data.role)
-        except ValueError:
-            pass
-    if requested_role not in allowed_roles:
-        requested_role = UserRole.customer
+    # Resolve referrer from supplied referral_code
+    referred_by_id = None
+    if user_data.referral_code:
+        referrer = db.query(User).filter(
+            User.referral_code == user_data.referral_code.upper()
+        ).first()
+        if referrer:
+            referred_by_id = referrer.id
 
+    # Public registration only allows customer role
     user = User(
         name=user_data.name,
         email=user_data.email,
         phone=user_data.phone,
         hashed_password=get_password_hash(user_data.password),
-        role=requested_role,
+        role=UserRole.customer,
         referral_code=_gen_referral_code(db),
+        referred_by_id=referred_by_id,
     )
     db.add(user)
     db.commit()
     db.refresh(user)
+
+    # Record the referral relationship
+    if referred_by_id:
+        from backend.models.referral import Referral
+        ref_record = Referral(
+            referrer_id=referred_by_id,
+            referred_id=user.id,
+            is_verified=True,
+        )
+        db.add(ref_record)
+        db.commit()
 
     token = create_access_token({"sub": str(user.id), "role": user.role.value})
     return TokenResponse(access_token=token, user=UserResponse.from_orm(user))
 
 
 @router.post("/login", response_model=TokenResponse)
-def login(login_data: UserLogin, db: Session = Depends(get_db)):
+def login(login_data: UserLogin, request: Request, db: Session = Depends(get_db)):
+    client_ip = request.client.host if request.client else "unknown"
+    _check_rate_limit(f"login:{client_ip}", limit=10, window=60)
+
     identifier = login_data.identifier.strip()
     user = None
 
@@ -79,8 +111,11 @@ def login(login_data: UserLogin, db: Session = Depends(get_db)):
 
 
 @router.post("/staff-login", response_model=TokenResponse)
-def staff_login(login_data: UserLogin, db: Session = Depends(get_db)):
+def staff_login(login_data: UserLogin, request: Request, db: Session = Depends(get_db)):
     """Login for staff, branch_manager, and admin roles."""
+    client_ip = request.client.host if request.client else "unknown"
+    _check_rate_limit(f"staff_login:{client_ip}", limit=10, window=60)
+
     identifier = login_data.identifier.strip()
     user = None
 
@@ -100,7 +135,10 @@ def staff_login(login_data: UserLogin, db: Session = Depends(get_db)):
 
 
 @router.post("/admin-login", response_model=TokenResponse)
-def admin_login(login_data: UserLogin, db: Session = Depends(get_db)):
+def admin_login(login_data: UserLogin, request: Request, db: Session = Depends(get_db)):
+    client_ip = request.client.host if request.client else "unknown"
+    _check_rate_limit(f"admin_login:{client_ip}", limit=5, window=60)
+
     identifier = login_data.identifier.strip()
     user = None
 
@@ -123,6 +161,11 @@ def get_me(current_user: User = Depends(get_current_user)):
 
 @router.get("/seed-admin")
 def seed_admin(db: Session = Depends(get_db)):
+    # Only available in development environment
+    env = os.getenv("ENVIRONMENT", "development").lower()
+    if env == "production":
+        raise HTTPException(status_code=404, detail="Not found")
+
     existing = db.query(User).filter(User.role == UserRole.admin).first()
     if existing:
         return {"message": "Admin already exists", "email": existing.email}

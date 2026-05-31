@@ -9,6 +9,7 @@ class UserCreate(BaseModel):
     phone: Optional[str] = None
     password: str
     role: Optional[str] = "customer"
+    referral_code: Optional[str] = None
 
 
 class UserLogin(BaseModel):

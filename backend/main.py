@@ -49,6 +49,14 @@ Base.metadata.create_all(bind=engine)
 def _seed_admin():
     from backend.models.user import User, UserRole
     from backend.core.security import get_password_hash
+    import random, string
+
+    def _gen_code(db):
+        while True:
+            code = "".join(random.choices(string.ascii_uppercase + string.digits, k=8))
+            if not db.query(User).filter(User.referral_code == code).first():
+                return code
+
     db = SessionLocal()
     try:
         existing = db.query(User).filter(User.role == UserRole.admin).first()
@@ -60,6 +68,7 @@ def _seed_admin():
                 hashed_password=get_password_hash("Admin@2026"),
                 role=UserRole.admin,
                 is_active=True,
+                referral_code=_gen_code(db),
             )
             db.add(admin)
             db.commit()
@@ -70,11 +79,55 @@ def _seed_admin():
         db.close()
 
 
-_seed_admin()
+# Only seed admin in non-production environments
+_env = os.getenv("ENVIRONMENT", "development").lower()
+if _env != "production":
+    _seed_admin()
+else:
+    # In production, still ensure admin exists but don't print credentials
+    def _ensure_admin_production():
+        from backend.models.user import User, UserRole
+        from backend.core.security import get_password_hash
+        import random, string
+
+        def _gen_code(db):
+            while True:
+                code = "".join(random.choices(string.ascii_uppercase + string.digits, k=8))
+                if not db.query(User).filter(User.referral_code == code).first():
+                    return code
+
+        db = SessionLocal()
+        try:
+            existing = db.query(User).filter(User.role == UserRole.admin).first()
+            if not existing:
+                admin_email = os.getenv("ADMIN_EMAIL", "admin@alahmadi.com")
+                admin_pass = os.getenv("ADMIN_PASSWORD", "Admin@2026")
+                admin = User(
+                    name="مدير اندرويد الاحمدي",
+                    email=admin_email,
+                    phone="0501234567",
+                    hashed_password=get_password_hash(admin_pass),
+                    role=UserRole.admin,
+                    is_active=True,
+                    referral_code=_gen_code(db),
+                )
+                db.add(admin)
+                db.commit()
+                print("✅ Admin user ensured in production")
+        finally:
+            db.close()
+    _ensure_admin_production()
+
+# CORS — restrict to specific origins in production
+_raw_origins = os.getenv("ALLOWED_ORIGINS", "")
+if _raw_origins:
+    _allowed_origins = [o.strip() for o in _raw_origins.split(",") if o.strip()]
+else:
+    _allowed_origins = ["*"]
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=_allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
