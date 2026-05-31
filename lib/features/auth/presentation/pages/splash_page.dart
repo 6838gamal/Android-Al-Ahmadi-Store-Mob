@@ -25,8 +25,8 @@ class _SplashPageState extends ConsumerState<SplashPage> {
     if (!mounted) return;
     final auth = ref.read(authProvider);
     if (auth.isAuthenticated) {
-      if (auth.isAdmin) {
-        context.go('/admin');
+      if (auth.isStaff || auth.isBranchManager) {
+        context.go('/staff');
       } else {
         context.go('/products');
       }
@@ -51,7 +51,6 @@ class _SplashPageState extends ConsumerState<SplashPage> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // Logo
               Container(
                 width: 120,
                 height: 120,

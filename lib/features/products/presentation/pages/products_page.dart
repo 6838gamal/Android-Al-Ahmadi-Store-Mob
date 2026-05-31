@@ -9,7 +9,6 @@ import '../../../../core/utils/app_utils.dart';
 import '../../../../shared/widgets/loading_widget.dart';
 import '../../../../shared/widgets/status_badge.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
-import '../../../auth/presentation/widgets/admin_login_dialog.dart';
 import '../providers/products_provider.dart';
 
 class ProductsPage extends ConsumerStatefulWidget {
@@ -51,7 +50,9 @@ class _ProductsPageState extends ConsumerState<ProductsPage> {
                 TextButton.icon(
                   onPressed: () => context.go('/login'),
                   icon: const Icon(Icons.login_rounded, color: Colors.white, size: 18),
-                  label: const Text('دخول', style: TextStyle(fontFamily: 'Cairo', color: Colors.white, fontSize: 13, fontWeight: FontWeight.w700)),
+                  label: const Text('دخول',
+                      style: TextStyle(
+                          fontFamily: 'Cairo', color: Colors.white, fontSize: 13, fontWeight: FontWeight.w700)),
                 ),
               IconButton(
                 icon: const Icon(Icons.search, color: Colors.white),
@@ -71,15 +72,15 @@ class _ProductsPageState extends ConsumerState<ProductsPage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisAlignment: MainAxisAlignment.end,
-                      children: [
-                        // Double tap for admin
-                        GestureDetector(
-                          onDoubleTap: () => _showAdminLogin(context),
-                          child: const Text(AppConstants.appName,
-                            style: TextStyle(fontFamily: 'Cairo', fontSize: 24, fontWeight: FontWeight.w700, color: Colors.white)),
-                        ),
-                        const Text('اكتشف أحدث الجوالات وقطع الغيار',
-                          style: TextStyle(fontFamily: 'Cairo', fontSize: 13, color: Colors.white70)),
+                      children: const [
+                        Text(AppConstants.appName,
+                            style: TextStyle(
+                                fontFamily: 'Cairo',
+                                fontSize: 24,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.white)),
+                        Text('اكتشف أحدث الجوالات وقطع الغيار',
+                            style: TextStyle(fontFamily: 'Cairo', fontSize: 13, color: Colors.white70)),
                       ],
                     ),
                   ),
@@ -87,7 +88,8 @@ class _ProductsPageState extends ConsumerState<ProductsPage> {
               ),
             ),
             title: const Text(AppConstants.appName,
-              style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.w700, fontSize: 16, color: Colors.white)),
+                style: TextStyle(
+                    fontFamily: 'Cairo', fontWeight: FontWeight.w700, fontSize: 16, color: Colors.white)),
           ),
           // Category Chips
           SliverToBoxAdapter(
@@ -103,18 +105,17 @@ class _ProductsPageState extends ConsumerState<ProductsPage> {
           if (state.isLoading)
             const SliverFillRemaining(child: ProductGridShimmer())
           else if (state.error != null)
-            SliverFillRemaining(child: EmptyState(title: 'حدث خطأ', subtitle: state.error, icon: Icons.error_outline))
+            SliverFillRemaining(
+                child: EmptyState(title: 'حدث خطأ', subtitle: state.error, icon: Icons.error_outline))
           else if (state.products.isEmpty)
-            const SliverFillRemaining(child: EmptyState(title: 'لا توجد منتجات', icon: Icons.inventory_2_outlined))
+            const SliverFillRemaining(
+                child: EmptyState(title: 'لا توجد منتجات', icon: Icons.inventory_2_outlined))
           else
             SliverPadding(
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
               sliver: SliverGrid(
                 delegate: SliverChildBuilderDelegate(
-                  (ctx, i) => _ProductCard(
-                    product: state.products[i],
-                    index: i,
-                  ),
+                  (ctx, i) => _ProductCard(product: state.products[i], index: i),
                   childCount: state.products.length,
                 ),
                 gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
@@ -140,7 +141,9 @@ class _ProductsPageState extends ConsumerState<ProductsPage> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text('بحث في المنتجات', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.w700, color: Colors.white, fontSize: 16)),
+            const Text('بحث في المنتجات',
+                style: TextStyle(
+                    fontFamily: 'Cairo', fontWeight: FontWeight.w700, color: Colors.white, fontSize: 16)),
             const SizedBox(height: 16),
             TextField(
               controller: _searchCtrl,
@@ -153,7 +156,8 @@ class _ProductsPageState extends ConsumerState<ProductsPage> {
                 prefixIcon: const Icon(Icons.search, color: AppColors.textMuted),
                 filled: true,
                 fillColor: AppColors.darkSurface,
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
               ),
             ),
           ],
@@ -173,35 +177,28 @@ class _ProductsPageState extends ConsumerState<ProductsPage> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('تصفية المنتجات', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.w700, color: Colors.white, fontSize: 16)),
+            const Text('تصفية المنتجات',
+                style: TextStyle(
+                    fontFamily: 'Cairo', fontWeight: FontWeight.w700, color: Colors.white, fontSize: 16)),
             const SizedBox(height: 16),
             const Text('الحالة', style: TextStyle(fontFamily: 'Cairo', color: AppColors.textSecondary)),
             const SizedBox(height: 8),
             Wrap(
               spacing: 8,
-              children: AppConstants.productStatusAr.entries.map((e) => FilterChip(
-                label: Text(e.value, style: const TextStyle(fontFamily: 'Cairo')),
-                selected: _selectedStatus == e.key,
-                onSelected: (v) {
-                  Navigator.pop(ctx);
-                  setState(() => _selectedStatus = v ? e.key : null);
-                  ref.read(productsProvider.notifier).load(status: v ? e.key : null);
-                },
-              )).toList(),
+              children: AppConstants.productStatusAr.entries
+                  .map((e) => FilterChip(
+                        label: Text(e.value, style: const TextStyle(fontFamily: 'Cairo')),
+                        selected: _selectedStatus == e.key,
+                        onSelected: (v) {
+                          Navigator.pop(ctx);
+                          setState(() => _selectedStatus = v ? e.key : null);
+                          ref.read(productsProvider.notifier).load(status: v ? e.key : null);
+                        },
+                      ))
+                  .toList(),
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  void _showAdminLogin(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (_) => AdminLoginDialog(
-        onSuccess: () {
-          if (context.mounted) context.go('/admin');
-        },
       ),
     );
   }
@@ -223,10 +220,10 @@ class _CategoryChips extends StatelessWidget {
         children: [
           _Chip(label: 'الكل', selected: selected == null, onTap: () => onSelect(null)),
           ...AppConstants.categoryAr.entries.map((e) => _Chip(
-            label: e.value,
-            selected: selected == e.key,
-            onTap: () => onSelect(selected == e.key ? null : e.key),
-          )),
+                label: e.value,
+                selected: selected == e.key,
+                onTap: () => onSelect(selected == e.key ? null : e.key),
+              )),
         ],
       ),
     );
@@ -253,7 +250,12 @@ class _Chip extends StatelessWidget {
           borderRadius: BorderRadius.circular(20),
           border: Border.all(color: selected ? AppColors.primary : AppColors.darkBorder),
         ),
-        child: Text(label, style: TextStyle(fontFamily: 'Cairo', fontSize: 12, fontWeight: FontWeight.w600, color: selected ? Colors.white : AppColors.textSecondary)),
+        child: Text(label,
+            style: TextStyle(
+                fontFamily: 'Cairo',
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: selected ? Colors.white : AppColors.textSecondary)),
       ),
     );
   }
@@ -279,7 +281,6 @@ class _ProductCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Image
             ClipRRect(
               borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
               child: AspectRatio(
@@ -305,13 +306,23 @@ class _ProductCard extends StatelessWidget {
                       children: [
                         Text(
                           product['name'] ?? '',
-                          style: const TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.w700, color: Colors.white, fontSize: 12),
+                          style: const TextStyle(
+                              fontFamily: 'Cairo',
+                              fontWeight: FontWeight.w700,
+                              color: Colors.white,
+                              fontSize: 12),
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                         ),
                         if (product['brand'] != null) ...[
                           const SizedBox(height: 2),
-                          Text(product['brand'], style: const TextStyle(fontFamily: 'Cairo', fontSize: 11, color: AppColors.textSecondary), maxLines: 1, overflow: TextOverflow.ellipsis),
+                          Text(product['brand'],
+                              style: const TextStyle(
+                                  fontFamily: 'Cairo',
+                                  fontSize: 11,
+                                  color: AppColors.textSecondary),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis),
                         ],
                       ],
                     ),
@@ -321,7 +332,11 @@ class _ProductCard extends StatelessWidget {
                         Flexible(
                           child: Text(
                             AppUtils.formatPrice((product['price'] as num?)?.toDouble() ?? 0),
-                            style: const TextStyle(fontFamily: 'Cairo', fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.primary),
+                            style: const TextStyle(
+                                fontFamily: 'Cairo',
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.primary),
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),

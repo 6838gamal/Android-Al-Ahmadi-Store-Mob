@@ -20,6 +20,9 @@ class UserModel {
     this.avatarUrl,
   });
 
+  bool get isCustomer => role == 'customer';
+  bool get isStaff => role == 'staff';
+  bool get isBranchManager => role == 'branch_manager';
   bool get isAdmin => role == 'admin';
 
   factory UserModel.fromJson(Map<String, dynamic> json) => UserModel(
@@ -52,8 +55,17 @@ class AuthState {
 
   bool get isAuthenticated => user != null;
   bool get isAdmin => user?.isAdmin ?? false;
+  bool get isStaff => user?.isStaff ?? false;
+  bool get isBranchManager => user?.isBranchManager ?? false;
+  bool get isCustomer => user?.isCustomer ?? false;
 
-  AuthState copyWith({UserModel? user, bool? isLoading, String? error, bool? isInitialized, bool clearUser = false}) =>
+  AuthState copyWith({
+    UserModel? user,
+    bool? isLoading,
+    String? error,
+    bool? isInitialized,
+    bool clearUser = false,
+  }) =>
       AuthState(
         user: clearUser ? null : (user ?? this.user),
         isLoading: isLoading ?? this.isLoading,
@@ -93,21 +105,6 @@ class AuthNotifier extends StateNotifier<AuthState> {
       return true;
     } catch (e) {
       state = state.copyWith(isLoading: false, error: 'بيانات الدخول غير صحيحة');
-      return false;
-    }
-  }
-
-  Future<bool> adminLogin(String identifier, String password) async {
-    state = state.copyWith(isLoading: true, error: null);
-    try {
-      final res = await _api.post('/auth/admin-login', data: {'identifier': identifier, 'password': password});
-      final user = UserModel.fromJson(res.data['user']);
-      await StorageService.saveToken(res.data['access_token']);
-      await StorageService.saveUser(jsonEncode(user.toJson()));
-      state = state.copyWith(user: user, isLoading: false);
-      return true;
-    } catch (e) {
-      state = state.copyWith(isLoading: false, error: 'بيانات الإدارة غير صحيحة');
       return false;
     }
   }

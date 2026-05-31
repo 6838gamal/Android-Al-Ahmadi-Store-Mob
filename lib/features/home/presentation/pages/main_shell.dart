@@ -5,7 +5,6 @@ import 'package:flutter_animate/flutter_animate.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/constants/app_constants.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
-import '../../../auth/presentation/widgets/admin_login_dialog.dart';
 
 class MainShell extends ConsumerStatefulWidget {
   final Widget child;
@@ -35,13 +34,7 @@ class _MainShellState extends ConsumerState<MainShell> {
       backgroundColor: AppColors.darkBg,
       drawer: _buildDrawer(context),
       body: widget.child,
-      bottomNavigationBar: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          _buildBottomNav(),
-          _buildStoreBranding(context),
-        ],
-      ),
+      bottomNavigationBar: _buildBottomNav(),
     );
   }
 
@@ -116,31 +109,28 @@ class _MainShellState extends ConsumerState<MainShell> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                GestureDetector(
-                  onDoubleTap: () => _showAdminLogin(context),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 56,
-                        height: 56,
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.2),
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: const Icon(Icons.phone_android, color: Colors.white, size: 28),
+                Row(
+                  children: [
+                    Container(
+                      width: 56,
+                      height: 56,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(16),
                       ),
-                      const SizedBox(width: 12),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: const [
-                          Text(AppConstants.appName,
+                      child: const Icon(Icons.phone_android, color: Colors.white, size: 28),
+                    ),
+                    const SizedBox(width: 12),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: const [
+                        Text(AppConstants.appName,
                             style: TextStyle(fontFamily: 'Cairo', fontSize: 16, fontWeight: FontWeight.w700, color: Colors.white)),
-                          Text(AppConstants.ownerName,
+                        Text(AppConstants.ownerName,
                             style: TextStyle(fontFamily: 'Cairo', fontSize: 12, color: Colors.white70)),
-                        ],
-                      ),
-                    ],
-                  ),
+                      ],
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 16),
                 const Divider(color: Colors.white24),
@@ -149,16 +139,23 @@ class _MainShellState extends ConsumerState<MainShell> {
                   CircleAvatar(
                     radius: 28,
                     backgroundColor: Colors.white.withOpacity(0.2),
-                    child: Text(user.name[0], style: const TextStyle(fontFamily: 'Cairo', fontSize: 20, color: Colors.white, fontWeight: FontWeight.w700)),
+                    child: Text(user.name[0],
+                        style: const TextStyle(fontFamily: 'Cairo', fontSize: 20, color: Colors.white, fontWeight: FontWeight.w700)),
                   ),
                   const SizedBox(height: 8),
-                  Text(user.name, style: const TextStyle(fontFamily: 'Cairo', fontSize: 14, color: Colors.white, fontWeight: FontWeight.w700)),
-                  Text(user.email ?? user.phone ?? '', style: const TextStyle(fontFamily: 'Cairo', fontSize: 12, color: Colors.white70)),
+                  Text(user.name,
+                      style: const TextStyle(fontFamily: 'Cairo', fontSize: 14, color: Colors.white, fontWeight: FontWeight.w700)),
+                  Text(user.email ?? user.phone ?? '',
+                      style: const TextStyle(fontFamily: 'Cairo', fontSize: 12, color: Colors.white70)),
                 ] else ...[
                   TextButton.icon(
-                    onPressed: () { Navigator.pop(context); context.go('/login'); },
+                    onPressed: () {
+                      Navigator.pop(context);
+                      context.go('/login');
+                    },
                     icon: const Icon(Icons.login, color: Colors.white),
-                    label: const Text('تسجيل الدخول', style: TextStyle(fontFamily: 'Cairo', color: Colors.white)),
+                    label: const Text('تسجيل الدخول',
+                        style: TextStyle(fontFamily: 'Cairo', color: Colors.white)),
                   ),
                 ],
               ],
@@ -197,56 +194,6 @@ class _MainShellState extends ConsumerState<MainShell> {
       ),
     );
   }
-
-  Widget _buildStoreBranding(BuildContext context) {
-    return GestureDetector(
-      onDoubleTap: () => _showAdminLogin(context),
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(vertical: 8),
-        decoration: BoxDecoration(
-          color: AppColors.darkSurface,
-          border: const Border(top: BorderSide(color: AppColors.darkBorder, width: 0.5)),
-        ),
-        child: SafeArea(
-          top: false,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                width: 28,
-                height: 28,
-                decoration: BoxDecoration(
-                  gradient: AppColors.primaryGradient,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Icon(Icons.phone_android, color: Colors.white, size: 16),
-              ),
-              const SizedBox(width: 8),
-              const Text(
-                AppConstants.appName,
-                style: TextStyle(
-                  fontFamily: 'Cairo',
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.textSecondary,
-                  letterSpacing: 0.5,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  void _showAdminLogin(BuildContext context) {
-    showDialog(context: context, builder: (_) => AdminLoginDialog(
-      onSuccess: () {
-        if (context.mounted) context.go('/admin');
-      },
-    ));
-  }
 }
 
 class _TabItem {
@@ -270,7 +217,8 @@ class _DrawerItem extends StatelessWidget {
     final c = color ?? AppColors.textSecondary;
     return ListTile(
       leading: Icon(icon, color: c, size: 22),
-      title: Text(label, style: TextStyle(fontFamily: 'Cairo', color: c, fontSize: 14, fontWeight: FontWeight.w600)),
+      title: Text(label,
+          style: TextStyle(fontFamily: 'Cairo', color: c, fontSize: 14, fontWeight: FontWeight.w600)),
       onTap: onTap,
       contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 2),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -293,7 +241,8 @@ class _ShopInfoSection extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('معلومات المحل', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.w700, color: Colors.white, fontSize: 13)),
+          const Text('معلومات المحل',
+              style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.w700, color: Colors.white, fontSize: 13)),
           const SizedBox(height: 12),
           _infoRow(Icons.phone_outlined, AppConstants.shopPhone),
           _infoRow(Icons.location_on_outlined, AppConstants.shopAddress),
@@ -310,7 +259,9 @@ class _ShopInfoSection extends StatelessWidget {
         children: [
           Icon(icon, size: 16, color: AppColors.primary),
           const SizedBox(width: 8),
-          Expanded(child: Text(text, style: const TextStyle(fontFamily: 'Cairo', fontSize: 11, color: AppColors.textSecondary))),
+          Expanded(
+              child: Text(text,
+                  style: const TextStyle(fontFamily: 'Cairo', fontSize: 11, color: AppColors.textSecondary))),
         ],
       ),
     );

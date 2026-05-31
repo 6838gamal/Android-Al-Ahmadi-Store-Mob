@@ -18,6 +18,10 @@ import '../../features/notifications/presentation/pages/notifications_page.dart'
 import '../../features/profile/presentation/pages/profile_page.dart';
 import '../../features/settings/presentation/pages/settings_page.dart';
 import '../../features/contact/presentation/pages/contact_page.dart';
+import '../../features/staff/presentation/pages/staff_shell.dart';
+import '../../features/staff/presentation/pages/staff_orders_page.dart';
+import '../../features/staff/presentation/pages/staff_maintenance_page.dart';
+import '../../features/staff/presentation/pages/staff_inventory_page.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   return GoRouter(
@@ -30,7 +34,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/register', builder: (ctx, state) => const RegisterPage()),
       GoRoute(path: '/forgot-password', builder: (ctx, state) => const ForgotPasswordPage()),
 
-      // Customer & Staff Shell
+      // Customer Shell
       ShellRoute(
         builder: (ctx, state, child) => MainShell(child: child),
         routes: [
@@ -56,6 +60,17 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(path: '/profile', builder: (ctx, state) => const ProfilePage()),
           GoRoute(path: '/settings', builder: (ctx, state) => const SettingsPage()),
           GoRoute(path: '/contact', builder: (ctx, state) => const ContactPage()),
+        ],
+      ),
+
+      // Staff Shell
+      ShellRoute(
+        builder: (ctx, state, child) => StaffShell(child: child),
+        routes: [
+          GoRoute(path: '/staff', builder: (ctx, state) => const StaffOrdersPage()),
+          GoRoute(path: '/staff/orders', builder: (ctx, state) => const StaffOrdersPage()),
+          GoRoute(path: '/staff/maintenance', builder: (ctx, state) => const StaffMaintenancePage()),
+          GoRoute(path: '/staff/inventory', builder: (ctx, state) => const StaffInventoryPage()),
         ],
       ),
     ],

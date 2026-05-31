@@ -5,7 +5,7 @@ from datetime import datetime
 from backend.core.database import get_db
 from backend.models.order import Order, OrderUpdate, OrderStatus, OrderType
 from backend.schemas.order import OrderCreate, OrderUpdateStatus, OrderResponse
-from backend.api.dependencies import get_admin_user, get_current_user
+from backend.api.dependencies import get_admin_user, get_current_user, require_staff_or_above
 from backend.models.user import User
 import random
 
@@ -62,7 +62,7 @@ def get_orders(
     order_type: Optional[OrderType] = None,
     search: Optional[str] = None,
     db: Session = Depends(get_db),
-    admin: User = Depends(get_admin_user)
+    current_user: User = Depends(require_staff_or_above)
 ):
     query = db.query(Order)
     if status:
@@ -104,7 +104,7 @@ def update_order_status(
     order_id: int,
     update_data: OrderUpdateStatus,
     db: Session = Depends(get_db),
-    admin: User = Depends(get_admin_user)
+    current_user: User = Depends(require_staff_or_above)
 ):
     order = db.query(Order).filter(Order.id == order_id).first()
     if not order:
@@ -126,7 +126,7 @@ def update_order_status(
         order_id=order.id,
         status=status_label,
         note=update_data.note,
-        employee_name=update_data.employee_name or (admin.name if admin else None),
+        employee_name=update_data.employee_name or current_user.name,
     )
     db.add(upd)
     db.commit()
