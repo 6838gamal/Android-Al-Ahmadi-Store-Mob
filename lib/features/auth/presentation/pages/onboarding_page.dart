@@ -24,7 +24,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
     ),
     _OnboardData(
       icon: Icons.build_circle_outlined,
-      title: 'خدمات صيانة\nاحترافية',
+      title: 'خدمات صيانة\naحترافية',
       subtitle: 'تتبع طلبات الصيانة لجهازك خطوة بخطوة مع تحديثات فورية',
       gradient: LinearGradient(colors: [Color(0xFF7B1FA2), Color(0xFFE91E63)]),
     ),
@@ -44,7 +44,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
 
   void _next() {
     if (_current == _pages.length - 1) {
-      _skip();
+      _done();
     } else {
       _controller.nextPage(
         duration: const Duration(milliseconds: 400),
@@ -53,13 +53,14 @@ class _OnboardingPageState extends State<OnboardingPage> {
     }
   }
 
-  void _skip() async {
+  void _done() async {
     await StorageService.setOnboardingDone();
-    if (mounted) context.go('/products');
+    if (mounted) context.go('/login');
   }
 
   @override
   Widget build(BuildContext context) {
+    final isLast = _current == _pages.length - 1;
     return Scaffold(
       backgroundColor: AppColors.darkBg,
       body: SafeArea(
@@ -67,7 +68,6 @@ class _OnboardingPageState extends State<OnboardingPage> {
           decoration: const BoxDecoration(gradient: AppColors.darkGradient),
           child: Column(
             children: [
-              // Slides content
               Expanded(
                 child: PageView.builder(
                   controller: _controller,
@@ -76,7 +76,6 @@ class _OnboardingPageState extends State<OnboardingPage> {
                   itemBuilder: (ctx, i) => _OnboardPage(data: _pages[i]),
                 ),
               ),
-              // Dot indicators
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: List.generate(
@@ -87,55 +86,87 @@ class _OnboardingPageState extends State<OnboardingPage> {
                     width: i == _current ? 24 : 8,
                     height: 8,
                     decoration: BoxDecoration(
-                      color: i == _current
-                          ? AppColors.primary
-                          : AppColors.textMuted,
+                      color: i == _current ? AppColors.primary : AppColors.textMuted,
                       borderRadius: BorderRadius.circular(4),
                     ),
                   ),
                 ),
               ),
               const SizedBox(height: 20),
-              // Navigation buttons — always visible
               Padding(
                 padding: const EdgeInsets.fromLTRB(24, 0, 24, 20),
-                child: Row(
-                  children: [
-                    if (_current < _pages.length - 1)
-                      TextButton(
-                        onPressed: _skip,
-                        child: const Text(
-                          'تخطي',
-                          style: TextStyle(
-                            fontFamily: 'Cairo',
-                            color: AppColors.textSecondary,
+                child: isLast
+                    ? Column(
+                        children: [
+                          ElevatedButton(
+                            onPressed: () => context.go('/register'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.primary,
+                              foregroundColor: Colors.white,
+                              minimumSize: const Size(double.infinity, 52),
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12)),
+                            ),
+                            child: const Text(
+                              'إنشاء حساب جديد',
+                              style: TextStyle(
+                                  fontFamily: 'Cairo',
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 16),
+                            ),
                           ),
-                        ),
+                          const SizedBox(height: 12),
+                          OutlinedButton(
+                            onPressed: _done,
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: AppColors.primary,
+                              side: const BorderSide(color: AppColors.primary),
+                              minimumSize: const Size(double.infinity, 52),
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12)),
+                            ),
+                            child: const Text(
+                              'تسجيل الدخول',
+                              style: TextStyle(
+                                  fontFamily: 'Cairo',
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 16),
+                            ),
+                          ),
+                        ],
                       )
-                    else
-                      const SizedBox.shrink(),
-                    const Spacer(),
-                    ElevatedButton(
-                      onPressed: _next,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primary,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 32, vertical: 14),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12)),
+                    : Row(
+                        children: [
+                          TextButton(
+                            onPressed: _done,
+                            child: const Text(
+                              'تخطي',
+                              style: TextStyle(
+                                  fontFamily: 'Cairo',
+                                  color: AppColors.textSecondary),
+                            ),
+                          ),
+                          const Spacer(),
+                          ElevatedButton(
+                            onPressed: _next,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.primary,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 32, vertical: 14),
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12)),
+                            ),
+                            child: const Text(
+                              'التالي',
+                              style: TextStyle(
+                                  fontFamily: 'Cairo',
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 15),
+                            ),
+                          ),
+                        ],
                       ),
-                      child: Text(
-                        _current == _pages.length - 1 ? 'ابدأ الآن' : 'التالي',
-                        style: const TextStyle(
-                          fontFamily: 'Cairo',
-                          fontWeight: FontWeight.w700,
-                          fontSize: 15,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
               ),
             ],
           ),
@@ -162,12 +193,8 @@ class _OnboardPage extends StatelessWidget {
             decoration: BoxDecoration(
               gradient: data.gradient,
               borderRadius: BorderRadius.circular(40),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black38,
-                  blurRadius: 30,
-                  offset: const Offset(0, 10),
-                ),
+              boxShadow: const [
+                BoxShadow(color: Colors.black38, blurRadius: 30, offset: Offset(0, 10)),
               ],
             ),
             child: Icon(data.icon, size: 70, color: Colors.white),

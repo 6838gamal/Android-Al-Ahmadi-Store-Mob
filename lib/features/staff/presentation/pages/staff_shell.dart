@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/constants/app_constants.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
@@ -20,10 +19,16 @@ class _StaffShellState extends ConsumerState<StaffShell> {
   int _selectedIndex = 0;
 
   static const _tabs = [
+    _TabItem(icon: Icons.home_outlined, activeIcon: Icons.home, label: 'الرئيسية', route: '/staff/home'),
     _TabItem(icon: Icons.receipt_long_outlined, activeIcon: Icons.receipt_long, label: 'الطلبات', route: '/staff/orders'),
     _TabItem(icon: Icons.build_outlined, activeIcon: Icons.build, label: 'الصيانة', route: '/staff/maintenance'),
     _TabItem(icon: Icons.inventory_2_outlined, activeIcon: Icons.inventory_2, label: 'المخزون', route: '/staff/inventory'),
   ];
+
+  void _onTabTap(int i) {
+    setState(() => _selectedIndex = i);
+    context.go(_tabs[i].route);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -51,13 +56,10 @@ class _StaffShellState extends ConsumerState<StaffShell> {
               final tab = _tabs[i];
               final selected = _selectedIndex == i;
               return GestureDetector(
-                onTap: () {
-                  setState(() => _selectedIndex = i);
-                  context.go(tab.route);
-                },
+                onTap: () => _onTabTap(i),
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 200),
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
                   decoration: BoxDecoration(
                     color: selected ? AppColors.primary.withOpacity(0.12) : Colors.transparent,
                     borderRadius: BorderRadius.circular(12),
@@ -75,7 +77,7 @@ class _StaffShellState extends ConsumerState<StaffShell> {
                         tab.label,
                         style: TextStyle(
                           fontFamily: 'Cairo',
-                          fontSize: 11,
+                          fontSize: 10,
                           fontWeight: selected ? FontWeight.w700 : FontWeight.normal,
                           color: selected ? AppColors.primary : AppColors.textMuted,
                         ),
@@ -95,6 +97,7 @@ class _StaffShellState extends ConsumerState<StaffShell> {
     final auth = ref.watch(authProvider);
     final user = auth.user;
     final roleLabel = auth.isBranchManager ? 'مدير الفرع' : 'موظف';
+    final roleColor = auth.isBranchManager ? AppColors.warning : AppColors.info;
 
     return Drawer(
       backgroundColor: AppColors.darkSurface,
@@ -124,8 +127,23 @@ class _StaffShellState extends ConsumerState<StaffShell> {
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(roleLabel,
-                            style: const TextStyle(fontFamily: 'Cairo', fontSize: 16, fontWeight: FontWeight.w700, color: Colors.white)),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: roleColor.withOpacity(0.25),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: roleColor.withOpacity(0.5)),
+                          ),
+                          child: Text(
+                            roleLabel,
+                            style: TextStyle(
+                                fontFamily: 'Cairo',
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                                color: roleColor),
+                          ),
+                        ),
+                        const SizedBox(height: 4),
                         const Text(AppConstants.appName,
                             style: TextStyle(fontFamily: 'Cairo', fontSize: 12, color: Colors.white70)),
                       ],
@@ -137,7 +155,7 @@ class _StaffShellState extends ConsumerState<StaffShell> {
                   const Divider(color: Colors.white24),
                   const SizedBox(height: 12),
                   Text(user.name,
-                      style: const TextStyle(fontFamily: 'Cairo', fontSize: 14, fontWeight: FontWeight.w700, color: Colors.white)),
+                      style: const TextStyle(fontFamily: 'Cairo', fontSize: 15, fontWeight: FontWeight.w700, color: Colors.white)),
                   Text(user.email ?? user.phone ?? '',
                       style: const TextStyle(fontFamily: 'Cairo', fontSize: 12, color: Colors.white70)),
                 ],
@@ -145,6 +163,7 @@ class _StaffShellState extends ConsumerState<StaffShell> {
             ),
           ),
           const SizedBox(height: 8),
+          _item(Icons.home_outlined, 'الرئيسية', () { Navigator.pop(context); context.go('/staff/home'); }),
           _item(Icons.receipt_long_outlined, 'إدارة الطلبات', () { Navigator.pop(context); context.go('/staff/orders'); }),
           _item(Icons.build_outlined, 'طلبات الصيانة', () { Navigator.pop(context); context.go('/staff/maintenance'); }),
           _item(Icons.inventory_2_outlined, 'المخزون', () { Navigator.pop(context); context.go('/staff/inventory'); }),

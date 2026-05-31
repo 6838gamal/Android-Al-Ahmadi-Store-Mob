@@ -112,7 +112,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
   Future<bool> register(String name, String identifier, String password) async {
     state = state.copyWith(isLoading: true, error: null);
     try {
-      final data = {'name': name, 'password': password};
+      final data = <String, dynamic>{'name': name, 'password': password};
       if (identifier.contains('@')) {
         data['email'] = identifier;
       } else {
@@ -126,6 +126,34 @@ class AuthNotifier extends StateNotifier<AuthState> {
       return true;
     } catch (e) {
       state = state.copyWith(isLoading: false, error: 'فشل إنشاء الحساب. تحقق من البيانات');
+      return false;
+    }
+  }
+
+  Future<bool> registerWithDetails({
+    required String name,
+    required String phone,
+    String? email,
+    required String password,
+  }) async {
+    state = state.copyWith(isLoading: true, error: null);
+    try {
+      final data = <String, dynamic>{
+        'name': name,
+        'phone': phone,
+        'password': password,
+      };
+      if (email != null && email.isNotEmpty) {
+        data['email'] = email;
+      }
+      final res = await _api.post('/auth/register', data: data);
+      final user = UserModel.fromJson(res.data['user']);
+      await StorageService.saveToken(res.data['access_token']);
+      await StorageService.saveUser(jsonEncode(user.toJson()));
+      state = state.copyWith(user: user, isLoading: false);
+      return true;
+    } catch (e) {
+      state = state.copyWith(isLoading: false, error: 'فشل إنشاء الحساب. تحقق من البيانات أو جرب رقم جوال آخر');
       return false;
     }
   }

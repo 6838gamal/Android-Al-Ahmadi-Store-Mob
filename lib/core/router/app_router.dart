@@ -19,6 +19,7 @@ import '../../features/profile/presentation/pages/profile_page.dart';
 import '../../features/settings/presentation/pages/settings_page.dart';
 import '../../features/contact/presentation/pages/contact_page.dart';
 import '../../features/staff/presentation/pages/staff_shell.dart';
+import '../../features/staff/presentation/pages/staff_home_page.dart';
 import '../../features/staff/presentation/pages/staff_orders_page.dart';
 import '../../features/staff/presentation/pages/staff_maintenance_page.dart';
 import '../../features/staff/presentation/pages/staff_inventory_page.dart';
@@ -34,11 +35,11 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/register', builder: (ctx, state) => const RegisterPage()),
       GoRoute(path: '/forgot-password', builder: (ctx, state) => const ForgotPasswordPage()),
 
-      // Customer Shell
+      // ── Customer Shell ──────────────────────────────────────────────
       ShellRoute(
         builder: (ctx, state, child) => MainShell(child: child),
         routes: [
-          GoRoute(path: '/home', builder: (ctx, state) => const SizedBox()),
+          GoRoute(path: '/home', builder: (ctx, state) => const ProductsPage()),
           GoRoute(path: '/products', builder: (ctx, state) => const ProductsPage()),
           GoRoute(
             path: '/products/:id',
@@ -63,11 +64,12 @@ final routerProvider = Provider<GoRouter>((ref) {
         ],
       ),
 
-      // Staff Shell
+      // ── Staff / Branch-Manager Shell ─────────────────────────────────
       ShellRoute(
         builder: (ctx, state, child) => StaffShell(child: child),
         routes: [
-          GoRoute(path: '/staff', builder: (ctx, state) => const StaffOrdersPage()),
+          GoRoute(path: '/staff', builder: (ctx, state) => const StaffHomePage()),
+          GoRoute(path: '/staff/home', builder: (ctx, state) => const StaffHomePage()),
           GoRoute(path: '/staff/orders', builder: (ctx, state) => const StaffOrdersPage()),
           GoRoute(path: '/staff/maintenance', builder: (ctx, state) => const StaffMaintenancePage()),
           GoRoute(path: '/staff/inventory', builder: (ctx, state) => const StaffInventoryPage()),

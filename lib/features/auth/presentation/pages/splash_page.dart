@@ -35,7 +35,7 @@ class _SplashPageState extends ConsumerState<SplashPage> {
     final onboarded = await StorageService.isOnboardingDone();
     if (!mounted) return;
     if (onboarded) {
-      context.go('/products');
+      context.go('/login');
     } else {
       context.go('/onboarding');
     }
