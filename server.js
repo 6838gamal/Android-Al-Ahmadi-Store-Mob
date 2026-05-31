@@ -70,16 +70,26 @@ function proxyAdminRequest(req, res) {
   };
 
   const proxyReq = http.request(options, (proxyRes) => {
-    // Rewrite Location headers so redirects stay under /admin-panel/
-    if ([301, 302, 303, 307, 308].includes(proxyRes.statusCode) && proxyRes.headers.location) {
+    // For 302/303 redirects: use client-side JS redirect so the browser
+    // navigates with GET instead of relying on the proxy chain which
+    // incorrectly re-POSTs the redirect.
+    if ([301, 302, 303].includes(proxyRes.statusCode) && proxyRes.headers.location) {
       const loc = proxyRes.headers.location;
       const newLoc = (loc.startsWith('/') && !loc.startsWith('/admin-panel'))
         ? `/admin-panel${loc}`
         : loc;
-      const headers = { ...proxyRes.headers, location: newLoc };
-      res.writeHead(proxyRes.statusCode, headers);
+
+      // Build response headers, forwarding Set-Cookie so session is saved
+      const respHeaders = { 'content-type': 'text/html; charset=utf-8' };
+      if (proxyRes.headers['set-cookie']) {
+        respHeaders['set-cookie'] = proxyRes.headers['set-cookie'];
+      }
+
       proxyRes.resume();
-      res.end();
+      res.writeHead(200, respHeaders);
+      res.end(`<!doctype html><html><head>
+<script>window.location.replace(${JSON.stringify(newLoc)})</script>
+</head><body>جارٍ التحويل...</body></html>`);
       return;
     }
 

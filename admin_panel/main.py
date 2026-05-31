@@ -95,7 +95,7 @@ async def login_post(request: Request, identifier: str = Form(...), password: st
     try:
         async with httpx.AsyncClient(timeout=15.0) as client:
             resp = await client.post(
-                f"{API_BASE}/api/admin-login",
+                f"{API_BASE}/api/auth/admin-login",
                 json={"identifier": identifier, "password": password},
             )
         if resp.status_code == 200:
