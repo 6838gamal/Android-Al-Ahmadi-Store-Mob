@@ -1,5 +1,4 @@
 import 'package:dio/dio.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../constants/app_constants.dart';
 import '../utils/storage_service.dart';
@@ -10,18 +9,8 @@ class ApiClient {
   late final Dio _dio;
 
   ApiClient() {
-    // On web, Dio requires a full absolute URL.
-    // Use the current page's origin so the proxy (/api/*) is reached correctly
-    // regardless of the hosting domain (local dev or Replit).
-    final String base;
-    if (kIsWeb) {
-      base = '${Uri.base.origin}${AppConstants.apiVersion}';
-    } else {
-      base = '${AppConstants.baseUrl}${AppConstants.apiVersion}';
-    }
-
     _dio = Dio(BaseOptions(
-      baseUrl: base,
+      baseUrl: '${AppConstants.baseUrl}${AppConstants.apiVersion}',
       connectTimeout: const Duration(seconds: 30),
       receiveTimeout: const Duration(seconds: 30),
       headers: {'Content-Type': 'application/json'},
