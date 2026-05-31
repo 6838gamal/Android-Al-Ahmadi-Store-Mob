@@ -12,7 +12,7 @@ from typing import Optional
 import shutil, uuid, httpx
 from datetime import datetime, timedelta
 
-API_BASE = "https://android-al-ahmadi-store-api.onrender.com"
+API_BASE = "http://127.0.0.1:8000"
 
 from backend.core.database import SessionLocal, engine, Base
 from backend.core.security import verify_password, get_password_hash
