@@ -1531,6 +1531,7 @@ file:///home/runner/workspace/lib/features/auth/presentation/pages/login_page.da
 file:///home/runner/workspace/lib/features/auth/presentation/pages/onboarding_page.dart
 file:///home/runner/workspace/lib/features/auth/presentation/pages/register_page.dart
 file:///home/runner/workspace/lib/features/auth/presentation/pages/splash_page.dart
+file:///home/runner/workspace/lib/features/auth/presentation/pages/welcome_page.dart
 file:///home/runner/workspace/lib/features/auth/presentation/providers/auth_provider.dart
 file:///home/runner/workspace/lib/features/contact/presentation/pages/contact_page.dart
 file:///home/runner/workspace/lib/features/home/presentation/pages/main_shell.dart

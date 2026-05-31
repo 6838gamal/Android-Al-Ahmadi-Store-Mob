@@ -21,10 +21,19 @@ class _SplashPageState extends ConsumerState<SplashPage> {
   }
 
   Future<void> _navigate() async {
-    await Future.delayed(const Duration(milliseconds: 2000));
+    await Future.delayed(const Duration(milliseconds: 800));
     if (!mounted) return;
+
     final auth = ref.read(authProvider);
+
+    // Authenticated → go to their section directly
     if (auth.isAuthenticated) {
+      if (auth.isAdmin) {
+        // Admin should use web panel — logout and show welcome
+        await ref.read(authProvider.notifier).logout();
+        context.go('/welcome');
+        return;
+      }
       if (auth.isStaff || auth.isBranchManager) {
         context.go('/staff');
       } else {
@@ -32,10 +41,12 @@ class _SplashPageState extends ConsumerState<SplashPage> {
       }
       return;
     }
+
+    // Not authenticated — check onboarding
     final onboarded = await StorageService.isOnboardingDone();
     if (!mounted) return;
     if (onboarded) {
-      context.go('/login');
+      context.go('/welcome');
     } else {
       context.go('/onboarding');
     }
@@ -92,16 +103,12 @@ class _SplashPageState extends ConsumerState<SplashPage> {
                   fontSize: 14,
                   color: AppColors.textSecondary,
                 ),
-              )
-                  .animate(delay: 500.ms)
-                  .fadeIn(duration: 400.ms),
+              ).animate(delay: 500.ms).fadeIn(duration: 400.ms),
               const SizedBox(height: 80),
               const CircularProgressIndicator(
                 color: AppColors.primary,
                 strokeWidth: 2,
-              )
-                  .animate(delay: 800.ms)
-                  .fadeIn(duration: 300.ms),
+              ).animate(delay: 800.ms).fadeIn(duration: 300.ms),
             ],
           ),
         ),
