@@ -36,15 +36,28 @@ final _staffRoutes = {
   '/staff/maintenance', '/staff/inventory',
 };
 
+/// A ChangeNotifier that listens to [authProvider] and notifies GoRouter
+/// to re-evaluate redirects — without recreating the router.
+class _RouterNotifier extends ChangeNotifier {
+  final Ref _ref;
+
+  _RouterNotifier(this._ref) {
+    _ref.listen<AuthState>(authProvider, (_, __) => notifyListeners());
+  }
+
+  AuthState get auth => _ref.read(authProvider);
+}
+
 final routerProvider = Provider<GoRouter>((ref) {
-  final authNotifier = ref.watch(authProvider);
+  final notifier = _RouterNotifier(ref);
 
   return GoRouter(
     initialLocation: '/splash',
     debugLogDiagnostics: false,
+    refreshListenable: notifier,
     redirect: (context, state) {
       final path = state.matchedLocation;
-      final auth = authNotifier;
+      final auth = notifier.auth;
 
       if (!auth.isInitialized) return null;
 
