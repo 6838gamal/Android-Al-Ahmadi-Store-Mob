@@ -32,12 +32,22 @@ def register(user_data: UserCreate, db: Session = Depends(get_db)):
         if db.query(User).filter(User.phone == user_data.phone).first():
             raise HTTPException(status_code=400, detail="Phone already registered")
 
+    allowed_roles = {UserRole.customer, UserRole.staff}
+    requested_role = UserRole.customer
+    if user_data.role:
+        try:
+            requested_role = UserRole(user_data.role)
+        except ValueError:
+            pass
+    if requested_role not in allowed_roles:
+        requested_role = UserRole.customer
+
     user = User(
         name=user_data.name,
         email=user_data.email,
         phone=user_data.phone,
         hashed_password=get_password_hash(user_data.password),
-        role=UserRole.customer,
+        role=requested_role,
         referral_code=_gen_referral_code(db),
     )
     db.add(user)

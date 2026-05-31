@@ -24,11 +24,47 @@ import '../../features/staff/presentation/pages/staff_home_page.dart';
 import '../../features/staff/presentation/pages/staff_orders_page.dart';
 import '../../features/staff/presentation/pages/staff_maintenance_page.dart';
 import '../../features/staff/presentation/pages/staff_inventory_page.dart';
+import '../../features/auth/presentation/providers/auth_provider.dart';
+
+final _customerRoutes = {
+  '/home', '/products', '/orders', '/reservations',
+  '/maintenance', '/notifications', '/profile', '/settings', '/contact',
+};
+
+final _staffRoutes = {
+  '/staff', '/staff/home', '/staff/orders',
+  '/staff/maintenance', '/staff/inventory',
+};
 
 final routerProvider = Provider<GoRouter>((ref) {
+  final authNotifier = ref.watch(authProvider);
+
   return GoRouter(
     initialLocation: '/splash',
     debugLogDiagnostics: false,
+    redirect: (context, state) {
+      final path = state.matchedLocation;
+      final auth = authNotifier;
+
+      if (!auth.isInitialized) return null;
+
+      final isAuth = auth.isAuthenticated;
+      final isStaffOrAbove = auth.isStaffOrAbove;
+      final isCustomer = auth.isCustomer;
+
+      final isCustomerPath = _customerRoutes.any((r) => path.startsWith(r));
+      final isStaffPath = _staffRoutes.any((r) => path.startsWith(r));
+
+      if (!isAuth) {
+        if (isCustomerPath || isStaffPath) return '/login';
+        return null;
+      }
+
+      if (isCustomerPath && isStaffOrAbove) return '/staff';
+      if (isStaffPath && isCustomer) return '/products';
+
+      return null;
+    },
     routes: [
       // ── Auth / Onboarding ────────────────────────────────────────────
       GoRoute(path: '/splash',     builder: (ctx, state) => const SplashPage()),
@@ -38,7 +74,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/register',   builder: (ctx, state) => const RegisterPage()),
       GoRoute(path: '/forgot-password', builder: (ctx, state) => const ForgotPasswordPage()),
 
-      // ── Customer Shell ────────────────────────────────────────────────
+      // ── Customer Shell (عميل فقط) ─────────────────────────────────────
       ShellRoute(
         builder: (ctx, state, child) => MainShell(child: child),
         routes: [
@@ -67,7 +103,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         ],
       ),
 
-      // ── Staff / Branch-Manager Shell ──────────────────────────────────
+      // ── Staff / Branch-Manager Shell (موظف / مدير فرع فقط) ───────────
       ShellRoute(
         builder: (ctx, state, child) => StaffShell(child: child),
         routes: [

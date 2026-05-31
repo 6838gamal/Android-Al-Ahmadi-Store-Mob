@@ -8,6 +8,7 @@ class UserCreate(BaseModel):
     email: Optional[str] = None
     phone: Optional[str] = None
     password: str
+    role: Optional[str] = "customer"
 
 
 class UserLogin(BaseModel):

@@ -10,6 +10,10 @@ class UserModel {
   final String? phone;
   final String role;
   final String? avatarUrl;
+  final double? walletBalance;
+  final String? walletCurrency;
+  final String? referralCode;
+  final int? branchId;
 
   const UserModel({
     required this.id,
@@ -18,12 +22,17 @@ class UserModel {
     this.phone,
     required this.role,
     this.avatarUrl,
+    this.walletBalance,
+    this.walletCurrency,
+    this.referralCode,
+    this.branchId,
   });
 
   bool get isCustomer => role == 'customer';
   bool get isStaff => role == 'staff';
   bool get isBranchManager => role == 'branch_manager';
   bool get isAdmin => role == 'admin';
+  bool get isStaffOrAbove => isStaff || isBranchManager || isAdmin;
 
   factory UserModel.fromJson(Map<String, dynamic> json) => UserModel(
         id: json['id'],
@@ -32,11 +41,23 @@ class UserModel {
         phone: json['phone'],
         role: json['role'],
         avatarUrl: json['avatar_url'],
+        walletBalance: (json['wallet_balance'] as num?)?.toDouble(),
+        walletCurrency: json['wallet_currency'],
+        referralCode: json['referral_code'],
+        branchId: json['branch_id'],
       );
 
   Map<String, dynamic> toJson() => {
-        'id': id, 'name': name, 'email': email,
-        'phone': phone, 'role': role, 'avatar_url': avatarUrl,
+        'id': id,
+        'name': name,
+        'email': email,
+        'phone': phone,
+        'role': role,
+        'avatar_url': avatarUrl,
+        'wallet_balance': walletBalance,
+        'wallet_currency': walletCurrency,
+        'referral_code': referralCode,
+        'branch_id': branchId,
       };
 }
 
@@ -58,6 +79,7 @@ class AuthState {
   bool get isStaff => user?.isStaff ?? false;
   bool get isBranchManager => user?.isBranchManager ?? false;
   bool get isCustomer => user?.isCustomer ?? false;
+  bool get isStaffOrAbove => user?.isStaffOrAbove ?? false;
 
   AuthState copyWith({
     UserModel? user,
@@ -97,7 +119,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
   Future<bool> login(String identifier, String password) async {
     state = state.copyWith(isLoading: true, error: null);
     try {
-      final res = await _api.post('/auth/login', data: {'identifier': identifier, 'password': password});
+      final res = await _api.post('/auth/login',
+          data: {'identifier': identifier, 'password': password});
       final user = UserModel.fromJson(res.data['user']);
       await StorageService.saveToken(res.data['access_token']);
       await StorageService.saveUser(jsonEncode(user.toJson()));
@@ -109,23 +132,19 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
-  Future<bool> register(String name, String identifier, String password) async {
+  Future<bool> staffLogin(String identifier, String password) async {
     state = state.copyWith(isLoading: true, error: null);
     try {
-      final data = <String, dynamic>{'name': name, 'password': password};
-      if (identifier.contains('@')) {
-        data['email'] = identifier;
-      } else {
-        data['phone'] = identifier;
-      }
-      final res = await _api.post('/auth/register', data: data);
+      final res = await _api.post('/auth/staff-login',
+          data: {'identifier': identifier, 'password': password});
       final user = UserModel.fromJson(res.data['user']);
       await StorageService.saveToken(res.data['access_token']);
       await StorageService.saveUser(jsonEncode(user.toJson()));
       state = state.copyWith(user: user, isLoading: false);
       return true;
     } catch (e) {
-      state = state.copyWith(isLoading: false, error: 'فشل إنشاء الحساب. تحقق من البيانات');
+      state = state.copyWith(
+          isLoading: false, error: 'بيانات الدخول غير صحيحة أو الحساب غير مخوّل');
       return false;
     }
   }
@@ -135,6 +154,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     required String phone,
     String? email,
     required String password,
+    String role = 'customer',
   }) async {
     state = state.copyWith(isLoading: true, error: null);
     try {
@@ -142,6 +162,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
         'name': name,
         'phone': phone,
         'password': password,
+        'role': role,
       };
       if (email != null && email.isNotEmpty) {
         data['email'] = email;
@@ -153,7 +174,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
       state = state.copyWith(user: user, isLoading: false);
       return true;
     } catch (e) {
-      state = state.copyWith(isLoading: false, error: 'فشل إنشاء الحساب. تحقق من البيانات أو جرب رقم جوال آخر');
+      state = state.copyWith(
+          isLoading: false,
+          error: 'فشل إنشاء الحساب. تحقق من البيانات أو جرب رقم جوال آخر');
       return false;
     }
   }

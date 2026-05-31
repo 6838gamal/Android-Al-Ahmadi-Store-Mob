@@ -52,11 +52,20 @@
             {% endif %}
           </td>
           <td class="px-4 py-3">
-            <form method="post" action="/staff/{{ s.id }}/toggle-active" class="inline">
-              <button class="text-xs {{ 'text-red-400 hover:text-red-300' if s.is_active else 'text-green-400 hover:text-green-300' }} font-bold">
-                {{ 'تعطيل' if s.is_active else 'تفعيل' }}
-              </button>
-            </form>
+            <div class="flex items-center gap-2">
+              <button onclick="openEditStaff({{ s.id }}, '{{ s.name }}', '{{ s.phone or '' }}', '{{ s.email or '' }}', '{{ s.role.value }}')"
+                class="text-xs text-blue-400 hover:text-blue-300 font-bold">تعديل</button>
+              <span class="text-gray-600">|</span>
+              <form method="post" action="/staff/{{ s.id }}/toggle-active" class="inline">
+                <button class="text-xs {{ 'text-red-400 hover:text-red-300' if s.is_active else 'text-green-400 hover:text-green-300' }} font-bold">
+                  {{ 'تعطيل' if s.is_active else 'تفعيل' }}
+                </button>
+              </form>
+              <span class="text-gray-600">|</span>
+              <form method="post" action="/staff/{{ s.id }}/delete" class="inline" onsubmit="return confirm('هل تريد حذف هذا الموظف نهائياً؟')">
+                <button class="text-xs text-red-500 hover:text-red-300 font-bold">حذف</button>
+              </form>
+            </div>
           </td>
         </tr>
         {% else %}
@@ -92,4 +101,45 @@
     </form>
   </div>
 </div>
+
+<!-- Edit Staff Modal -->
+<div id="editStaffModal" class="hidden fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+  <div class="card w-full max-w-md p-6">
+    <div class="flex items-center justify-between mb-5">
+      <h2 class="text-white font-bold text-lg">تعديل بيانات الموظف</h2>
+      <button onclick="document.getElementById('editStaffModal').classList.add('hidden')" class="text-gray-500 hover:text-white text-xl">&times;</button>
+    </div>
+    <form method="post" id="editStaffForm" action="">
+      <div class="space-y-3 mb-5">
+        <div><label class="block text-gray-400 text-xs mb-1">الاسم *</label><input id="editName" name="name" class="input-field" required></div>
+        <div><label class="block text-gray-400 text-xs mb-1">رقم الهاتف</label><input id="editPhone" name="phone" class="input-field"></div>
+        <div><label class="block text-gray-400 text-xs mb-1">البريد الإلكتروني</label><input id="editEmail" name="email" type="email" class="input-field"></div>
+        <div>
+          <label class="block text-gray-400 text-xs mb-1">الدور *</label>
+          <select id="editRole" name="role" class="select-field w-full">
+            <option value="staff">موظف</option>
+            <option value="branch_manager">مدير فرع</option>
+          </select>
+        </div>
+        <div><label class="block text-gray-400 text-xs mb-1">كلمة المرور الجديدة (اتركها فارغة للإبقاء)</label><input name="password" type="password" class="input-field"></div>
+      </div>
+      <div class="flex gap-3 justify-end">
+        <button type="button" onclick="document.getElementById('editStaffModal').classList.add('hidden')" class="btn-secondary">إلغاء</button>
+        <button type="submit" class="btn-primary">حفظ التغييرات</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+function openEditStaff(id, name, phone, email, role) {
+  document.getElementById('editStaffForm').action = '/staff/' + id + '/edit';
+  document.getElementById('editName').value = name;
+  document.getElementById('editPhone').value = phone;
+  document.getElementById('editEmail').value = email;
+  document.getElementById('editRole').value = role;
+  document.getElementById('editStaffModal').classList.remove('hidden');
+}
+</script>
 {% endblock %}

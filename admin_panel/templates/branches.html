@@ -1,0 +1,154 @@
+{% extends "layout.html" %}
+{% block title %}الفروع{% endblock %}
+{% block page_title %}الفروع{% endblock %}
+{% block content %}
+<div class="page-header flex items-center justify-between">
+  <div>
+    <h1 class="text-white text-2xl font-extrabold">إدارة الفروع</h1>
+    <p class="text-white/70 text-sm mt-1">{{ branches|length }} فرع مسجل</p>
+  </div>
+  <button onclick="document.getElementById('addBranchModal').classList.remove('hidden')" class="btn-primary">
+    <i class="fa-solid fa-plus"></i> إضافة فرع
+  </button>
+</div>
+
+{% if branches %}
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+  {% for b in branches %}
+  <div class="card p-5 flex flex-col gap-3">
+    <div class="flex items-start justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl flex items-center justify-center" style="background:linear-gradient(135deg,#7B1FA2,#1A73E8)">
+          <i class="fa-solid fa-store text-white text-sm"></i>
+        </div>
+        <div>
+          <div class="text-white font-bold text-base">{{ b.name }}</div>
+          <div class="text-gray-400 text-xs">{{ b.city or '—' }}</div>
+        </div>
+      </div>
+      {% if b.is_active %}
+      <span class="badge bg-emerald-500/15 text-emerald-400 text-xs">نشط</span>
+      {% else %}
+      <span class="badge bg-red-500/15 text-red-400 text-xs">موقوف</span>
+      {% endif %}
+    </div>
+    {% if b.address %}
+    <div class="flex items-center gap-2 text-gray-400 text-xs">
+      <i class="fa-solid fa-location-dot text-primary text-xs"></i>
+      {{ b.address }}
+    </div>
+    {% endif %}
+    {% if b.phone %}
+    <div class="flex items-center gap-2 text-gray-400 text-xs">
+      <i class="fa-solid fa-phone text-green-400 text-xs"></i>
+      {{ b.phone }}
+    </div>
+    {% endif %}
+    <div class="flex gap-2 pt-2 border-t border-dark-border">
+      <button onclick="openEditBranch({{ b.id }}, '{{ b.name }}', '{{ b.city or '' }}', '{{ b.address or '' }}', '{{ b.phone or '' }}', {{ 'true' if b.is_active else 'false' }})"
+        class="btn-secondary text-xs flex-1 justify-center">
+        <i class="fa-solid fa-pen-to-square"></i> تعديل
+      </button>
+      <form method="post" action="/branches/{{ b.id }}/delete" onsubmit="return confirm('حذف هذا الفرع؟')">
+        <button class="btn-danger text-xs">حذف</button>
+      </form>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="card p-16 text-center">
+  <i class="fa-solid fa-store text-5xl text-gray-600 mb-4 block"></i>
+  <p class="text-gray-500 font-semibold">لا توجد فروع مسجلة بعد</p>
+</div>
+{% endif %}
+
+{% if warehouses %}
+<div class="card overflow-hidden mt-6">
+  <div class="p-5 border-b border-dark-border flex items-center justify-between">
+    <h2 class="text-white font-bold"><i class="fa-solid fa-warehouse text-primary me-2"></i>المستودعات</h2>
+  </div>
+  <div class="overflow-x-auto">
+    <table class="w-full text-sm">
+      <thead>
+        <tr class="border-b border-dark-border text-gray-500 text-xs">
+          <th class="px-5 py-3 text-right">الاسم</th>
+          <th class="px-5 py-3 text-right">الفرع</th>
+          <th class="px-5 py-3 text-right">الموقع</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for w in warehouses %}
+        <tr class="table-row">
+          <td class="px-5 py-3 text-white font-semibold">{{ w.name }}</td>
+          <td class="px-5 py-3 text-gray-400">{{ w.branch.name if w.branch else '—' }}</td>
+          <td class="px-5 py-3 text-gray-500">{{ w.location or '—' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+<!-- Add Branch Modal -->
+<div id="addBranchModal" class="hidden fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+  <div class="card w-full max-w-md p-6">
+    <div class="flex items-center justify-between mb-5">
+      <h2 class="text-white font-bold text-lg">إضافة فرع جديد</h2>
+      <button onclick="document.getElementById('addBranchModal').classList.add('hidden')" class="text-gray-500 hover:text-white text-xl">&times;</button>
+    </div>
+    <form method="post" action="/branches/add">
+      <div class="space-y-3 mb-5">
+        <div><label class="block text-gray-400 text-xs mb-1">اسم الفرع *</label><input name="name" class="input-field" required></div>
+        <div><label class="block text-gray-400 text-xs mb-1">المدينة</label><input name="city" class="input-field"></div>
+        <div><label class="block text-gray-400 text-xs mb-1">العنوان</label><input name="address" class="input-field"></div>
+        <div><label class="block text-gray-400 text-xs mb-1">رقم الهاتف</label><input name="phone" class="input-field"></div>
+      </div>
+      <div class="flex gap-3 justify-end">
+        <button type="button" onclick="document.getElementById('addBranchModal').classList.add('hidden')" class="btn-secondary">إلغاء</button>
+        <button type="submit" class="btn-primary">إضافة الفرع</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Edit Branch Modal -->
+<div id="editBranchModal" class="hidden fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+  <div class="card w-full max-w-md p-6">
+    <div class="flex items-center justify-between mb-5">
+      <h2 class="text-white font-bold text-lg">تعديل الفرع</h2>
+      <button onclick="document.getElementById('editBranchModal').classList.add('hidden')" class="text-gray-500 hover:text-white text-xl">&times;</button>
+    </div>
+    <form method="post" id="editBranchForm" action="">
+      <div class="space-y-3 mb-5">
+        <div><label class="block text-gray-400 text-xs mb-1">اسم الفرع *</label><input id="eb_name" name="name" class="input-field" required></div>
+        <div><label class="block text-gray-400 text-xs mb-1">المدينة</label><input id="eb_city" name="city" class="input-field"></div>
+        <div><label class="block text-gray-400 text-xs mb-1">العنوان</label><input id="eb_address" name="address" class="input-field"></div>
+        <div><label class="block text-gray-400 text-xs mb-1">رقم الهاتف</label><input id="eb_phone" name="phone" class="input-field"></div>
+        <div class="flex items-center gap-2">
+          <input type="checkbox" id="eb_active" name="is_active" value="1" class="w-4 h-4">
+          <label for="eb_active" class="text-gray-400 text-sm">الفرع نشط</label>
+        </div>
+      </div>
+      <div class="flex gap-3 justify-end">
+        <button type="button" onclick="document.getElementById('editBranchModal').classList.add('hidden')" class="btn-secondary">إلغاء</button>
+        <button type="submit" class="btn-primary">حفظ التغييرات</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+function openEditBranch(id, name, city, address, phone, active) {
+  document.getElementById('editBranchForm').action = '/branches/' + id + '/edit';
+  document.getElementById('eb_name').value = name;
+  document.getElementById('eb_city').value = city;
+  document.getElementById('eb_address').value = address;
+  document.getElementById('eb_phone').value = phone;
+  document.getElementById('eb_active').checked = active;
+  document.getElementById('editBranchModal').classList.remove('hidden');
+}
+</script>
+{% endblock %}

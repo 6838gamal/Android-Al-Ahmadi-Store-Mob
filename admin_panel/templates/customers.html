@@ -9,6 +9,9 @@
     <h1 class="text-white text-2xl font-extrabold">قائمة العملاء</h1>
     <p class="text-white/70 text-sm mt-1">{{ customers|length }} عميل مسجل</p>
   </div>
+  <button onclick="document.getElementById('addCustomerModal').classList.remove('hidden')" class="btn-primary">
+    <i class="fa-solid fa-plus"></i> إضافة عميل
+  </button>
 </div>
 
 <!-- Search -->
@@ -30,8 +33,10 @@
           <th class="px-5 py-3 text-right font-semibold">الاسم</th>
           <th class="px-5 py-3 text-right font-semibold">رقم الجوال</th>
           <th class="px-5 py-3 text-right font-semibold">البريد الإلكتروني</th>
+          <th class="px-5 py-3 text-right font-semibold">المحفظة</th>
           <th class="px-5 py-3 text-right font-semibold">الحالة</th>
           <th class="px-5 py-3 text-right font-semibold">تاريخ التسجيل</th>
+          <th class="px-5 py-3 text-right font-semibold">إجراء</th>
         </tr>
       </thead>
       <tbody>
@@ -48,6 +53,7 @@
           </td>
           <td class="px-5 py-3 text-gray-300">{{ c.phone or '—' }}</td>
           <td class="px-5 py-3 text-gray-400">{{ c.email or '—' }}</td>
+          <td class="px-5 py-3 text-sm font-bold" style="color:#22C55E">{{ "%.2f"|format(c.wallet_balance or 0) }} {{ c.wallet_currency or 'YER' }}</td>
           <td class="px-5 py-3">
             {% if c.is_active %}
             <span class="badge bg-emerald-500/15 text-emerald-400">نشط</span>
@@ -56,6 +62,19 @@
             {% endif %}
           </td>
           <td class="px-5 py-3 text-gray-500 text-xs">{{ c.created_at.strftime('%Y-%m-%d') if c.created_at else '—' }}</td>
+          <td class="px-5 py-3">
+            <div class="flex items-center gap-2">
+              <form method="post" action="/customers/{{ c.id }}/toggle-active" class="inline">
+                <button class="text-xs {{ 'text-red-400 hover:text-red-300' if c.is_active else 'text-green-400 hover:text-green-300' }} font-bold">
+                  {{ 'تعطيل' if c.is_active else 'تفعيل' }}
+                </button>
+              </form>
+              <span class="text-gray-600">|</span>
+              <form method="post" action="/customers/{{ c.id }}/delete" class="inline" onsubmit="return confirm('هل تريد حذف هذا العميل نهائياً؟')">
+                <button class="text-xs text-red-500 hover:text-red-300 font-bold">حذف</button>
+              </form>
+            </div>
+          </td>
         </tr>
         {% endfor %}
       </tbody>
@@ -68,4 +87,26 @@
   <p class="text-gray-500 font-semibold">لا يوجد عملاء مسجلون{% if search %} يطابقون البحث{% endif %}</p>
 </div>
 {% endif %}
+
+<!-- Add Customer Modal -->
+<div id="addCustomerModal" class="hidden fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+  <div class="card w-full max-w-md p-6">
+    <div class="flex items-center justify-between mb-5">
+      <h2 class="text-white font-bold text-lg">إضافة عميل جديد</h2>
+      <button onclick="document.getElementById('addCustomerModal').classList.add('hidden')" class="text-gray-500 hover:text-white text-xl">&times;</button>
+    </div>
+    <form method="post" action="/customers/add">
+      <div class="space-y-3 mb-5">
+        <div><label class="block text-gray-400 text-xs mb-1">الاسم الكامل *</label><input name="name" class="input-field" required></div>
+        <div><label class="block text-gray-400 text-xs mb-1">رقم الجوال *</label><input name="phone" class="input-field" required></div>
+        <div><label class="block text-gray-400 text-xs mb-1">البريد الإلكتروني</label><input name="email" type="email" class="input-field"></div>
+        <div><label class="block text-gray-400 text-xs mb-1">كلمة المرور *</label><input name="password" type="password" class="input-field" required></div>
+      </div>
+      <div class="flex gap-3 justify-end">
+        <button type="button" onclick="document.getElementById('addCustomerModal').classList.add('hidden')" class="btn-secondary">إلغاء</button>
+        <button type="submit" class="btn-primary">إضافة العميل</button>
+      </div>
+    </form>
+  </div>
+</div>
 {% endblock %}

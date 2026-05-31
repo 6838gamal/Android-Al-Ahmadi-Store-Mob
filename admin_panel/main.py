@@ -737,6 +737,51 @@ async def warranty_resolve(warranty_id: int, request: Request, db: Session = Dep
     return RedirectResponse("/warranty", status_code=302)
 
 
+# ─── Customer Management (Admin CRUD) ─────────────────────────────────────────
+
+@app.post("/customers/add")
+async def customer_add(
+    request: Request,
+    name: str = Form(...), phone: str = Form(...),
+    email: str = Form(""), password: str = Form(...),
+    db: Session = Depends(get_db)
+):
+    if not request.session.get("admin_id"):
+        return RedirectResponse("/login", status_code=302)
+    import random, string
+    code = "".join(random.choices(string.ascii_uppercase + string.digits, k=8))
+    user = User(
+        name=name, phone=phone or None, email=email or None,
+        hashed_password=get_password_hash(password),
+        role=UserRole.customer, is_active=True, referral_code=code,
+    )
+    db.add(user)
+    db.commit()
+    return RedirectResponse("/customers", status_code=302)
+
+
+@app.post("/customers/{user_id}/toggle-active")
+async def customer_toggle(user_id: int, request: Request, db: Session = Depends(get_db)):
+    if not request.session.get("admin_id"):
+        return RedirectResponse("/login", status_code=302)
+    user = db.query(User).filter(User.id == user_id, User.role == UserRole.customer).first()
+    if user:
+        user.is_active = not user.is_active
+        db.commit()
+    return RedirectResponse("/customers", status_code=302)
+
+
+@app.post("/customers/{user_id}/delete")
+async def customer_delete(user_id: int, request: Request, db: Session = Depends(get_db)):
+    if not request.session.get("admin_id"):
+        return RedirectResponse("/login", status_code=302)
+    user = db.query(User).filter(User.id == user_id, User.role == UserRole.customer).first()
+    if user:
+        db.delete(user)
+        db.commit()
+    return RedirectResponse("/customers", status_code=302)
+
+
 # ─── Staff Management ──────────────────────────────────────────────────────────
 
 @app.get("/staff", response_class=HTMLResponse)
@@ -780,6 +825,148 @@ async def staff_toggle(user_id: int, request: Request, db: Session = Depends(get
         user.is_active = not user.is_active
         db.commit()
     return RedirectResponse("/staff", status_code=302)
+
+
+@app.post("/staff/{user_id}/edit")
+async def staff_edit(
+    user_id: int, request: Request,
+    name: str = Form(...), phone: str = Form(""),
+    email: str = Form(""), role: str = Form("staff"),
+    password: str = Form(""), db: Session = Depends(get_db)
+):
+    if not request.session.get("admin_id"):
+        return RedirectResponse("/login", status_code=302)
+    user = db.query(User).filter(User.id == user_id).first()
+    if user and user.role != UserRole.admin:
+        user.name = name
+        user.phone = phone or None
+        user.email = email or None
+        try:
+            user.role = UserRole(role)
+        except ValueError:
+            pass
+        if password:
+            user.hashed_password = get_password_hash(password)
+        db.commit()
+    return RedirectResponse("/staff", status_code=302)
+
+
+@app.post("/staff/{user_id}/delete")
+async def staff_delete(user_id: int, request: Request, db: Session = Depends(get_db)):
+    if not request.session.get("admin_id"):
+        return RedirectResponse("/login", status_code=302)
+    user = db.query(User).filter(User.id == user_id).first()
+    if user and user.role != UserRole.admin:
+        db.delete(user)
+        db.commit()
+    return RedirectResponse("/staff", status_code=302)
+
+
+# ─── Branches Management ───────────────────────────────────────────────────────
+
+@app.get("/branches", response_class=HTMLResponse)
+async def branches_list(request: Request, db: Session = Depends(get_db)):
+    if not request.session.get("admin_id"):
+        return RedirectResponse("/login", status_code=302)
+    branches = db.query(Branch).order_by(Branch.created_at.desc()).all()
+    warehouses = db.query(Warehouse).all()
+    return templates.TemplateResponse(request, "branches.html", {
+        "admin_name": request.session.get("admin_name"), "active": "branches",
+        "branches": branches, "warehouses": warehouses,
+    })
+
+
+@app.post("/branches/add")
+async def branch_add(
+    request: Request,
+    name: str = Form(...), city: str = Form(""),
+    address: str = Form(""), phone: str = Form(""),
+    db: Session = Depends(get_db)
+):
+    if not request.session.get("admin_id"):
+        return RedirectResponse("/login", status_code=302)
+    b = Branch(name=name, city=city or None, address=address or None, phone=phone or None)
+    db.add(b)
+    db.commit()
+    return RedirectResponse("/branches", status_code=302)
+
+
+@app.post("/branches/{branch_id}/edit")
+async def branch_edit(
+    branch_id: int, request: Request,
+    name: str = Form(...), city: str = Form(""),
+    address: str = Form(""), phone: str = Form(""),
+    is_active: Optional[str] = Form(None),
+    db: Session = Depends(get_db)
+):
+    if not request.session.get("admin_id"):
+        return RedirectResponse("/login", status_code=302)
+    b = db.query(Branch).filter(Branch.id == branch_id).first()
+    if b:
+        b.name = name
+        b.city = city or None
+        b.address = address or None
+        b.phone = phone or None
+        b.is_active = bool(is_active)
+        db.commit()
+    return RedirectResponse("/branches", status_code=302)
+
+
+@app.post("/branches/{branch_id}/delete")
+async def branch_delete(branch_id: int, request: Request, db: Session = Depends(get_db)):
+    if not request.session.get("admin_id"):
+        return RedirectResponse("/login", status_code=302)
+    b = db.query(Branch).filter(Branch.id == branch_id).first()
+    if b:
+        db.delete(b)
+        db.commit()
+    return RedirectResponse("/branches", status_code=302)
+
+
+# ─── Notifications ─────────────────────────────────────────────────────────────
+
+@app.get("/notifications", response_class=HTMLResponse)
+async def notifications_list(request: Request, db: Session = Depends(get_db)):
+    if not request.session.get("admin_id"):
+        return RedirectResponse("/login", status_code=302)
+    notifs = db.query(Notification).order_by(Notification.created_at.desc()).limit(300).all()
+    total = len(notifs)
+    unread = sum(1 for n in notifs if not n.is_read)
+    customers = db.query(User).filter(User.role == UserRole.customer, User.is_active == True).all()
+    return templates.TemplateResponse(request, "notifications.html", {
+        "admin_name": request.session.get("admin_name"), "active": "notifications",
+        "notifs": notifs, "total": total, "unread": unread, "customers": customers,
+    })
+
+
+@app.post("/notifications/send")
+async def notification_send(
+    request: Request,
+    title: str = Form(...), message: str = Form(...),
+    user_id: Optional[int] = Form(None), broadcast: Optional[str] = Form(None),
+    db: Session = Depends(get_db)
+):
+    if not request.session.get("admin_id"):
+        return RedirectResponse("/login", status_code=302)
+    if broadcast:
+        users = db.query(User).filter(User.role == UserRole.customer, User.is_active == True).all()
+        for u in users:
+            db.add(Notification(user_id=u.id, title=title, message=message, type="info"))
+    elif user_id:
+        db.add(Notification(user_id=user_id, title=title, message=message, type="info"))
+    db.commit()
+    return RedirectResponse("/notifications", status_code=302)
+
+
+@app.post("/notifications/{notif_id}/delete")
+async def notification_delete(notif_id: int, request: Request, db: Session = Depends(get_db)):
+    if not request.session.get("admin_id"):
+        return RedirectResponse("/login", status_code=302)
+    n = db.query(Notification).filter(Notification.id == notif_id).first()
+    if n:
+        db.delete(n)
+        db.commit()
+    return RedirectResponse("/notifications", status_code=302)
 
 
 # ─── Reports ───────────────────────────────────────────────────────────────────
