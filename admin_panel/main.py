@@ -9,8 +9,10 @@ from starlette.middleware.sessions import SessionMiddleware
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from typing import Optional
-import shutil, uuid
+import shutil, uuid, httpx
 from datetime import datetime, timedelta
+
+API_BASE = "https://android-al-ahmadi-store-api.onrender.com"
 
 from backend.core.database import SessionLocal, engine, Base
 from backend.core.security import verify_password, get_password_hash
@@ -88,6 +90,26 @@ async def login_page(request: Request):
 @app.post("/login", response_class=HTMLResponse)
 async def login_post(request: Request, identifier: str = Form(...), password: str = Form(...), db: Session = Depends(get_db)):
     identifier = identifier.strip()
+
+    # Try external API first
+    try:
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            resp = await client.post(
+                f"{API_BASE}/api/admin-login",
+                json={"identifier": identifier, "password": password},
+            )
+        if resp.status_code == 200:
+            data = resp.json()
+            user_data = data.get("user", {})
+            if user_data.get("role") == "admin":
+                request.session["admin_id"] = user_data.get("id")
+                request.session["admin_name"] = user_data.get("name", "المدير")
+                request.session["token"] = data.get("access_token")
+                return RedirectResponse("/dashboard", status_code=303)
+    except Exception:
+        pass
+
+    # Fallback: local database
     user = None
     if "@" in identifier:
         user = db.query(User).filter(User.email == identifier, User.role == UserRole.admin).first()
