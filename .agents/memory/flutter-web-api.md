@@ -1,23 +1,16 @@
 ---
-name: Flutter web dynamic API URL
-description: How to construct the correct API base URL in Flutter web using Dio
+name: Flutter web API URL
+description: How the Flutter app base URL is configured — now hardcoded to Render.com
 ---
 
-In Flutter web, `localhost` and empty `baseUrl` both fail with Dio because:
-- `localhost` in the browser refers to the user's machine, not the Replit server
-- Empty string `''` makes Dio crash at runtime (needs an absolute URL)
-
-**Rule:** Use `Uri.base.origin` when `kIsWeb` is true.
+**Current rule:** `baseUrl` is a `const String` always pointing to the deployed Render.com backend:
 
 ```dart
-String _resolveBaseUrl() {
-  if (kIsWeb) {
-    return '${Uri.base.origin}${AppConstants.apiVersion}';
-  }
-  return '${AppConstants.baseUrl}${AppConstants.apiVersion}';
-}
+static const String baseUrl = 'https://android-al-ahmadi-store-api.onrender.com';
 ```
 
-**Why:** The Flutter web app is served through the Replit preview proxy; the browser's current origin (port 5000) is the only reliable base. The Node.js server then proxies /api/* to the FastAPI backend on port 8000.
+**Why changed from `Uri.base.origin`:** The backend is deployed on Render.com with a fixed PostgreSQL database. Both web and native Flutter should always call the same deployed API, not a local Replit proxy.
 
-**How to apply:** Import `package:flutter/foundation.dart` for `kIsWeb`. Set `AppConstants.baseUrl = ''` (unused on web). This pattern works for any Replit-hosted Flutter web app.
+**Previous pattern (no longer used):** `Uri.base.origin` when `kIsWeb` — was needed when the backend ran locally and Flutter was served through the Replit proxy on port 5000. No longer applicable since backend is on Render.com.
+
+**How to apply:** `AppConstants.baseUrl` is a plain `const` — no import of `package:flutter/foundation.dart` needed.

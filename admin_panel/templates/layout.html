@@ -24,22 +24,70 @@
   </script>
   <style>
     * { font-family: 'Cairo', sans-serif; box-sizing: border-box; }
-    body { background-color: #0D1117; color: #E5E7EB; }
+    body { background-color: #0D1117; color: #E5E7EB; overflow-x: hidden; }
     ::-webkit-scrollbar { width: 5px; height: 5px; }
     ::-webkit-scrollbar-track { background: #161B22; }
     ::-webkit-scrollbar-thumb { background: #2D3748; border-radius: 3px; }
 
-    /* ── Sidebar ─────────────────────────────────── */
+    /* ── Sidebar ─────────────────────────────────────── */
+    #sidebar {
+      position: fixed;
+      top: 0; bottom: 0; right: 0;
+      width: 260px;
+      background: #161B22;
+      border-left: 1px solid #2D3748;
+      display: flex;
+      flex-direction: column;
+      z-index: 50;
+      /* start off-screen on mobile, override to static on desktop */
+      transform: translateX(110%);
+      transition: transform 0.3s cubic-bezier(0.4,0,0.2,1);
+      will-change: transform;
+    }
     .sidebar-link { display: flex; align-items: center; gap: 12px; padding: 10px 16px; border-radius: 10px; color: #9CA3AF; transition: all .2s; font-weight: 600; font-size: 14px; }
     .sidebar-link:hover, .sidebar-link.active { background: rgba(26,115,232,0.15); color: #1A73E8; }
     .sidebar-link i { width: 20px; text-align: center; font-size: 15px; }
 
-    /* ── Cards / Tables ──────────────────────────── */
+    /* ── Overlay ─────────────────────────────────────── */
+    #overlay {
+      display: none;
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,.65);
+      z-index: 45;
+      backdrop-filter: blur(2px);
+    }
+
+    /* ── Main layout shell ───────────────────────────── */
+    #app-shell {
+      display: flex;
+      flex-direction: column;
+      height: 100dvh;
+      overflow: hidden;
+    }
+    #main-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 12px 12px 72px; /* bottom padding for mobile nav */
+    }
+
+    /* ── Bottom nav (mobile only) ────────────────────── */
+    #bottom-nav {
+      display: none;
+      position: fixed;
+      bottom: 0; right: 0; left: 0;
+      background: #161B22;
+      border-top: 1px solid #2D3748;
+      z-index: 40;
+      padding-bottom: env(safe-area-inset-bottom, 0px);
+    }
+
+    /* ── Cards / Tables ──────────────────────────────── */
     .stat-card { background: #1C2230; border: 1px solid #2D3748; border-radius: 16px; padding: 20px; }
     .card { background: #1C2230; border: 1px solid #2D3748; border-radius: 14px; }
     .page-header { background: linear-gradient(135deg, #7B1FA2, #1A73E8); padding: 20px 24px; border-radius: 16px; margin-bottom: 24px; }
+    .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
 
-    /* ── Buttons ─────────────────────────────────── */
+    /* ── Buttons ─────────────────────────────────────── */
     .btn-primary { background: #1A73E8; color: white; padding: 8px 20px; border-radius: 10px; font-weight: 700; font-size: 14px; transition: background .2s; display: inline-flex; align-items: center; gap: 8px; }
     .btn-primary:hover { background: #1557B0; }
     .btn-danger { background: rgba(239,68,68,0.15); color: #EF4444; padding: 6px 14px; border-radius: 8px; font-weight: 700; font-size: 13px; transition: all .2s; display: inline-flex; align-items: center; gap: 6px; }
@@ -47,272 +95,229 @@
     .btn-secondary { background: #1C2230; border: 1px solid #2D3748; color: #9CA3AF; padding: 8px 16px; border-radius: 10px; font-weight: 600; font-size: 14px; transition: all .2s; display: inline-flex; align-items: center; gap: 8px; }
     .btn-secondary:hover { border-color: #1A73E8; color: #1A73E8; }
 
-    /* ── Inputs ──────────────────────────────────── */
+    /* ── Inputs ──────────────────────────────────────── */
     .input-field { background: #1C2230; border: 1px solid #2D3748; color: #E5E7EB; padding: 10px 14px; border-radius: 10px; width: 100%; font-size: 14px; transition: border .2s; outline: none; }
     .input-field:focus { border-color: #1A73E8; }
     .select-field { background: #1C2230; border: 1px solid #2D3748; color: #E5E7EB; padding: 10px 14px; border-radius: 10px; font-size: 14px; outline: none; width: 100%; }
     .select-field:focus { border-color: #1A73E8; }
 
-    /* ── Table ───────────────────────────────────── */
+    /* ── Table rows ──────────────────────────────────── */
     .table-row { border-bottom: 1px solid #2D3748; transition: background .15s; }
     .table-row:hover { background: rgba(26,115,232,0.05); }
     .badge { padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 700; }
 
-    /* ── Overlay ─────────────────────────────────── */
-    #overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.65); z-index: 40; backdrop-filter: blur(2px); }
-
-    /* ── Mobile bottom nav ───────────────────────── */
-    #bottom-nav { display: none; }
-
-    /* ── Responsive overrides ────────────────────── */
-    @media (max-width: 767px) {
-      /* Hide sidebar entirely on mobile — use bottom nav instead */
-      #sidebar { display: none !important; }
-
-      /* Show bottom nav on mobile */
-      #bottom-nav { display: flex; }
-
-      /* Floating action area in top bar */
-      #topbar-title { font-size: 15px; }
-
-      /* Make stat cards 2-col on mobile */
-      .stats-grid { grid-template-columns: repeat(2, 1fr) !important; gap: 10px !important; }
-
-      /* Scroll tables horizontally */
-      .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-
-      /* Full-width buttons on mobile */
-      .btn-mobile-full { width: 100%; justify-content: center; }
-
-      /* Reduce padding on mobile */
-      .page-header { padding: 14px 16px; border-radius: 12px; margin-bottom: 16px; }
-      .page-header h1 { font-size: 18px !important; }
-
-      /* Cards */
-      .card { border-radius: 12px; }
-      .stat-card { padding: 14px; border-radius: 12px; }
+    /* ══════════════════════════════════════════════════
+       DESKTOP  (≥ 768 px)
+    ══════════════════════════════════════════════════ */
+    @media (min-width: 768px) {
+      #sidebar {
+        position: relative;      /* in-flow on desktop */
+        transform: translateX(0) !important;
+        flex-shrink: 0;
+        height: 100%;
+      }
+      #app-shell {
+        flex-direction: row;
+      }
+      #main-content {
+        padding: 24px;
+        padding-bottom: 24px;
+      }
+      #mobile-topbar { display: none !important; }
+      #bottom-nav    { display: none !important; }
     }
 
-    @media (min-width: 768px) {
-      /* Hide mobile drawer sidebar toggle */
-      #mobile-topbar { display: none !important; }
+    /* ══════════════════════════════════════════════════
+       MOBILE  (< 768 px)
+    ══════════════════════════════════════════════════ */
+    @media (max-width: 767px) {
+      #desktop-topbar { display: none !important; }
+      #bottom-nav { display: grid; grid-template-columns: repeat(5, 1fr); }
+      .stats-grid { grid-template-columns: repeat(2, 1fr) !important; gap: 10px !important; }
+      .stat-card { padding: 14px; border-radius: 12px; }
+      .page-header { padding: 14px 16px; border-radius: 12px; margin-bottom: 14px; }
+      .page-header h1 { font-size: 17px !important; }
     }
   </style>
 </head>
 <body class="min-h-screen">
-  <div class="flex h-screen overflow-hidden">
 
-    <!-- ── Mobile overlay (for drawer) ── -->
-    <div id="overlay" onclick="closeSidebar()"></div>
+  <!-- ── Overlay (tap to close sidebar) ── -->
+  <div id="overlay" onclick="closeSidebar()"></div>
 
-    <!-- ══════════════ SIDEBAR (desktop always visible / mobile drawer) ══════════════ -->
-    <aside id="sidebar"
-           class="w-64 flex-shrink-0 bg-dark-surface border-l border-dark-border flex flex-col z-50
-                  fixed h-full md:relative
-                  translate-x-full md:translate-x-0 transition-transform duration-300"
-           style="right:0">
+  <!-- ══════════ APP SHELL ══════════ -->
+  <div id="app-shell">
 
+    <!-- ════ SIDEBAR ════ -->
+    <aside id="sidebar">
       <!-- Logo -->
-      <div class="p-5 border-b border-dark-border">
-        <div class="flex items-center gap-3">
-          <div class="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
-               style="background: linear-gradient(135deg,#7B1FA2,#1A73E8)">
-            <i class="fa-solid fa-mobile-screen text-white text-lg"></i>
+      <div style="padding:20px;border-bottom:1px solid #2D3748;flex-shrink:0">
+        <div style="display:flex;align-items:center;gap:12px">
+          <div style="width:40px;height:40px;border-radius:12px;background:linear-gradient(135deg,#7B1FA2,#1A73E8);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+            <i class="fa-solid fa-mobile-screen" style="color:white;font-size:18px"></i>
           </div>
-          <div>
-            <div class="text-white font-extrabold text-sm leading-tight">اندرويد الاحمدي</div>
-            <div class="text-xs text-gray-500">لوحة التحكم</div>
+          <div style="flex:1;min-width:0">
+            <div style="color:white;font-weight:800;font-size:14px;line-height:1.2">اندرويد الاحمدي</div>
+            <div style="color:#6B7280;font-size:12px">لوحة التحكم</div>
           </div>
-          <!-- Close button (desktop drawer mode) -->
-          <button onclick="closeSidebar()" class="mr-auto text-gray-500 hover:text-white md:hidden">
-            <i class="fa-solid fa-xmark text-lg"></i>
+          <!-- Close button — visible only on mobile -->
+          <button onclick="closeSidebar()" id="sidebar-close-btn"
+                  style="display:none;width:32px;height:32px;border-radius:8px;background:#1C2230;border:none;cursor:pointer;color:#9CA3AF;font-size:16px;align-items:center;justify-content:center">
+            <i class="fa-solid fa-xmark"></i>
           </button>
         </div>
       </div>
 
-      <!-- Nav -->
-      <nav class="flex-1 p-4 space-y-1 overflow-y-auto">
-        <div class="text-gray-600 text-xs font-bold uppercase px-2 pb-1 pt-2">الرئيسية</div>
-        <a href="/dashboard" class="sidebar-link {% if active == 'dashboard' %}active{% endif %}">
-          <i class="fa-solid fa-chart-pie"></i> لوحة التحكم
-        </a>
+      <!-- Nav links -->
+      <nav style="flex:1;padding:16px;overflow-y:auto">
+        <div style="color:#4B5563;font-size:11px;font-weight:700;text-transform:uppercase;padding:4px 8px 6px">الرئيسية</div>
+        <a href="/dashboard" class="sidebar-link {% if active == 'dashboard' %}active{% endif %}"><i class="fa-solid fa-chart-pie"></i> لوحة التحكم</a>
 
-        <div class="text-gray-600 text-xs font-bold uppercase px-2 pb-1 pt-3">المتجر</div>
-        <a href="/products" class="sidebar-link {% if active == 'products' %}active{% endif %}">
-          <i class="fa-solid fa-box-open"></i> المنتجات
-        </a>
-        <a href="/inventory" class="sidebar-link {% if active == 'inventory' %}active{% endif %}">
-          <i class="fa-solid fa-barcode"></i> مخزون العناصر
-        </a>
-        <a href="/orders" class="sidebar-link {% if active == 'orders' %}active{% endif %}">
-          <i class="fa-solid fa-receipt"></i> الطلبات
-        </a>
-        <a href="/reservations" class="sidebar-link {% if active == 'reservations' %}active{% endif %}">
-          <i class="fa-solid fa-calendar-check"></i> الحجوزات
-        </a>
-        <a href="/warranty" class="sidebar-link {% if active == 'warranty' %}active{% endif %}">
-          <i class="fa-solid fa-shield-halved"></i> الضمانات
-        </a>
+        <div style="color:#4B5563;font-size:11px;font-weight:700;text-transform:uppercase;padding:12px 8px 6px">المتجر</div>
+        <a href="/products"     class="sidebar-link {% if active == 'products'     %}active{% endif %}"><i class="fa-solid fa-box-open"></i> المنتجات</a>
+        <a href="/inventory"    class="sidebar-link {% if active == 'inventory'    %}active{% endif %}"><i class="fa-solid fa-barcode"></i> مخزون العناصر</a>
+        <a href="/orders"       class="sidebar-link {% if active == 'orders'       %}active{% endif %}"><i class="fa-solid fa-receipt"></i> الطلبات</a>
+        <a href="/reservations" class="sidebar-link {% if active == 'reservations' %}active{% endif %}"><i class="fa-solid fa-calendar-check"></i> الحجوزات</a>
+        <a href="/warranty"     class="sidebar-link {% if active == 'warranty'     %}active{% endif %}"><i class="fa-solid fa-shield-halved"></i> الضمانات</a>
 
-        <div class="text-gray-600 text-xs font-bold uppercase px-2 pb-1 pt-3">الخدمات</div>
-        <a href="/maintenance" class="sidebar-link {% if active == 'maintenance' %}active{% endif %}">
-          <i class="fa-solid fa-screwdriver-wrench"></i> الصيانة
-        </a>
-        <a href="/inspection" class="sidebar-link {% if active == 'inspection' %}active{% endif %}">
-          <i class="fa-solid fa-stethoscope"></i> عيادة الفحص
-        </a>
+        <div style="color:#4B5563;font-size:11px;font-weight:700;text-transform:uppercase;padding:12px 8px 6px">الخدمات</div>
+        <a href="/maintenance"  class="sidebar-link {% if active == 'maintenance'  %}active{% endif %}"><i class="fa-solid fa-screwdriver-wrench"></i> الصيانة</a>
+        <a href="/inspection"   class="sidebar-link {% if active == 'inspection'   %}active{% endif %}"><i class="fa-solid fa-stethoscope"></i> عيادة الفحص</a>
 
-        <div class="text-gray-600 text-xs font-bold uppercase px-2 pb-1 pt-3">العملاء</div>
-        <a href="/customers" class="sidebar-link {% if active == 'customers' %}active{% endif %}">
-          <i class="fa-solid fa-users"></i> العملاء
-        </a>
-        <a href="/referrals" class="sidebar-link {% if active == 'referrals' %}active{% endif %}">
-          <i class="fa-solid fa-share-nodes"></i> الإحالات
-        </a>
-        <a href="/wallet" class="sidebar-link {% if active == 'wallet' %}active{% endif %}">
-          <i class="fa-solid fa-wallet"></i> المحافظ
-        </a>
+        <div style="color:#4B5563;font-size:11px;font-weight:700;text-transform:uppercase;padding:12px 8px 6px">العملاء</div>
+        <a href="/customers"    class="sidebar-link {% if active == 'customers'    %}active{% endif %}"><i class="fa-solid fa-users"></i> العملاء</a>
+        <a href="/referrals"    class="sidebar-link {% if active == 'referrals'    %}active{% endif %}"><i class="fa-solid fa-share-nodes"></i> الإحالات</a>
+        <a href="/wallet"       class="sidebar-link {% if active == 'wallet'       %}active{% endif %}"><i class="fa-solid fa-wallet"></i> المحافظ</a>
 
-        <div class="text-gray-600 text-xs font-bold uppercase px-2 pb-1 pt-3">الإدارة</div>
-        <a href="/staff" class="sidebar-link {% if active == 'staff' %}active{% endif %}">
-          <i class="fa-solid fa-user-tie"></i> الموظفون
-        </a>
-        <a href="/branches" class="sidebar-link {% if active == 'branches' %}active{% endif %}">
-          <i class="fa-solid fa-store"></i> الفروع
-        </a>
-        <a href="/notifications" class="sidebar-link {% if active == 'notifications' %}active{% endif %}">
-          <i class="fa-solid fa-bell"></i> الإشعارات
-        </a>
-        <a href="/reports" class="sidebar-link {% if active == 'reports' %}active{% endif %}">
-          <i class="fa-solid fa-chart-line"></i> التقارير
-        </a>
-        <a href="/audit" class="sidebar-link {% if active == 'audit' %}active{% endif %}">
-          <i class="fa-solid fa-clock-rotate-left"></i> سجل المراجعة
-        </a>
+        <div style="color:#4B5563;font-size:11px;font-weight:700;text-transform:uppercase;padding:12px 8px 6px">الإدارة</div>
+        <a href="/staff"         class="sidebar-link {% if active == 'staff'         %}active{% endif %}"><i class="fa-solid fa-user-tie"></i> الموظفون</a>
+        <a href="/branches"      class="sidebar-link {% if active == 'branches'      %}active{% endif %}"><i class="fa-solid fa-store"></i> الفروع</a>
+        <a href="/notifications" class="sidebar-link {% if active == 'notifications' %}active{% endif %}"><i class="fa-solid fa-bell"></i> الإشعارات</a>
+        <a href="/reports"       class="sidebar-link {% if active == 'reports'       %}active{% endif %}"><i class="fa-solid fa-chart-line"></i> التقارير</a>
+        <a href="/audit"         class="sidebar-link {% if active == 'audit'         %}active{% endif %}"><i class="fa-solid fa-clock-rotate-left"></i> سجل المراجعة</a>
       </nav>
 
       <!-- Admin info + logout -->
-      <div class="p-4 border-t border-dark-border">
-        <div class="flex items-center gap-3 mb-3">
-          <div class="w-9 h-9 rounded-full bg-primary-light flex items-center justify-center flex-shrink-0">
-            <i class="fa-solid fa-user text-primary text-sm"></i>
+      <div style="padding:16px;border-top:1px solid #2D3748;flex-shrink:0">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+          <div style="width:36px;height:36px;border-radius:50%;background:rgba(26,115,232,0.15);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+            <i class="fa-solid fa-user" style="color:#1A73E8;font-size:14px"></i>
           </div>
-          <div class="flex-1 min-w-0">
-            <div class="text-white text-sm font-bold truncate">{{ admin_name }}</div>
-            <div class="text-gray-500 text-xs">مدير النظام</div>
+          <div style="flex:1;min-width:0">
+            <div style="color:white;font-size:13px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ admin_name }}</div>
+            <div style="color:#6B7280;font-size:11px">مدير النظام</div>
           </div>
         </div>
-        <a href="/logout"
-           class="btn-danger w-full justify-center text-xs">
+        <a href="/logout" class="btn-danger" style="width:100%;justify-content:center;font-size:12px">
           <i class="fa-solid fa-right-from-bracket"></i> تسجيل الخروج
         </a>
       </div>
     </aside>
 
-    <!-- ══════════════ MAIN CONTENT ══════════════ -->
-    <div class="flex-1 flex flex-col min-h-0 overflow-hidden">
+    <!-- ════ MAIN COLUMN ════ -->
+    <div style="flex:1;display:flex;flex-direction:column;min-height:0;overflow:hidden">
 
-      <!-- ── Desktop top bar ── -->
-      <header class="hidden md:flex bg-dark-surface border-b border-dark-border px-6 py-3 items-center justify-between">
-        <div class="text-white font-bold text-base">{% block page_title %}{% endblock %}</div>
-        <div class="flex items-center gap-3 text-sm text-gray-400">
-          <i class="fa-solid fa-user-circle text-primary text-lg"></i>
+      <!-- Desktop top bar -->
+      <header id="desktop-topbar"
+              style="background:#161B22;border-bottom:1px solid #2D3748;padding:12px 24px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0">
+        <div style="color:white;font-weight:700;font-size:15px">{% block page_title %}{% endblock %}</div>
+        <div style="display:flex;align-items:center;gap:12px;font-size:13px;color:#9CA3AF">
+          <i class="fa-solid fa-user-circle" style="color:#1A73E8;font-size:18px"></i>
           <span>{{ admin_name }}</span>
-          <a href="/logout" class="btn-danger text-xs py-1 px-3">
+          <a href="/logout" class="btn-danger" style="font-size:12px;padding:5px 12px">
             <i class="fa-solid fa-right-from-bracket"></i> خروج
           </a>
         </div>
       </header>
 
-      <!-- ── Mobile top bar ── -->
+      <!-- Mobile top bar -->
       <header id="mobile-topbar"
-              class="md:hidden bg-dark-surface border-b border-dark-border px-4 py-3 flex items-center gap-3 sticky top-0 z-30">
+              style="background:#161B22;border-bottom:1px solid #2D3748;padding:10px 14px;display:flex;align-items:center;gap:10px;flex-shrink:0;position:sticky;top:0;z-index:30">
         <button onclick="openSidebar()"
-                class="w-9 h-9 rounded-lg bg-dark-card flex items-center justify-center text-gray-400 hover:text-white active:scale-95 transition-transform flex-shrink-0">
-          <i class="fa-solid fa-bars text-base"></i>
+                style="width:38px;height:38px;border-radius:10px;background:#1C2230;border:none;cursor:pointer;color:#9CA3AF;font-size:17px;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+          <i class="fa-solid fa-bars"></i>
         </button>
-        <div id="topbar-title" class="text-white font-bold flex-1 truncate">{% block page_title_mobile %}{% block page_title2 %}{% endblock %}{% endblock %}</div>
+        <div style="color:white;font-weight:700;font-size:15px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+          {% block page_title_mobile %}{% endblock %}
+        </div>
         <a href="/notifications"
-           class="w-9 h-9 rounded-lg bg-dark-card flex items-center justify-center text-gray-400 hover:text-white flex-shrink-0 relative">
-          <i class="fa-solid fa-bell text-base"></i>
+           style="width:38px;height:38px;border-radius:10px;background:#1C2230;display:flex;align-items:center;justify-content:center;color:#9CA3AF;font-size:17px;flex-shrink:0">
+          <i class="fa-solid fa-bell"></i>
         </a>
       </header>
 
-      <!-- ── Scrollable page content ── -->
-      <main class="flex-1 overflow-y-auto p-3 md:p-6 pb-20 md:pb-6">
+      <!-- Page content -->
+      <main id="main-content">
         {% block content %}{% endblock %}
       </main>
-    </div>
-  </div>
+    </div><!-- end main column -->
+  </div><!-- end app-shell -->
 
-  <!-- ══════════════ MOBILE BOTTOM NAV ══════════════ -->
-  <nav id="bottom-nav"
-       class="fixed bottom-0 right-0 left-0 z-50 bg-dark-surface border-t border-dark-border
-              grid grid-cols-5 md:hidden"
-       style="padding-bottom: env(safe-area-inset-bottom)">
-
+  <!-- ════ MOBILE BOTTOM NAV ════ -->
+  <nav id="bottom-nav">
     <a href="/dashboard"
-       class="flex flex-col items-center justify-center py-2 gap-1 text-xs font-semibold
-              {% if active == 'dashboard' %}text-primary{% else %}text-gray-500{% endif %}">
-      <i class="fa-solid fa-chart-pie text-lg"></i>
-      <span>الرئيسية</span>
+       style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:8px 4px;gap:3px;font-size:11px;font-weight:600;text-decoration:none;{% if active == 'dashboard' %}color:#1A73E8{% else %}color:#6B7280{% endif %}">
+      <i class="fa-solid fa-chart-pie" style="font-size:19px"></i><span>الرئيسية</span>
     </a>
-
     <a href="/orders"
-       class="flex flex-col items-center justify-center py-2 gap-1 text-xs font-semibold
-              {% if active == 'orders' %}text-primary{% else %}text-gray-500{% endif %}">
-      <i class="fa-solid fa-receipt text-lg"></i>
-      <span>الطلبات</span>
+       style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:8px 4px;gap:3px;font-size:11px;font-weight:600;text-decoration:none;{% if active == 'orders' %}color:#1A73E8{% else %}color:#6B7280{% endif %}">
+      <i class="fa-solid fa-receipt" style="font-size:19px"></i><span>الطلبات</span>
     </a>
-
     <a href="/maintenance"
-       class="flex flex-col items-center justify-center py-2 gap-1 text-xs font-semibold
-              {% if active == 'maintenance' %}text-primary{% else %}text-gray-500{% endif %}">
-      <i class="fa-solid fa-screwdriver-wrench text-lg"></i>
-      <span>الصيانة</span>
+       style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:8px 4px;gap:3px;font-size:11px;font-weight:600;text-decoration:none;{% if active == 'maintenance' %}color:#1A73E8{% else %}color:#6B7280{% endif %}">
+      <i class="fa-solid fa-screwdriver-wrench" style="font-size:19px"></i><span>الصيانة</span>
     </a>
-
     <a href="/customers"
-       class="flex flex-col items-center justify-center py-2 gap-1 text-xs font-semibold
-              {% if active == 'customers' %}text-primary{% else %}text-gray-500{% endif %}">
-      <i class="fa-solid fa-users text-lg"></i>
-      <span>العملاء</span>
+       style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:8px 4px;gap:3px;font-size:11px;font-weight:600;text-decoration:none;{% if active == 'customers' %}color:#1A73E8{% else %}color:#6B7280{% endif %}">
+      <i class="fa-solid fa-users" style="font-size:19px"></i><span>العملاء</span>
     </a>
-
-    <!-- "More" opens the full sidebar drawer -->
     <button onclick="openSidebar()"
-            class="flex flex-col items-center justify-center py-2 gap-1 text-xs font-semibold text-gray-500 w-full">
-      <i class="fa-solid fa-grip text-lg"></i>
-      <span>المزيد</span>
+            style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:8px 4px;gap:3px;font-size:11px;font-weight:600;background:none;border:none;cursor:pointer;color:#6B7280;width:100%">
+      <i class="fa-solid fa-grid-2" style="font-size:19px"></i><span>المزيد</span>
     </button>
   </nav>
 
   <script>
+    var _sidebarOpen = false;
+
     function openSidebar() {
-      const s = document.getElementById('sidebar');
-      s.style.display = 'flex';
+      var s = document.getElementById('sidebar');
+      var o = document.getElementById('overlay');
+      var btn = document.getElementById('sidebar-close-btn');
+      // Show close button on mobile
+      if (window.innerWidth < 768) {
+        btn.style.display = 'flex';
+      }
       s.style.transform = 'translateX(0)';
-      document.getElementById('overlay').style.display = 'block';
-    }
-    function closeSidebar() {
-      const s = document.getElementById('sidebar');
-      s.style.transform = 'translateX(100%)';
-      document.getElementById('overlay').style.display = 'none';
-      // After animation, hide from layout on mobile
-      setTimeout(() => {
-        if (window.innerWidth < 768) s.style.display = '';
-      }, 300);
+      o.style.display = 'block';
+      _sidebarOpen = true;
     }
 
-    // Highlight active bottom-nav item based on current path
-    document.addEventListener('DOMContentLoaded', () => {
-      const path = window.location.pathname;
-      document.querySelectorAll('#bottom-nav a').forEach(a => {
-        if (a.href && path.includes(a.getAttribute('href'))) {
-          a.classList.add('text-primary');
-          a.classList.remove('text-gray-500');
-        }
-      });
+    function closeSidebar() {
+      var s = document.getElementById('sidebar');
+      var o = document.getElementById('overlay');
+      s.style.transform = 'translateX(110%)';
+      o.style.display = 'none';
+      _sidebarOpen = false;
+    }
+
+    // On desktop resize, always show sidebar
+    window.addEventListener('resize', function () {
+      var s = document.getElementById('sidebar');
+      if (window.innerWidth >= 768) {
+        s.style.transform = 'translateX(0)';
+        document.getElementById('overlay').style.display = 'none';
+      } else if (!_sidebarOpen) {
+        s.style.transform = 'translateX(110%)';
+      }
+    });
+
+    // Initialise correct state on load
+    document.addEventListener('DOMContentLoaded', function () {
+      var s = document.getElementById('sidebar');
+      if (window.innerWidth >= 768) {
+        s.style.transform = 'translateX(0)';
+      }
     });
   </script>
   {% block scripts %}{% endblock %}
