@@ -105,13 +105,19 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
   Future<void> _init() async {
     final token = await StorageService.getToken();
-    final userJson = await StorageService.getUser();
-    if (token != null && userJson != null) {
+    if (token != null) {
       try {
-        final user = UserModel.fromJson(jsonDecode(userJson));
+        // Validate token against the live server — catches stale tokens
+        // from old SQLite DB after a PostgreSQL migration.
+        final res = await _api.get('/auth/me');
+        final user = UserModel.fromJson(res.data);
+        await StorageService.saveUser(jsonEncode(user.toJson()));
         state = state.copyWith(user: user, isInitialized: true);
         return;
-      } catch (_) {}
+      } catch (_) {
+        // Token invalid / user not found — clear stored credentials
+        await StorageService.clearToken();
+      }
     }
     state = state.copyWith(isInitialized: true);
   }

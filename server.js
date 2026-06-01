@@ -27,12 +27,22 @@ const mimeTypes = {
 function proxyRequest(req, res, urlOverride) {
   const proxyPath = urlOverride || req.url;
 
+  const clientIp = req.headers['x-real-ip']
+    || (req.headers['x-forwarded-for'] || '').split(',')[0].trim()
+    || req.socket.remoteAddress
+    || '127.0.0.1';
+
   const options = {
     hostname: '127.0.0.1',
     port: API_PORT,
     path: proxyPath,
     method: req.method,
-    headers: { ...req.headers, host: `127.0.0.1:${API_PORT}` },
+    headers: {
+      ...req.headers,
+      host: `127.0.0.1:${API_PORT}`,
+      'x-real-ip': clientIp,
+      'x-forwarded-for': clientIp,
+    },
   };
 
   const proxyReq = http.request(options, (proxyRes) => {

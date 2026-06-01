@@ -2,7 +2,7 @@
 <html lang="ar" dir="rtl">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
   <title>{% block title %}لوحة إدارة اندرويد الاحمدي{% endblock %}</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
@@ -23,49 +23,110 @@
     }
   </script>
   <style>
-    * { font-family: 'Cairo', sans-serif; }
+    * { font-family: 'Cairo', sans-serif; box-sizing: border-box; }
     body { background-color: #0D1117; color: #E5E7EB; }
-    ::-webkit-scrollbar { width: 6px; } ::-webkit-scrollbar-track { background: #161B22; } ::-webkit-scrollbar-thumb { background: #2D3748; border-radius: 3px; }
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-track { background: #161B22; }
+    ::-webkit-scrollbar-thumb { background: #2D3748; border-radius: 3px; }
+
+    /* ── Sidebar ─────────────────────────────────── */
     .sidebar-link { display: flex; align-items: center; gap: 12px; padding: 10px 16px; border-radius: 10px; color: #9CA3AF; transition: all .2s; font-weight: 600; font-size: 14px; }
     .sidebar-link:hover, .sidebar-link.active { background: rgba(26,115,232,0.15); color: #1A73E8; }
-    .sidebar-link i { width: 20px; text-align: center; }
+    .sidebar-link i { width: 20px; text-align: center; font-size: 15px; }
+
+    /* ── Cards / Tables ──────────────────────────── */
     .stat-card { background: #1C2230; border: 1px solid #2D3748; border-radius: 16px; padding: 20px; }
+    .card { background: #1C2230; border: 1px solid #2D3748; border-radius: 14px; }
+    .page-header { background: linear-gradient(135deg, #7B1FA2, #1A73E8); padding: 20px 24px; border-radius: 16px; margin-bottom: 24px; }
+
+    /* ── Buttons ─────────────────────────────────── */
     .btn-primary { background: #1A73E8; color: white; padding: 8px 20px; border-radius: 10px; font-weight: 700; font-size: 14px; transition: background .2s; display: inline-flex; align-items: center; gap: 8px; }
     .btn-primary:hover { background: #1557B0; }
-    .btn-danger { background: rgba(239,68,68,0.15); color: #EF4444; padding: 6px 14px; border-radius: 8px; font-weight: 700; font-size: 13px; transition: all .2s; }
+    .btn-danger { background: rgba(239,68,68,0.15); color: #EF4444; padding: 6px 14px; border-radius: 8px; font-weight: 700; font-size: 13px; transition: all .2s; display: inline-flex; align-items: center; gap: 6px; }
     .btn-danger:hover { background: #EF4444; color: white; }
     .btn-secondary { background: #1C2230; border: 1px solid #2D3748; color: #9CA3AF; padding: 8px 16px; border-radius: 10px; font-weight: 600; font-size: 14px; transition: all .2s; display: inline-flex; align-items: center; gap: 8px; }
     .btn-secondary:hover { border-color: #1A73E8; color: #1A73E8; }
+
+    /* ── Inputs ──────────────────────────────────── */
     .input-field { background: #1C2230; border: 1px solid #2D3748; color: #E5E7EB; padding: 10px 14px; border-radius: 10px; width: 100%; font-size: 14px; transition: border .2s; outline: none; }
     .input-field:focus { border-color: #1A73E8; }
-    .select-field { background: #1C2230; border: 1px solid #2D3748; color: #E5E7EB; padding: 10px 14px; border-radius: 10px; font-size: 14px; outline: none; }
+    .select-field { background: #1C2230; border: 1px solid #2D3748; color: #E5E7EB; padding: 10px 14px; border-radius: 10px; font-size: 14px; outline: none; width: 100%; }
     .select-field:focus { border-color: #1A73E8; }
+
+    /* ── Table ───────────────────────────────────── */
     .table-row { border-bottom: 1px solid #2D3748; transition: background .15s; }
     .table-row:hover { background: rgba(26,115,232,0.05); }
     .badge { padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 700; }
-    .card { background: #1C2230; border: 1px solid #2D3748; border-radius: 14px; }
-    .page-header { background: linear-gradient(135deg, #7B1FA2, #1A73E8); padding: 20px 24px; border-radius: 16px; margin-bottom: 24px; }
-    #sidebar { transition: transform .3s; }
-    .overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.6); z-index: 40; }
+
+    /* ── Overlay ─────────────────────────────────── */
+    #overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.65); z-index: 40; backdrop-filter: blur(2px); }
+
+    /* ── Mobile bottom nav ───────────────────────── */
+    #bottom-nav { display: none; }
+
+    /* ── Responsive overrides ────────────────────── */
+    @media (max-width: 767px) {
+      /* Hide sidebar entirely on mobile — use bottom nav instead */
+      #sidebar { display: none !important; }
+
+      /* Show bottom nav on mobile */
+      #bottom-nav { display: flex; }
+
+      /* Floating action area in top bar */
+      #topbar-title { font-size: 15px; }
+
+      /* Make stat cards 2-col on mobile */
+      .stats-grid { grid-template-columns: repeat(2, 1fr) !important; gap: 10px !important; }
+
+      /* Scroll tables horizontally */
+      .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+      /* Full-width buttons on mobile */
+      .btn-mobile-full { width: 100%; justify-content: center; }
+
+      /* Reduce padding on mobile */
+      .page-header { padding: 14px 16px; border-radius: 12px; margin-bottom: 16px; }
+      .page-header h1 { font-size: 18px !important; }
+
+      /* Cards */
+      .card { border-radius: 12px; }
+      .stat-card { padding: 14px; border-radius: 12px; }
+    }
+
+    @media (min-width: 768px) {
+      /* Hide mobile drawer sidebar toggle */
+      #mobile-topbar { display: none !important; }
+    }
   </style>
 </head>
 <body class="min-h-screen">
   <div class="flex h-screen overflow-hidden">
-    <!-- Overlay for mobile -->
-    <div class="overlay" id="overlay" onclick="closeSidebar()"></div>
 
-    <!-- Sidebar -->
-    <aside id="sidebar" class="w-64 flex-shrink-0 bg-dark-surface border-l border-dark-border flex flex-col z-50 fixed h-full md:relative md:translate-x-0 translate-x-full" style="right:0">
+    <!-- ── Mobile overlay (for drawer) ── -->
+    <div id="overlay" onclick="closeSidebar()"></div>
+
+    <!-- ══════════════ SIDEBAR (desktop always visible / mobile drawer) ══════════════ -->
+    <aside id="sidebar"
+           class="w-64 flex-shrink-0 bg-dark-surface border-l border-dark-border flex flex-col z-50
+                  fixed h-full md:relative
+                  translate-x-full md:translate-x-0 transition-transform duration-300"
+           style="right:0">
+
       <!-- Logo -->
       <div class="p-5 border-b border-dark-border">
         <div class="flex items-center gap-3">
-          <div class="w-10 h-10 rounded-xl flex items-center justify-center" style="background: linear-gradient(135deg,#7B1FA2,#1A73E8)">
+          <div class="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+               style="background: linear-gradient(135deg,#7B1FA2,#1A73E8)">
             <i class="fa-solid fa-mobile-screen text-white text-lg"></i>
           </div>
           <div>
             <div class="text-white font-extrabold text-sm leading-tight">اندرويد الاحمدي</div>
             <div class="text-xs text-gray-500">لوحة التحكم</div>
           </div>
+          <!-- Close button (desktop drawer mode) -->
+          <button onclick="closeSidebar()" class="mr-auto text-gray-500 hover:text-white md:hidden">
+            <i class="fa-solid fa-xmark text-lg"></i>
+          </button>
         </div>
       </div>
 
@@ -75,6 +136,7 @@
         <a href="/dashboard" class="sidebar-link {% if active == 'dashboard' %}active{% endif %}">
           <i class="fa-solid fa-chart-pie"></i> لوحة التحكم
         </a>
+
         <div class="text-gray-600 text-xs font-bold uppercase px-2 pb-1 pt-3">المتجر</div>
         <a href="/products" class="sidebar-link {% if active == 'products' %}active{% endif %}">
           <i class="fa-solid fa-box-open"></i> المنتجات
@@ -91,6 +153,7 @@
         <a href="/warranty" class="sidebar-link {% if active == 'warranty' %}active{% endif %}">
           <i class="fa-solid fa-shield-halved"></i> الضمانات
         </a>
+
         <div class="text-gray-600 text-xs font-bold uppercase px-2 pb-1 pt-3">الخدمات</div>
         <a href="/maintenance" class="sidebar-link {% if active == 'maintenance' %}active{% endif %}">
           <i class="fa-solid fa-screwdriver-wrench"></i> الصيانة
@@ -98,6 +161,7 @@
         <a href="/inspection" class="sidebar-link {% if active == 'inspection' %}active{% endif %}">
           <i class="fa-solid fa-stethoscope"></i> عيادة الفحص
         </a>
+
         <div class="text-gray-600 text-xs font-bold uppercase px-2 pb-1 pt-3">العملاء</div>
         <a href="/customers" class="sidebar-link {% if active == 'customers' %}active{% endif %}">
           <i class="fa-solid fa-users"></i> العملاء
@@ -108,6 +172,7 @@
         <a href="/wallet" class="sidebar-link {% if active == 'wallet' %}active{% endif %}">
           <i class="fa-solid fa-wallet"></i> المحافظ
         </a>
+
         <div class="text-gray-600 text-xs font-bold uppercase px-2 pb-1 pt-3">الإدارة</div>
         <a href="/staff" class="sidebar-link {% if active == 'staff' %}active{% endif %}">
           <i class="fa-solid fa-user-tie"></i> الموظفون
@@ -129,7 +194,7 @@
       <!-- Admin info + logout -->
       <div class="p-4 border-t border-dark-border">
         <div class="flex items-center gap-3 mb-3">
-          <div class="w-9 h-9 rounded-full bg-primary-light flex items-center justify-center">
+          <div class="w-9 h-9 rounded-full bg-primary-light flex items-center justify-center flex-shrink-0">
             <i class="fa-solid fa-user text-primary text-sm"></i>
           </div>
           <div class="flex-1 min-w-0">
@@ -137,38 +202,118 @@
             <div class="text-gray-500 text-xs">مدير النظام</div>
           </div>
         </div>
-        <a href="/logout" class="btn-danger w-full text-center text-xs justify-center">
-          <i class="fa-solid fa-right-from-bracket me-1"></i> تسجيل الخروج
+        <a href="/logout"
+           class="btn-danger w-full justify-center text-xs">
+          <i class="fa-solid fa-right-from-bracket"></i> تسجيل الخروج
         </a>
       </div>
     </aside>
 
-    <!-- Main Content -->
+    <!-- ══════════════ MAIN CONTENT ══════════════ -->
     <div class="flex-1 flex flex-col min-h-0 overflow-hidden">
-      <!-- Top bar (mobile) -->
-      <header class="md:hidden bg-dark-surface border-b border-dark-border px-4 py-3 flex items-center gap-3">
-        <button onclick="openSidebar()" class="text-gray-400 hover:text-white">
-          <i class="fa-solid fa-bars text-xl"></i>
-        </button>
-        <div class="text-white font-bold">{% block page_title %}{% endblock %}</div>
+
+      <!-- ── Desktop top bar ── -->
+      <header class="hidden md:flex bg-dark-surface border-b border-dark-border px-6 py-3 items-center justify-between">
+        <div class="text-white font-bold text-base">{% block page_title %}{% endblock %}</div>
+        <div class="flex items-center gap-3 text-sm text-gray-400">
+          <i class="fa-solid fa-user-circle text-primary text-lg"></i>
+          <span>{{ admin_name }}</span>
+          <a href="/logout" class="btn-danger text-xs py-1 px-3">
+            <i class="fa-solid fa-right-from-bracket"></i> خروج
+          </a>
+        </div>
       </header>
 
-      <!-- Scrollable content -->
-      <main class="flex-1 overflow-y-auto p-4 md:p-6">
+      <!-- ── Mobile top bar ── -->
+      <header id="mobile-topbar"
+              class="md:hidden bg-dark-surface border-b border-dark-border px-4 py-3 flex items-center gap-3 sticky top-0 z-30">
+        <button onclick="openSidebar()"
+                class="w-9 h-9 rounded-lg bg-dark-card flex items-center justify-center text-gray-400 hover:text-white active:scale-95 transition-transform flex-shrink-0">
+          <i class="fa-solid fa-bars text-base"></i>
+        </button>
+        <div id="topbar-title" class="text-white font-bold flex-1 truncate">{% block page_title_mobile %}{% block page_title2 %}{% endblock %}{% endblock %}</div>
+        <a href="/notifications"
+           class="w-9 h-9 rounded-lg bg-dark-card flex items-center justify-center text-gray-400 hover:text-white flex-shrink-0 relative">
+          <i class="fa-solid fa-bell text-base"></i>
+        </a>
+      </header>
+
+      <!-- ── Scrollable page content ── -->
+      <main class="flex-1 overflow-y-auto p-3 md:p-6 pb-20 md:pb-6">
         {% block content %}{% endblock %}
       </main>
     </div>
   </div>
 
+  <!-- ══════════════ MOBILE BOTTOM NAV ══════════════ -->
+  <nav id="bottom-nav"
+       class="fixed bottom-0 right-0 left-0 z-50 bg-dark-surface border-t border-dark-border
+              grid grid-cols-5 md:hidden"
+       style="padding-bottom: env(safe-area-inset-bottom)">
+
+    <a href="/dashboard"
+       class="flex flex-col items-center justify-center py-2 gap-1 text-xs font-semibold
+              {% if active == 'dashboard' %}text-primary{% else %}text-gray-500{% endif %}">
+      <i class="fa-solid fa-chart-pie text-lg"></i>
+      <span>الرئيسية</span>
+    </a>
+
+    <a href="/orders"
+       class="flex flex-col items-center justify-center py-2 gap-1 text-xs font-semibold
+              {% if active == 'orders' %}text-primary{% else %}text-gray-500{% endif %}">
+      <i class="fa-solid fa-receipt text-lg"></i>
+      <span>الطلبات</span>
+    </a>
+
+    <a href="/maintenance"
+       class="flex flex-col items-center justify-center py-2 gap-1 text-xs font-semibold
+              {% if active == 'maintenance' %}text-primary{% else %}text-gray-500{% endif %}">
+      <i class="fa-solid fa-screwdriver-wrench text-lg"></i>
+      <span>الصيانة</span>
+    </a>
+
+    <a href="/customers"
+       class="flex flex-col items-center justify-center py-2 gap-1 text-xs font-semibold
+              {% if active == 'customers' %}text-primary{% else %}text-gray-500{% endif %}">
+      <i class="fa-solid fa-users text-lg"></i>
+      <span>العملاء</span>
+    </a>
+
+    <!-- "More" opens the full sidebar drawer -->
+    <button onclick="openSidebar()"
+            class="flex flex-col items-center justify-center py-2 gap-1 text-xs font-semibold text-gray-500 w-full">
+      <i class="fa-solid fa-grip text-lg"></i>
+      <span>المزيد</span>
+    </button>
+  </nav>
+
   <script>
     function openSidebar() {
-      document.getElementById('sidebar').style.transform = 'translateX(0)';
+      const s = document.getElementById('sidebar');
+      s.style.display = 'flex';
+      s.style.transform = 'translateX(0)';
       document.getElementById('overlay').style.display = 'block';
     }
     function closeSidebar() {
-      document.getElementById('sidebar').style.transform = 'translateX(100%)';
+      const s = document.getElementById('sidebar');
+      s.style.transform = 'translateX(100%)';
       document.getElementById('overlay').style.display = 'none';
+      // After animation, hide from layout on mobile
+      setTimeout(() => {
+        if (window.innerWidth < 768) s.style.display = '';
+      }, 300);
     }
+
+    // Highlight active bottom-nav item based on current path
+    document.addEventListener('DOMContentLoaded', () => {
+      const path = window.location.pathname;
+      document.querySelectorAll('#bottom-nav a').forEach(a => {
+        if (a.href && path.includes(a.getAttribute('href'))) {
+          a.classList.add('text-primary');
+          a.classList.remove('text-gray-500');
+        }
+      });
+    });
   </script>
   {% block scripts %}{% endblock %}
 </body>

@@ -15,6 +15,16 @@ STAFF_ROLES = [UserRole.staff, UserRole.branch_manager, UserRole.admin]
 _rate_store: dict = defaultdict(list)
 
 
+def _get_client_ip(request: Request) -> str:
+    """Extract real client IP, looking through reverse-proxy headers."""
+    for header in ("x-real-ip", "x-forwarded-for", "cf-connecting-ip"):
+        val = request.headers.get(header)
+        if val:
+            # X-Forwarded-For can be a comma-separated list; take the first
+            return val.split(",")[0].strip()
+    return request.client.host if request.client else "unknown"
+
+
 def _check_rate_limit(key: str, limit: int = 10, window: int = 60):
     now = time.time()
     _rate_store[key] = [t for t in _rate_store[key] if now - t < window]
@@ -35,7 +45,7 @@ def _gen_referral_code(db: Session) -> str:
 
 @router.post("/register", response_model=TokenResponse)
 def register(user_data: UserCreate, request: Request, db: Session = Depends(get_db)):
-    client_ip = request.client.host if request.client else "unknown"
+    client_ip = _get_client_ip(request)
     _check_rate_limit(f"register:{client_ip}", limit=5, window=60)
 
     if not user_data.email and not user_data.phone:
@@ -89,7 +99,7 @@ def register(user_data: UserCreate, request: Request, db: Session = Depends(get_
 
 @router.post("/login", response_model=TokenResponse)
 def login(login_data: UserLogin, request: Request, db: Session = Depends(get_db)):
-    client_ip = request.client.host if request.client else "unknown"
+    client_ip = _get_client_ip(request)
     _check_rate_limit(f"login:{client_ip}", limit=10, window=60)
 
     identifier = login_data.identifier.strip()
@@ -113,7 +123,7 @@ def login(login_data: UserLogin, request: Request, db: Session = Depends(get_db)
 @router.post("/staff-login", response_model=TokenResponse)
 def staff_login(login_data: UserLogin, request: Request, db: Session = Depends(get_db)):
     """Login for staff, branch_manager, and admin roles."""
-    client_ip = request.client.host if request.client else "unknown"
+    client_ip = _get_client_ip(request)
     _check_rate_limit(f"staff_login:{client_ip}", limit=10, window=60)
 
     identifier = login_data.identifier.strip()
@@ -136,7 +146,7 @@ def staff_login(login_data: UserLogin, request: Request, db: Session = Depends(g
 
 @router.post("/admin-login", response_model=TokenResponse)
 def admin_login(login_data: UserLogin, request: Request, db: Session = Depends(get_db)):
-    client_ip = request.client.host if request.client else "unknown"
+    client_ip = _get_client_ip(request)
     _check_rate_limit(f"admin_login:{client_ip}", limit=5, window=60)
 
     identifier = login_data.identifier.strip()
