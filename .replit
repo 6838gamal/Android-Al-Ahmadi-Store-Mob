@@ -79,3 +79,8 @@ externalPort = 8080
 deploymentTarget = "static"
 build = ["flutter", "build", "web", "--release"]
 publicDir = "build/web"
+
+[userenv]
+
+[userenv.shared]
+API_BASE = "https://android-al-ahmadi-store-api.onrender.com"
