@@ -59,11 +59,14 @@ def to_obj(data):
     return data
 
 
-async def api(method: str, path: str, token: str = None, **kwargs):
-    """Call the Render.com API; returns parsed JSON on success, None on error."""
+async def api(method: str, path: str, token: str = None, real_ip: str = None, **kwargs):
+    """Call the backend API; returns parsed JSON on success, None on error."""
     headers = {}
     if token:
         headers["Authorization"] = f"Bearer {token}"
+    if real_ip:
+        headers["X-Real-IP"] = real_ip
+        headers["X-Forwarded-For"] = real_ip
     try:
         async with httpx.AsyncClient(timeout=25.0, follow_redirects=True) as client:
             resp = await getattr(client, method)(
@@ -105,7 +108,13 @@ async def login_page(request: Request):
 @app.post("/login", response_class=HTMLResponse)
 async def login_post(request: Request, identifier: str = Form(...), password: str = Form(...)):
     identifier = identifier.strip()
+    client_ip = (
+        request.headers.get("x-real-ip")
+        or request.headers.get("x-forwarded-for", "").split(",")[0].strip()
+        or (request.client.host if request.client else "unknown")
+    )
     data = await api("post", "/api/auth/admin-login",
+                     real_ip=client_ip,
                      json={"identifier": identifier, "password": password})
     if data:
         user_data = data.get("user", {})
