@@ -896,6 +896,61 @@ async def wallet_debit(
     return RedirectResponse("/wallet", status_code=302)
 
 
+# ── Admin Profile ───────────────────────────────────────────────────────────────
+
+@app.get("/profile", response_class=HTMLResponse)
+async def profile_page(request: Request):
+    if not _logged(request):
+        return _redirect_login()
+    raw = await api("get", "/api/auth/me", token=_token(request)) or {}
+    admin = to_obj(raw) if raw else None
+    return templates.TemplateResponse(request, "profile.html", {
+        "admin_name": _name(request),
+        "active": "profile",
+        "admin": admin,
+        "success": request.query_params.get("success"),
+        "error": request.query_params.get("error"),
+    })
+
+
+@app.post("/profile", response_class=HTMLResponse)
+async def profile_update(
+    request: Request,
+    name: str = Form(...),
+    email: str = Form(""),
+    phone: str = Form(""),
+    current_password: str = Form(""),
+    new_password: str = Form(""),
+    confirm_password: str = Form(""),
+):
+    if not _logged(request):
+        return _redirect_login()
+
+    if new_password and new_password != confirm_password:
+        return RedirectResponse("/profile?error=كلمتا+المرور+غير+متطابقتين", status_code=302)
+
+    payload: dict = {"name": name}
+    if email.strip():
+        payload["email"] = email.strip()
+    else:
+        payload["email"] = None
+    if phone.strip():
+        payload["phone"] = phone.strip()
+    else:
+        payload["phone"] = None
+    if new_password:
+        if not current_password:
+            return RedirectResponse("/profile?error=كلمة+المرور+الحالية+مطلوبة", status_code=302)
+        payload["current_password"] = current_password
+        payload["new_password"] = new_password
+
+    result = await api("put", "/api/auth/profile", token=_token(request), json=payload)
+    if result:
+        request.session["admin_name"] = result.get("name", _name(request))
+        return RedirectResponse("/profile?success=1", status_code=302)
+    return RedirectResponse("/profile?error=فشل+التحديث.+تحقق+من+البيانات", status_code=302)
+
+
 # ── Audit Log ───────────────────────────────────────────────────────────────────
 
 @app.get("/audit", response_class=HTMLResponse)

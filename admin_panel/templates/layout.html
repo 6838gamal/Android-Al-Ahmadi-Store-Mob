@@ -214,15 +214,15 @@
 
       <!-- Admin info + logout -->
       <div style="padding:0 16px 16px;flex-shrink:0">
-        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
-          <div style="width:36px;height:36px;border-radius:50%;background:rgba(26,115,232,0.15);display:flex;align-items:center;justify-content:center;flex-shrink:0">
-            <i class="fa-solid fa-user" style="color:#1A73E8;font-size:14px"></i>
+        <a href="/profile" style="display:flex;align-items:center;gap:10px;margin-bottom:10px;padding:10px;border-radius:10px;background:#1C2230;border:1px solid #2D3748;text-decoration:none;transition:border-color .2s" onmouseover="this.style.borderColor='#1A73E8'" onmouseout="this.style.borderColor='#2D3748'">
+          <div style="width:36px;height:36px;border-radius:50%;background:rgba(26,115,232,0.15);border:1px solid rgba(26,115,232,0.3);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:15px;font-weight:800;color:#1A73E8">
+            {{ admin_name[0] if admin_name else 'م' }}
           </div>
           <div style="flex:1;min-width:0">
             <div style="color:white;font-size:13px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ admin_name }}</div>
-            <div style="color:#6B7280;font-size:11px">مدير النظام</div>
+            <div style="color:#1A73E8;font-size:11px;display:flex;align-items:center;gap:4px"><i class="fa-solid fa-pen-to-square" style="font-size:9px"></i> تعديل الملف الشخصي</div>
           </div>
-        </div>
+        </a>
         <a href="/logout" class="btn-danger" style="width:100%;justify-content:center;font-size:12px">
           <i class="fa-solid fa-right-from-bracket"></i> تسجيل الخروج
         </a>

@@ -195,6 +195,36 @@ class AuthNotifier extends StateNotifier<AuthState> {
     await StorageService.clearToken();
     state = const AuthState(isInitialized: true);
   }
+
+  Future<Map<String, dynamic>> updateProfile({
+    String? name,
+    String? email,
+    String? phone,
+    String? currentPassword,
+    String? newPassword,
+  }) async {
+    try {
+      final data = <String, dynamic>{};
+      if (name != null) data['name'] = name;
+      if (email != null) data['email'] = email;
+      if (phone != null) data['phone'] = phone;
+      if (currentPassword != null) data['current_password'] = currentPassword;
+      if (newPassword != null) data['new_password'] = newPassword;
+
+      final res = await _api.put('/auth/profile', data: data);
+      final updatedUser = UserModel.fromJson(res.data);
+      await StorageService.saveUser(jsonEncode(updatedUser.toJson()));
+      state = state.copyWith(user: updatedUser);
+      return {'success': true};
+    } catch (e) {
+      String msg = 'فشل تحديث البيانات';
+      try {
+        final err = (e as dynamic).response?.data;
+        if (err is Map && err['detail'] != null) msg = err['detail'];
+      } catch (_) {}
+      return {'success': false, 'error': msg};
+    }
+  }
 }
 
 final authProvider = StateNotifierProvider<AuthNotifier, AuthState>((ref) {

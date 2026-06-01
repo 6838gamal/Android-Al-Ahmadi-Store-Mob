@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from backend.core.database import get_db
 from backend.core.security import verify_password, get_password_hash, create_access_token
 from backend.models.user import User, UserRole
-from backend.schemas.auth import UserCreate, UserLogin, UserResponse, TokenResponse, PasswordReset
+from backend.schemas.auth import UserCreate, UserLogin, UserResponse, TokenResponse, PasswordReset, ProfileUpdate
 from backend.api.dependencies import get_current_user
 
 router = APIRouter()
@@ -166,6 +166,43 @@ def admin_login(login_data: UserLogin, request: Request, db: Session = Depends(g
 
 @router.get("/me", response_model=UserResponse)
 def get_me(current_user: User = Depends(get_current_user)):
+    return current_user
+
+
+@router.put("/profile", response_model=UserResponse)
+def update_profile(
+    update_data: ProfileUpdate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    if update_data.new_password:
+        if not update_data.current_password:
+            raise HTTPException(status_code=400, detail="كلمة المرور الحالية مطلوبة لتغيير كلمة المرور")
+        if not verify_password(update_data.current_password, current_user.hashed_password):
+            raise HTTPException(status_code=400, detail="كلمة المرور الحالية غير صحيحة")
+        current_user.hashed_password = get_password_hash(update_data.new_password)
+
+    if update_data.name is not None and update_data.name.strip():
+        current_user.name = update_data.name.strip()
+
+    if update_data.email is not None:
+        new_email = update_data.email.strip() or None
+        if new_email and new_email != current_user.email:
+            existing = db.query(User).filter(User.email == new_email, User.id != current_user.id).first()
+            if existing:
+                raise HTTPException(status_code=400, detail="البريد الإلكتروني مستخدم بالفعل")
+        current_user.email = new_email
+
+    if update_data.phone is not None:
+        new_phone = update_data.phone.strip() or None
+        if new_phone and new_phone != current_user.phone:
+            existing = db.query(User).filter(User.phone == new_phone, User.id != current_user.id).first()
+            if existing:
+                raise HTTPException(status_code=400, detail="رقم الجوال مستخدم بالفعل")
+        current_user.phone = new_phone
+
+    db.commit()
+    db.refresh(current_user)
     return current_user
 
 

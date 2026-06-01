@@ -106,12 +106,18 @@ class ProfilePage extends ConsumerWidget {
         ),
         title: const Text('حسابي',
             style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.w700)),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.edit_outlined, color: AppColors.primary),
+            tooltip: 'تعديل البيانات',
+            onPressed: () => _showEditSheet(context, ref, user),
+          ),
+        ],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(20, 24, 20, 32),
         child: Column(
           children: [
-            // Avatar + name + role
             Container(
               padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
@@ -179,7 +185,6 @@ class ProfilePage extends ConsumerWidget {
             ).animate().fadeIn().slideY(begin: 0.1, end: 0),
             const SizedBox(height: 20),
 
-            // Info fields
             _SectionTitle(title: 'المعلومات الشخصية'),
             const SizedBox(height: 12),
             _InfoRow(icon: Icons.person_outline, label: 'الاسم', value: user.name),
@@ -194,7 +199,22 @@ class ProfilePage extends ConsumerWidget {
                   label: 'البريد الإلكتروني',
                   value: user.email!),
 
-            // Quick links (customers only)
+            const SizedBox(height: 20),
+            _SectionTitle(title: 'إعدادات الحساب'),
+            const SizedBox(height: 12),
+            _ActionTile(
+              icon: Icons.edit_outlined,
+              label: 'تعديل البيانات الشخصية',
+              color: AppColors.primary,
+              onTap: () => _showEditSheet(context, ref, user),
+            ),
+            _ActionTile(
+              icon: Icons.lock_outline,
+              label: 'تغيير كلمة المرور',
+              color: AppColors.warning,
+              onTap: () => _showChangePasswordDialog(context, ref),
+            ),
+
             if (user.isCustomer) ...[
               const SizedBox(height: 20),
               _SectionTitle(title: 'الوصول السريع'),
@@ -237,6 +257,224 @@ class ProfilePage extends ConsumerWidget {
               },
             ).animate(delay: 200.ms).fadeIn(),
           ],
+        ),
+      ),
+    );
+  }
+
+  void _showEditSheet(BuildContext context, WidgetRef ref, UserModel user) {
+    final nameCtrl = TextEditingController(text: user.name);
+    final emailCtrl = TextEditingController(text: user.email ?? '');
+    final phoneCtrl = TextEditingController(text: user.phone ?? '');
+    bool saving = false;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.darkCard,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setState) => Padding(
+          padding: EdgeInsets.only(
+            left: 20, right: 20, top: 20,
+            bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 40, height: 4,
+                  decoration: BoxDecoration(
+                    color: AppColors.darkBorder,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              const Text('تعديل البيانات الشخصية',
+                  style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.w700, color: Colors.white, fontSize: 17)),
+              const SizedBox(height: 20),
+              _buildField('الاسم الكامل', nameCtrl, Icons.person_outline),
+              const SizedBox(height: 12),
+              _buildField('رقم الجوال', phoneCtrl, Icons.phone_outlined, keyboardType: TextInputType.phone),
+              const SizedBox(height: 12),
+              _buildField('البريد الإلكتروني', emailCtrl, Icons.email_outlined, keyboardType: TextInputType.emailAddress),
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: saving ? null : () async {
+                    setState(() => saving = true);
+                    final result = await ref.read(authProvider.notifier).updateProfile(
+                      name: nameCtrl.text.trim().isNotEmpty ? nameCtrl.text.trim() : null,
+                      email: emailCtrl.text.trim(),
+                      phone: phoneCtrl.text.trim(),
+                    );
+                    setState(() => saving = false);
+                    if (ctx.mounted) Navigator.pop(ctx);
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                        content: Text(
+                          result['success'] == true ? 'تم تحديث البيانات بنجاح' : (result['error'] ?? 'حدث خطأ'),
+                          style: const TextStyle(fontFamily: 'Cairo'),
+                        ),
+                        backgroundColor: result['success'] == true ? AppColors.success : AppColors.error,
+                        behavior: SnackBarBehavior.floating,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      ));
+                    }
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  child: saving
+                      ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                      : const Text('حفظ التغييرات', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.w700, fontSize: 15)),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showChangePasswordDialog(BuildContext context, WidgetRef ref) {
+    final currentCtrl = TextEditingController();
+    final newCtrl = TextEditingController();
+    final confirmCtrl = TextEditingController();
+    bool saving = false;
+    bool showCurrent = false;
+    bool showNew = false;
+    bool showConfirm = false;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setState) => AlertDialog(
+          backgroundColor: AppColors.darkCard,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: const Text('تغيير كلمة المرور',
+              style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.w700, color: Colors.white)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _buildPasswordField('كلمة المرور الحالية', currentCtrl, showCurrent,
+                  () => setState(() => showCurrent = !showCurrent)),
+              const SizedBox(height: 12),
+              _buildPasswordField('كلمة المرور الجديدة', newCtrl, showNew,
+                  () => setState(() => showNew = !showNew)),
+              const SizedBox(height: 12),
+              _buildPasswordField('تأكيد كلمة المرور الجديدة', confirmCtrl, showConfirm,
+                  () => setState(() => showConfirm = !showConfirm)),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('إلغاء', style: TextStyle(fontFamily: 'Cairo', color: AppColors.textSecondary)),
+            ),
+            ElevatedButton(
+              onPressed: saving ? null : () async {
+                if (newCtrl.text != confirmCtrl.text) {
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                    content: Text('كلمتا المرور غير متطابقتين', style: TextStyle(fontFamily: 'Cairo')),
+                    backgroundColor: AppColors.error,
+                  ));
+                  return;
+                }
+                setState(() => saving = true);
+                final result = await ref.read(authProvider.notifier).updateProfile(
+                  currentPassword: currentCtrl.text,
+                  newPassword: newCtrl.text,
+                );
+                setState(() => saving = false);
+                if (ctx.mounted) Navigator.pop(ctx);
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                    content: Text(
+                      result['success'] == true ? 'تم تغيير كلمة المرور بنجاح' : (result['error'] ?? 'حدث خطأ'),
+                      style: const TextStyle(fontFamily: 'Cairo'),
+                    ),
+                    backgroundColor: result['success'] == true ? AppColors.success : AppColors.error,
+                    behavior: SnackBarBehavior.floating,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ));
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+              child: saving
+                  ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                  : const Text('تغيير', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.w700)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildField(String label, TextEditingController ctrl, IconData icon,
+      {TextInputType keyboardType = TextInputType.text}) {
+    return TextField(
+      controller: ctrl,
+      keyboardType: keyboardType,
+      style: const TextStyle(fontFamily: 'Cairo', color: Colors.white, fontSize: 14),
+      decoration: InputDecoration(
+        labelText: label,
+        labelStyle: const TextStyle(fontFamily: 'Cairo', color: AppColors.textSecondary, fontSize: 13),
+        prefixIcon: Icon(icon, color: AppColors.primary, size: 20),
+        filled: true,
+        fillColor: AppColors.darkBg,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: AppColors.darkBorder),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: AppColors.darkBorder),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: AppColors.primary),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPasswordField(String label, TextEditingController ctrl, bool show, VoidCallback toggle) {
+    return TextField(
+      controller: ctrl,
+      obscureText: !show,
+      style: const TextStyle(fontFamily: 'Cairo', color: Colors.white, fontSize: 14),
+      decoration: InputDecoration(
+        labelText: label,
+        labelStyle: const TextStyle(fontFamily: 'Cairo', color: AppColors.textSecondary, fontSize: 13),
+        prefixIcon: const Icon(Icons.lock_outline, color: AppColors.primary, size: 20),
+        suffixIcon: IconButton(
+          icon: Icon(show ? Icons.visibility_off : Icons.visibility, color: AppColors.textMuted, size: 20),
+          onPressed: toggle,
+        ),
+        filled: true,
+        fillColor: AppColors.darkBg,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: AppColors.darkBorder),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: AppColors.darkBorder),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: AppColors.primary),
         ),
       ),
     );
@@ -294,6 +532,47 @@ class _InfoRow extends StatelessWidget {
       );
 }
 
+class _ActionTile extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color color;
+  final VoidCallback onTap;
+  const _ActionTile({required this.icon, required this.label, required this.color, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) => GestureDetector(
+        onTap: onTap,
+        child: Container(
+          margin: const EdgeInsets.only(bottom: 10),
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+              color: AppColors.darkCard,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppColors.darkBorder)),
+          child: Row(
+            children: [
+              Container(
+                width: 38, height: 38,
+                decoration: BoxDecoration(
+                    color: color.withOpacity(0.12),
+                    borderRadius: BorderRadius.circular(10)),
+                child: Icon(icon, color: color, size: 20),
+              ),
+              const SizedBox(width: 14),
+              Text(label,
+                  style: const TextStyle(
+                      fontFamily: 'Cairo',
+                      color: Colors.white,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14)),
+              const Spacer(),
+              const Icon(Icons.arrow_forward_ios, size: 14, color: AppColors.textMuted),
+            ],
+          ),
+        ),
+      );
+}
+
 class _QuickLink extends StatelessWidget {
   final IconData icon;
   final String label;
@@ -318,8 +597,7 @@ class _QuickLink extends StatelessWidget {
           child: Row(
             children: [
               Container(
-                width: 38,
-                height: 38,
+                width: 38, height: 38,
                 decoration: BoxDecoration(
                     color: color.withOpacity(0.12),
                     borderRadius: BorderRadius.circular(10)),
@@ -333,8 +611,7 @@ class _QuickLink extends StatelessWidget {
                       fontWeight: FontWeight.w600,
                       fontSize: 14)),
               const Spacer(),
-              const Icon(Icons.arrow_forward_ios,
-                  size: 14, color: AppColors.textMuted),
+              const Icon(Icons.arrow_forward_ios, size: 14, color: AppColors.textMuted),
             ],
           ),
         ),

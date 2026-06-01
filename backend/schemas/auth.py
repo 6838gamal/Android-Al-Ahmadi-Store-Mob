@@ -43,3 +43,11 @@ class TokenResponse(BaseModel):
 class PasswordReset(BaseModel):
     identifier: str
     new_password: str
+
+
+class ProfileUpdate(BaseModel):
+    name: Optional[str] = None
+    email: Optional[str] = None
+    phone: Optional[str] = None
+    current_password: Optional[str] = None
+    new_password: Optional[str] = None

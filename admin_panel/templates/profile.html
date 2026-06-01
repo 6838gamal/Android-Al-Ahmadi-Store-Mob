@@ -1,0 +1,194 @@
+{% extends "layout.html" %}
+{% block title %}الملف الشخصي — أندرويد الأحمدي{% endblock %}
+{% block page_title %}الملف الشخصي{% endblock %}
+{% block page_title_mobile %}الملف الشخصي{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div style="display:flex;align-items:center;gap:14px">
+    <div style="width:52px;height:52px;border-radius:16px;background:rgba(255,255,255,0.15);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+      <i class="fa-solid fa-user-gear" style="font-size:22px;color:white"></i>
+    </div>
+    <div>
+      <h1 style="color:white;font-size:20px;font-weight:800;margin:0">الملف الشخصي</h1>
+      <p style="color:rgba(255,255,255,0.7);font-size:13px;margin:4px 0 0">إدارة بيانات الدخول والمعلومات الشخصية</p>
+    </div>
+  </div>
+</div>
+
+{% if success %}
+<div style="background:rgba(34,197,94,0.12);border:1px solid rgba(34,197,94,0.35);border-radius:12px;padding:14px 18px;display:flex;align-items:center;gap:10px;margin-bottom:20px">
+  <i class="fa-solid fa-circle-check" style="color:#22C55E;font-size:18px"></i>
+  <span style="color:#22C55E;font-weight:700;font-size:14px">تم تحديث البيانات بنجاح</span>
+</div>
+{% endif %}
+
+{% if error %}
+<div style="background:rgba(239,68,68,0.12);border:1px solid rgba(239,68,68,0.35);border-radius:12px;padding:14px 18px;display:flex;align-items:center;gap:10px;margin-bottom:20px">
+  <i class="fa-solid fa-circle-exclamation" style="color:#EF4444;font-size:18px"></i>
+  <span style="color:#EF4444;font-weight:700;font-size:14px">{{ error }}</span>
+</div>
+{% endif %}
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px" class="profile-grid">
+
+  <!-- ── Current Info Card ── -->
+  <div class="card" style="padding:24px">
+    <div style="display:flex;align-items:center;gap:14px;margin-bottom:20px;padding-bottom:16px;border-bottom:1px solid #2D3748">
+      <div style="width:64px;height:64px;border-radius:50%;background:rgba(26,115,232,0.15);border:2px solid rgba(26,115,232,0.35);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:26px;font-weight:800;color:#1A73E8">
+        {{ admin_name[0] if admin_name else 'م' }}
+      </div>
+      <div>
+        <div style="color:white;font-size:17px;font-weight:800">{{ admin_name }}</div>
+        <div style="display:inline-flex;align-items:center;gap:6px;background:rgba(26,115,232,0.12);border:1px solid rgba(26,115,232,0.3);border-radius:20px;padding:3px 12px;margin-top:5px">
+          <i class="fa-solid fa-shield-halved" style="color:#1A73E8;font-size:11px"></i>
+          <span style="color:#1A73E8;font-size:12px;font-weight:700">مدير النظام</span>
+        </div>
+      </div>
+    </div>
+
+    <div style="color:#4B5563;font-size:11px;font-weight:700;text-transform:uppercase;margin-bottom:12px">المعلومات الحالية</div>
+
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <div style="background:#0D1117;border:1px solid #2D3748;border-radius:10px;padding:12px 14px;display:flex;align-items:center;gap:12px">
+        <i class="fa-solid fa-user" style="color:#1A73E8;width:16px;text-align:center"></i>
+        <div>
+          <div style="color:#6B7280;font-size:11px;margin-bottom:2px">الاسم</div>
+          <div style="color:white;font-size:14px;font-weight:700">{{ admin.name if admin else admin_name }}</div>
+        </div>
+      </div>
+      <div style="background:#0D1117;border:1px solid #2D3748;border-radius:10px;padding:12px 14px;display:flex;align-items:center;gap:12px">
+        <i class="fa-solid fa-envelope" style="color:#1A73E8;width:16px;text-align:center"></i>
+        <div>
+          <div style="color:#6B7280;font-size:11px;margin-bottom:2px">البريد الإلكتروني</div>
+          <div style="color:white;font-size:14px;font-weight:700">{{ admin.email if admin and admin.email else '—' }}</div>
+        </div>
+      </div>
+      <div style="background:#0D1117;border:1px solid #2D3748;border-radius:10px;padding:12px 14px;display:flex;align-items:center;gap:12px">
+        <i class="fa-solid fa-phone" style="color:#1A73E8;width:16px;text-align:center"></i>
+        <div>
+          <div style="color:#6B7280;font-size:11px;margin-bottom:2px">رقم الجوال</div>
+          <div style="color:white;font-size:14px;font-weight:700">{{ admin.phone if admin and admin.phone else '—' }}</div>
+        </div>
+      </div>
+      <div style="background:#0D1117;border:1px solid #2D3748;border-radius:10px;padding:12px 14px;display:flex;align-items:center;gap:12px">
+        <i class="fa-solid fa-lock" style="color:#6B7280;width:16px;text-align:center"></i>
+        <div>
+          <div style="color:#6B7280;font-size:11px;margin-bottom:2px">كلمة المرور</div>
+          <div style="color:#6B7280;font-size:14px;font-weight:700">••••••••</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Edit Form ── -->
+  <div class="card" style="padding:24px">
+    <div style="color:#4B5563;font-size:11px;font-weight:700;text-transform:uppercase;margin-bottom:16px">تعديل البيانات</div>
+
+    <form method="post" action="/profile" id="profile-form">
+
+      <!-- Personal Info -->
+      <div style="margin-bottom:20px">
+        <div style="color:#9CA3AF;font-size:12px;font-weight:700;margin-bottom:10px;display:flex;align-items:center;gap:6px">
+          <i class="fa-solid fa-user-pen" style="color:#1A73E8"></i> المعلومات الشخصية
+        </div>
+
+        <div style="margin-bottom:12px">
+          <label style="display:block;color:#9CA3AF;font-size:12px;font-weight:600;margin-bottom:6px">الاسم الكامل <span style="color:#EF4444">*</span></label>
+          <input type="text" name="name" required
+                 value="{{ admin.name if admin else admin_name }}"
+                 class="input-field" placeholder="الاسم الكامل للمدير">
+        </div>
+
+        <div style="margin-bottom:12px">
+          <label style="display:block;color:#9CA3AF;font-size:12px;font-weight:600;margin-bottom:6px">البريد الإلكتروني (بيانات الدخول)</label>
+          <input type="email" name="email"
+                 value="{{ admin.email if admin and admin.email else '' }}"
+                 class="input-field" placeholder="البريد الإلكتروني">
+        </div>
+
+        <div>
+          <label style="display:block;color:#9CA3AF;font-size:12px;font-weight:600;margin-bottom:6px">رقم الجوال (بيانات الدخول)</label>
+          <input type="tel" name="phone"
+                 value="{{ admin.phone if admin and admin.phone else '' }}"
+                 class="input-field" placeholder="رقم الجوال">
+        </div>
+      </div>
+
+      <!-- Divider -->
+      <div style="border-top:1px solid #2D3748;margin:16px 0"></div>
+
+      <!-- Password Change -->
+      <div style="margin-bottom:20px">
+        <div style="color:#9CA3AF;font-size:12px;font-weight:700;margin-bottom:10px;display:flex;align-items:center;gap:6px">
+          <i class="fa-solid fa-lock" style="color:#F59E0B"></i> تغيير كلمة المرور
+          <span style="color:#6B7280;font-size:11px;font-weight:400">(اتركها فارغة إن لم ترد التغيير)</span>
+        </div>
+
+        <div style="margin-bottom:12px">
+          <label style="display:block;color:#9CA3AF;font-size:12px;font-weight:600;margin-bottom:6px">كلمة المرور الحالية</label>
+          <div style="position:relative">
+            <input type="password" name="current_password" id="cp-field"
+                   class="input-field" placeholder="أدخل كلمة المرور الحالية" style="padding-left:42px">
+            <button type="button" onclick="togglePwd('cp-field','cp-icon')"
+                    style="position:absolute;left:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:#6B7280;padding:0">
+              <i id="cp-icon" class="fa-solid fa-eye" style="font-size:14px"></i>
+            </button>
+          </div>
+        </div>
+
+        <div style="margin-bottom:12px">
+          <label style="display:block;color:#9CA3AF;font-size:12px;font-weight:600;margin-bottom:6px">كلمة المرور الجديدة</label>
+          <div style="position:relative">
+            <input type="password" name="new_password" id="np-field"
+                   class="input-field" placeholder="كلمة المرور الجديدة (8 أحرف على الأقل)" style="padding-left:42px">
+            <button type="button" onclick="togglePwd('np-field','np-icon')"
+                    style="position:absolute;left:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:#6B7280;padding:0">
+              <i id="np-icon" class="fa-solid fa-eye" style="font-size:14px"></i>
+            </button>
+          </div>
+        </div>
+
+        <div>
+          <label style="display:block;color:#9CA3AF;font-size:12px;font-weight:600;margin-bottom:6px">تأكيد كلمة المرور الجديدة</label>
+          <div style="position:relative">
+            <input type="password" name="confirm_password" id="cnp-field"
+                   class="input-field" placeholder="أعد كتابة كلمة المرور الجديدة" style="padding-left:42px">
+            <button type="button" onclick="togglePwd('cnp-field','cnp-icon')"
+                    style="position:absolute;left:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:#6B7280;padding:0">
+              <i id="cnp-icon" class="fa-solid fa-eye" style="font-size:14px"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <button type="submit" class="btn-primary" style="width:100%;justify-content:center;padding:12px">
+        <i class="fa-solid fa-floppy-disk"></i> حفظ التغييرات
+      </button>
+    </form>
+  </div>
+
+</div>
+
+<style>
+  @media (max-width: 767px) {
+    .profile-grid { grid-template-columns: 1fr !important; }
+  }
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function togglePwd(fieldId, iconId) {
+  var f = document.getElementById(fieldId);
+  var i = document.getElementById(iconId);
+  if (f.type === 'password') {
+    f.type = 'text';
+    i.classList.replace('fa-eye', 'fa-eye-slash');
+  } else {
+    f.type = 'password';
+    i.classList.replace('fa-eye-slash', 'fa-eye');
+  }
+}
+</script>
+{% endblock %}
