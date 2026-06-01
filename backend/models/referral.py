@@ -9,9 +9,10 @@ class Referral(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     referrer_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    referred_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    referred_id = Column(Integer, ForeignKey("users.id"), nullable=False, unique=True)  # strict: referred user can only appear once globally
     device_fingerprint = Column(String(255), nullable=True, index=True)
     is_verified = Column(Boolean, default=False)
+    level = Column(Integer, default=1, nullable=False)  # which referral level this belongs to
     notes = Column(Text, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 

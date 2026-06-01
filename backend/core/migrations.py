@@ -52,6 +52,19 @@ def run_migrations():
                         f"ALTER TABLE users ADD COLUMN {col_name} {col_def}"
                     ))
 
+        # ── users table additions ─────────────────────────────────────────
+        if "users" in existing_tables:
+            users_cols = [c["name"] for c in inspector.get_columns("users")]
+            new_user_cols_v2 = [
+                ("referral_level", "INTEGER DEFAULT 1 NOT NULL"),
+                ("level1_locked",  "BOOLEAN DEFAULT FALSE NOT NULL"),
+            ]
+            for col_name, col_def in new_user_cols_v2:
+                if col_name not in users_cols:
+                    conn.execute(text(
+                        f"ALTER TABLE users ADD COLUMN {col_name} {col_def}"
+                    ))
+
         # ── products table additions ───────────────────────────────────────
         if "products" in existing_tables:
             prod_cols = [c["name"] for c in inspector.get_columns("products")]
@@ -65,10 +78,17 @@ def run_migrations():
                         f"ALTER TABLE products ADD COLUMN {col_name} {col_def}"
                     ))
 
+        # ── referrals table additions ──────────────────────────────────────
+        if "referrals" in existing_tables:
+            ref_cols = [c["name"] for c in inspector.get_columns("referrals")]
+            if "level" not in ref_cols:
+                conn.execute(text(
+                    "ALTER TABLE referrals ADD COLUMN level INTEGER DEFAULT 1 NOT NULL"
+                ))
+
         conn.commit()
 
     # ── Unique index on users.referral_code ─────────────────────────────────
-    # Must be outside the main transaction on some DBs
     try:
         with engine.connect() as conn:
             if _is_sqlite():
@@ -84,7 +104,18 @@ def run_migrations():
                 ))
             conn.commit()
     except Exception:
-        pass  # index may already exist
+        pass
+
+    # ── Unique index on referrals.referred_id (one referral per referred user) ─
+    try:
+        with engine.connect() as conn:
+            conn.execute(text(
+                "CREATE UNIQUE INDEX IF NOT EXISTS "
+                "ix_referrals_referred_id_uniq ON referrals (referred_id)"
+            ))
+            conn.commit()
+    except Exception:
+        pass
 
     # ── Index on referrals.device_fingerprint ──────────────────────────────
     try:
@@ -95,6 +126,6 @@ def run_migrations():
             ))
             conn.commit()
     except Exception:
-        pass  # index may already exist
+        pass
 
     print("✅ Migrations applied successfully")

@@ -32,6 +32,10 @@ class User(Base):
     referral_code = Column(String(20), unique=True, nullable=True, index=True)
     referred_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
 
+    # Referral levels — level 1 locks after reaching 50 verified referrals
+    referral_level = Column(Integer, default=1, nullable=False)
+    level1_locked = Column(Boolean, default=False, nullable=False)
+
     # Wallet
     wallet_balance = Column(Float, default=0.0)
     wallet_currency = Column(String(3), default="YER")

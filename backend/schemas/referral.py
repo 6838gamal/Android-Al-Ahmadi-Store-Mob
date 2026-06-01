@@ -8,6 +8,7 @@ class ReferralResponse(BaseModel):
     referrer_id: int
     referred_id: int
     is_verified: bool
+    level: int
     created_at: datetime
 
     class Config:
@@ -20,3 +21,8 @@ class ReferralStatsResponse(BaseModel):
     total_referrals: int
     verified_referrals: int
     target: int = 50
+    current_level: int
+    level1_locked: bool
+    level1_count: int
+    level2_count: int
+    progress_to_next: int
