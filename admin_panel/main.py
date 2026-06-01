@@ -113,18 +113,32 @@ async def login_post(request: Request, identifier: str = Form(...), password: st
         or request.headers.get("x-forwarded-for", "").split(",")[0].strip()
         or (request.client.host if request.client else "unknown")
     )
-    data = await api("post", "/api/auth/admin-login",
-                     real_ip=client_ip,
-                     json={"identifier": identifier, "password": password})
-    if data:
-        user_data = data.get("user", {})
-        if user_data.get("role") == "admin":
-            request.session["admin_id"]   = user_data.get("id")
-            request.session["admin_name"] = user_data.get("name", "المدير")
-            request.session["token"]      = data.get("access_token")
-            return RedirectResponse("/dashboard", status_code=303)
+    async with httpx.AsyncClient(timeout=25.0, follow_redirects=True) as client:
+        try:
+            headers_req = {"X-Real-IP": client_ip, "X-Forwarded-For": client_ip}
+            resp = await client.post(
+                f"{API_BASE}/api/auth/admin-login",
+                json={"identifier": identifier, "password": password},
+                headers=headers_req,
+            )
+            print(f"[login] status={resp.status_code} body={resp.text[:200]}")
+            if resp.status_code == 429:
+                return templates.TemplateResponse(request, "login.html",
+                    {"error": "محاولات كثيرة. انتظر دقيقة ثم أعد المحاولة."})
+            if resp.status_code in (200, 201):
+                data = resp.json()
+                user_data = data.get("user", {})
+                if user_data.get("role") == "admin":
+                    request.session["admin_id"]   = user_data.get("id")
+                    request.session["admin_name"] = user_data.get("name", "المدير")
+                    request.session["token"]      = data.get("access_token")
+                    return RedirectResponse("/dashboard", status_code=303)
+        except Exception as e:
+            print(f"[login] exception: {e}")
+            return templates.TemplateResponse(request, "login.html",
+                {"error": f"الخادم غير متاح حالياً. يرجى المحاولة لاحقاً."})
     return templates.TemplateResponse(request, "login.html",
-                                      {"error": "بيانات الدخول غير صحيحة أو الخادم غير متاح حالياً"})
+                                      {"error": "بيانات الدخول غير صحيحة. تحقق من البريد وكلمة المرور."})
 
 
 @app.get("/logout")

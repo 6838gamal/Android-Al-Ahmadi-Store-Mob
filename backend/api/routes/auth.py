@@ -147,7 +147,7 @@ def staff_login(login_data: UserLogin, request: Request, db: Session = Depends(g
 @router.post("/admin-login", response_model=TokenResponse)
 def admin_login(login_data: UserLogin, request: Request, db: Session = Depends(get_db)):
     client_ip = _get_client_ip(request)
-    _check_rate_limit(f"admin_login:{client_ip}", limit=5, window=60)
+    _check_rate_limit(f"admin_login:{client_ip}", limit=30, window=60)
 
     identifier = login_data.identifier.strip()
     user = None
