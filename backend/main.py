@@ -21,7 +21,7 @@ from backend.api.routes import (
     customers, dashboard, uploads,
     branches, inventory, referrals, warranty as warranty_routes,
     inspection as inspection_routes, wallet as wallet_routes,
-    notifications, search, reports, audit,
+    notifications, search, reports, audit, staff,
 )
 
 
@@ -157,6 +157,7 @@ app.include_router(notifications.router, prefix="/api/notifications", tags=["Not
 app.include_router(search.router, prefix="/api/search", tags=["Search"])
 app.include_router(reports.router, prefix="/api/reports", tags=["Reports"])
 app.include_router(audit.router, prefix="/api/audit", tags=["Audit"])
+app.include_router(staff.router, prefix="/api/staff", tags=["Staff"])
 
 
 @app.get("/api/health")

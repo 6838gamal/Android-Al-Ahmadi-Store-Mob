@@ -72,7 +72,7 @@ def create_reservation(data: ReservationCreate, db: Session = Depends(get_db)):
 @router.get("/", response_model=List[ReservationResponse])
 def get_reservations(
     skip: int = 0,
-    limit: int = 50,
+    limit: int = 200,
     db: Session = Depends(get_db),
     admin: User = Depends(get_admin_user)
 ):
@@ -90,3 +90,16 @@ def cancel_reservation(res_id: int, db: Session = Depends(get_db), admin: User =
         product.status = ProductStatus.available
     db.commit()
     return {"message": "Cancelled"}
+
+
+@router.put("/{res_id}/complete")
+def complete_reservation(res_id: int, db: Session = Depends(get_db), admin: User = Depends(get_admin_user)):
+    res = db.query(Reservation).filter(Reservation.id == res_id).first()
+    if not res:
+        raise HTTPException(status_code=404, detail="Not found")
+    res.status = ReservationStatus.completed
+    product = db.query(Product).filter(Product.id == res.product_id).first()
+    if product:
+        product.status = ProductStatus.sold
+    db.commit()
+    return {"message": "Completed"}
