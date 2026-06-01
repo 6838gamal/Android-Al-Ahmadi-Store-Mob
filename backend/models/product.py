@@ -36,6 +36,9 @@ class Product(Base):
     quantity = Column(Integer, default=0)
     status = Column(Enum(ProductStatus), default=ProductStatus.available)
     description = Column(Text, nullable=True)
+    # Samsung series/model classification (e.g. series="s_series", model="S23 Ultra")
+    series = Column(String(50), nullable=True, index=True)
+
     barcode = Column(String(100), nullable=True, unique=True)
     qr_code = Column(String(500), nullable=True)
     notes = Column(Text, nullable=True)

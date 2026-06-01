@@ -10,6 +10,7 @@ class ProductCreate(BaseModel):
     category: ProductCategory
     brand: Optional[str] = None
     model: Optional[str] = None
+    series: Optional[str] = None   # e.g. "s_series", "note_series"
     price: float
     quantity: int = 0
     status: ProductStatus = ProductStatus.available
@@ -25,6 +26,7 @@ class ProductUpdate(BaseModel):
     category: Optional[ProductCategory] = None
     brand: Optional[str] = None
     model: Optional[str] = None
+    series: Optional[str] = None
     price: Optional[float] = None
     quantity: Optional[int] = None
     status: Optional[ProductStatus] = None
@@ -41,6 +43,7 @@ class ProductResponse(BaseModel):
     category: ProductCategory
     brand: Optional[str]
     model: Optional[str]
+    series: Optional[str]
     image_url: Optional[str]
     price: float
     quantity: int

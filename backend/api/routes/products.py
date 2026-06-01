@@ -6,8 +6,15 @@ from backend.models.product import Product, ProductStatus, ProductCategory
 from backend.schemas.product import ProductCreate, ProductUpdate, ProductResponse
 from backend.api.dependencies import get_admin_user, get_current_user
 from backend.models.user import User
+from backend.core.samsung_catalog import get_catalog_tree, MODEL_TO_SERIES, ALL_MODEL_KEYS
 
 router = APIRouter()
+
+
+@router.get("/catalog/samsung", tags=["Products"])
+def samsung_catalog():
+    """Return the full Samsung series → model folder structure."""
+    return get_catalog_tree()
 
 
 @router.get("/", response_model=List[ProductResponse])
@@ -18,6 +25,8 @@ def get_products(
     category: Optional[ProductCategory] = None,
     status: Optional[ProductStatus] = None,
     brand: Optional[str] = None,
+    series: Optional[str] = None,
+    model: Optional[str] = None,
     is_featured: Optional[bool] = None,
     db: Session = Depends(get_db)
 ):
@@ -35,6 +44,10 @@ def get_products(
         query = query.filter(Product.status == status)
     if brand:
         query = query.filter(Product.brand.ilike(f"%{brand}%"))
+    if series:
+        query = query.filter(Product.series == series)
+    if model:
+        query = query.filter(Product.model == model)
     if is_featured is not None:
         query = query.filter(Product.is_featured == is_featured)
     return query.offset(skip).limit(limit).all()
@@ -54,7 +67,11 @@ def create_product(
     db: Session = Depends(get_db),
     admin: User = Depends(get_admin_user)
 ):
-    product = Product(**product_data.dict())
+    data = product_data.dict()
+    # Auto-detect series from model key if not explicitly set
+    if not data.get("series") and data.get("model") in MODEL_TO_SERIES:
+        data["series"] = MODEL_TO_SERIES[data["model"]]
+    product = Product(**data)
     db.add(product)
     db.commit()
     db.refresh(product)
@@ -71,7 +88,11 @@ def update_product(
     product = db.query(Product).filter(Product.id == product_id).first()
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
-    for field, value in product_data.dict(exclude_unset=True).items():
+    data = product_data.dict(exclude_unset=True)
+    # Auto-detect series when model is updated
+    if "model" in data and not data.get("series") and data["model"] in MODEL_TO_SERIES:
+        data["series"] = MODEL_TO_SERIES[data["model"]]
+    for field, value in data.items():
         setattr(product, field, value)
     db.commit()
     db.refresh(product)
