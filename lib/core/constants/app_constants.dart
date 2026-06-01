@@ -3,9 +3,9 @@ class AppConstants {
   static const String appNameEn = 'Android Al-Ahmady';
   static const String appSubtitle = 'شاشات وصيانة الهواتف';
   static const String ownerName = 'أحمد الأحمدي';
-  static const String shopPhone = '0501234567';
-  static const String shopWhatsApp = '966501234567';
-  static const String shopAddress = 'الكويت، حولي، شارع التحرير';
+  static const String shopPhone = '770887247';
+  static const String shopWhatsApp = '770887247';
+  static const String shopAddress = 'صنعاء، جولة مأرب، جوار مدرسة حسان بن ثابت';
   static const String shopEmail = 'info@alahmadi.com';
   static const String shopBio = 'متخصصون في بيع وصيانة الجوالات وقطع الغيار بأعلى جودة وأفضل سعر';
   static const Map<String, String> workingHours = {
