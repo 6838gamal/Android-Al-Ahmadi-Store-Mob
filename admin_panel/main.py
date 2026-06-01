@@ -832,41 +832,39 @@ async def reports_page(request: Request, period: str = "month"):
     if not _logged(request):
         return _redirect_login()
     params = {"period": period}
-    sales   = await api("get", "/api/reports/sales",      token=_token(request), params=params) or {}
-    maint   = await api("get", "/api/reports/maintenance", token=_token(request), params=params) or {}
-    inv_r   = await api("get", "/api/reports/inventory",   token=_token(request)) or {}
-    ref_r   = await api("get", "/api/reports/referrals",   token=_token(request)) or {}
-    war_r   = await api("get", "/api/reports/warranty",    token=_token(request)) or {}
+    sales  = to_obj(await api("get", "/api/reports/sales",       token=_token(request), params=params) or {})
+    profit = to_obj(await api("get", "/api/reports/profit",      token=_token(request), params=params) or {})
+    inv    = to_obj(await api("get", "/api/reports/inventory",   token=_token(request)) or {})
+    maint  = to_obj(await api("get", "/api/reports/maintenance", token=_token(request), params=params) or {})
+    ref    = to_obj(await api("get", "/api/reports/referrals",   token=_token(request)) or {})
+    war    = to_obj(await api("get", "/api/reports/warranty",    token=_token(request)) or {})
     return templates.TemplateResponse(request, "reports.html", {
         "admin_name": _name(request), "active": "reports",
         "period": period,
-        "total_revenue":   sales.get("total_revenue", 0),
-        "total_discount":  sales.get("total_discount", 0),
-        "total_orders":    sales.get("total_orders", 0),
-        "avg_order_value": sales.get("avg_order_value", 0),
-        "maint_total":     maint.get("total", 0),
-        "maint_done":      maint.get("completed", 0),
-        "inv_total":       inv_r.get("total", 0),
-        "inv_avail":       inv_r.get("available", 0),
-        "inv_sold":        inv_r.get("sold", 0),
-        "ref_total":       ref_r.get("total", 0),
-        "ref_verified":    ref_r.get("verified", 0),
-        "war_total":       war_r.get("total", 0),
-        "war_returns":     war_r.get("return_requests", 0),
+        "sales": sales, "profit": profit, "inv": inv,
+        "maint": maint, "ref": ref, "war": war,
     })
 
 
 # ── Wallet ──────────────────────────────────────────────────────────────────────
 
 @app.get("/wallet", response_class=HTMLResponse)
-async def wallet_page(request: Request):
+async def wallet_page(request: Request, search: str = ""):
     if not _logged(request):
         return _redirect_login()
-    raw_customers = await api("get", "/api/customers/", token=_token(request), params={"limit": 300}) or []
-    customers = to_obj(raw_customers)
+    params: dict = {"limit": 300}
+    if search:
+        params["search"] = search
+    raw_customers = await api("get", "/api/customers/", token=_token(request), params=params) or []
+    users = to_obj(raw_customers)
+    if search and users:
+        q = search.lower()
+        users = [u for u in users if q in (getattr(u, "name", "") or "").lower()
+                 or q in (getattr(u, "phone", "") or "").lower()]
     return templates.TemplateResponse(request, "wallet.html", {
         "admin_name": _name(request), "active": "wallet",
-        "customers": customers,
+        "users": users,
+        "search": search,
     })
 
 
@@ -879,7 +877,8 @@ async def wallet_credit(
         return _redirect_login()
     await api("post", "/api/wallet/credit", token=_token(request),
               json={"user_id": user_id, "amount": amount,
-                    "description": note or "إضافة رصيد من لوحة التحكم"})
+                    "transaction_type": "credit",
+                    "reason": note or "إضافة رصيد من لوحة التحكم"})
     return RedirectResponse("/wallet", status_code=302)
 
 
@@ -892,7 +891,8 @@ async def wallet_debit(
         return _redirect_login()
     await api("post", "/api/wallet/debit", token=_token(request),
               json={"user_id": user_id, "amount": amount,
-                    "description": note or "خصم رصيد من لوحة التحكم"})
+                    "transaction_type": "debit",
+                    "reason": note or "خصم رصيد من لوحة التحكم"})
     return RedirectResponse("/wallet", status_code=302)
 
 

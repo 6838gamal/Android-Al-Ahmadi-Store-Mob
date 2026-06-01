@@ -26,8 +26,9 @@
           <td class="px-4 py-3">
             {% set ac = {'create':'#22C55E','update':'#3B82F6','delete':'#EF4444','login':'#8B5CF6','logout':'#6B7280','view':'#06B6D4','export':'#F59E0B','other':'#9CA3AF'} %}
             {% set al = {'create':'إنشاء','update':'تعديل','delete':'حذف','login':'دخول','logout':'خروج','view':'عرض','export':'تصدير','other':'أخرى'} %}
-            <span class="badge" style="background:{{ ac.get(log.action.value,'#6B7280') }}22;color:{{ ac.get(log.action.value,'#6B7280') }}">
-              {{ al.get(log.action.value, log.action.value) }}
+            {% set act = log.action if log.action is string else log.action.value %}
+            <span class="badge" style="background:{{ ac.get(act,'#6B7280') }}22;color:{{ ac.get(act,'#6B7280') }}">
+              {{ al.get(act, act) }}
             </span>
           </td>
           <td class="px-4 py-3 text-gray-300 text-sm">
