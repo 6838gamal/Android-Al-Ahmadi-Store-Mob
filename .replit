@@ -83,4 +83,3 @@ publicDir = "build/web"
 [userenv]
 
 [userenv.shared]
-API_BASE = "https://android-al-ahmadi-store-api.onrender.com"

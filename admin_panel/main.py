@@ -12,7 +12,7 @@ from datetime import datetime
 import httpx
 
 # ── External Render.com API ────────────────────────────────────────────────────
-API_BASE = os.getenv("API_BASE", "http://127.0.0.1:8000")
+API_BASE = "https://android-al-ahmadi-store-api.onrender.com"
 
 app = FastAPI(title="لوحة إدارة اندرويد الاحمدي", docs_url=None, redoc_url=None)
 app.add_middleware(
@@ -134,9 +134,9 @@ async def login_post(request: Request, identifier: str = Form(...), password: st
                     request.session["token"]      = data.get("access_token")
                     return RedirectResponse("/dashboard", status_code=303)
         except Exception as e:
-            print(f"[login] exception: {e}")
+            print(f"[login] exception type={type(e).__name__} msg={e!r}")
             return templates.TemplateResponse(request, "login.html",
-                {"error": f"الخادم غير متاح حالياً. يرجى المحاولة لاحقاً."})
+                {"error": "الخادم غير متاح حالياً. يرجى المحاولة لاحقاً."})
     return templates.TemplateResponse(request, "login.html",
                                       {"error": "بيانات الدخول غير صحيحة. تحقق من البريد وكلمة المرور."})
 
