@@ -2,7 +2,7 @@ class AppConstants {
   static const String appName = 'أندرويد الأحمدي';
   static const String appNameEn = 'Android Al-Ahmady';
   static const String appSubtitle = 'شاشات وصيانة الهواتف';
-  static const String ownerName = 'أحمد الأحمدي';
+  static const String ownerName = 'أكرم الأحمدي';
   static const String shopPhone = '770887247';
   static const String shopWhatsApp = '770887247';
   static const String shopAddress = 'صنعاء، جولة مأرب، جوار مدرسة حسان بن ثابت';

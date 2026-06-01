@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-  <title>{% block title %}لوحة إدارة اندرويد الاحمدي{% endblock %}</title>
+  <title>{% block title %}لوحة إدارة أندرويد الأحمدي{% endblock %}</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
@@ -157,8 +157,8 @@
             <i class="fa-solid fa-mobile-screen" style="color:white;font-size:18px"></i>
           </div>
           <div style="flex:1;min-width:0">
-            <div style="color:white;font-weight:800;font-size:14px;line-height:1.2">اندرويد الاحمدي</div>
-            <div style="color:#6B7280;font-size:12px">لوحة التحكم</div>
+            <div style="color:white;font-weight:800;font-size:14px;line-height:1.2">أندرويد الأحمدي</div>
+            <div style="color:#6B7280;font-size:12px">شاشات وصيانة الهواتف</div>
           </div>
           <!-- Close button — visible only on mobile -->
           <button onclick="closeSidebar()" id="sidebar-close-btn"
@@ -197,8 +197,23 @@
         <a href="/audit"         class="sidebar-link {% if active == 'audit'         %}active{% endif %}"><i class="fa-solid fa-clock-rotate-left"></i> سجل المراجعة</a>
       </nav>
 
+      <!-- Store info -->
+      <div style="padding:12px 16px;border-top:1px solid #2D3748;flex-shrink:0">
+        <div style="background:#1C2230;border:1px solid #2D3748;border-radius:10px;padding:10px 12px;margin-bottom:10px">
+          <div style="color:#4B5563;font-size:10px;font-weight:700;margin-bottom:6px">معلومات المتجر</div>
+          <div style="display:flex;align-items:center;gap:7px;margin-bottom:5px">
+            <i class="fa-solid fa-phone" style="color:#1A73E8;font-size:11px;width:14px;text-align:center"></i>
+            <span style="color:#9CA3AF;font-size:11px">770887247</span>
+          </div>
+          <div style="display:flex;align-items:flex-start;gap:7px">
+            <i class="fa-solid fa-location-dot" style="color:#1A73E8;font-size:11px;width:14px;text-align:center;margin-top:2px"></i>
+            <span style="color:#9CA3AF;font-size:11px;line-height:1.4">صنعاء، جولة مأرب، جوار مدرسة حسان بن ثابت</span>
+          </div>
+        </div>
+      </div>
+
       <!-- Admin info + logout -->
-      <div style="padding:16px;border-top:1px solid #2D3748;flex-shrink:0">
+      <div style="padding:0 16px 16px;flex-shrink:0">
         <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
           <div style="width:36px;height:36px;border-radius:50%;background:rgba(26,115,232,0.15);display:flex;align-items:center;justify-content:center;flex-shrink:0">
             <i class="fa-solid fa-user" style="color:#1A73E8;font-size:14px"></i>
