@@ -7,6 +7,7 @@ import '../../../../core/constants/app_constants.dart';
 import '../../../../core/providers/connectivity_provider.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../notifications/presentation/providers/notifications_provider.dart';
+import '../../../products/presentation/providers/products_provider.dart';
 
 class MainShell extends ConsumerStatefulWidget {
   final Widget child;
@@ -20,6 +21,8 @@ class MainShell extends ConsumerStatefulWidget {
 
 class _MainShellState extends ConsumerState<MainShell> {
   int _selectedIndex = 0;
+
+  bool _wasOffline = false;
 
   @override
   void initState() {
@@ -45,6 +48,15 @@ class _MainShellState extends ConsumerState<MainShell> {
   @override
   Widget build(BuildContext context) {
     final isOnline = ref.watch(connectivityProvider);
+
+    // Auto-sync: when coming back online, reload all providers
+    ref.listen<bool>(connectivityProvider, (prev, next) {
+      if (prev == false && next == true) {
+        ref.read(productsProvider.notifier).load();
+        ref.read(notificationsProvider.notifier).load();
+      }
+    });
+
     return Scaffold(
       key: MainShell.scaffoldKey,
       backgroundColor: AppColors.darkBg,
@@ -248,6 +260,8 @@ class _MainShellState extends ConsumerState<MainShell> {
           _DrawerItem(icon: Icons.verified_user_outlined, label: 'الضمان', onTap: () { Navigator.pop(context); context.go('/warranty'); }),
           _DrawerItem(icon: Icons.account_balance_wallet_outlined, label: 'محفظتي', onTap: () { Navigator.pop(context); context.go('/wallet'); }),
           _DrawerItem(icon: Icons.people_outline, label: 'الإحالات', onTap: () { Navigator.pop(context); context.go('/referrals'); }),
+          _DrawerItem(icon: Icons.medical_services_outlined, label: 'عيادة الفحص', onTap: () { Navigator.pop(context); context.go('/inspection'); }),
+          _DrawerItem(icon: Icons.campaign_outlined, label: 'الإعلانات والعروض', onTap: () { Navigator.pop(context); context.go('/announcements'); }),
           _DrawerItem(icon: Icons.notifications_outlined, label: 'الإشعارات', onTap: () { Navigator.pop(context); context.go('/notifications'); }),
           const Divider(color: AppColors.darkDivider, indent: 16, endIndent: 16),
           _DrawerItem(icon: Icons.person_outline, label: 'الملف الشخصي', onTap: () { Navigator.pop(context); context.go('/profile'); }),

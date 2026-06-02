@@ -8,6 +8,7 @@ import '../../../../core/constants/app_constants.dart';
 import '../../../../shared/widgets/app_button.dart';
 import '../../../../shared/widgets/status_badge.dart';
 import '../../../../shared/widgets/loading_widget.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../providers/products_provider.dart';
 
 class ProductDetailPage extends ConsumerStatefulWidget {
@@ -63,8 +64,11 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
           ],
           flexibleSpace: FlexibleSpaceBar(
             background: p['image_url'] != null
-                ? Image.network('${AppConstants.baseUrl}${p['image_url']}', fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => _imagePlaceholder())
+                ? CachedNetworkImage(
+                    imageUrl: '${AppConstants.baseUrl}${p['image_url']}',
+                    fit: BoxFit.cover,
+                    placeholder: (_, __) => _imagePlaceholder(),
+                    errorWidget: (_, __, ___) => _imagePlaceholder())
                 : _imagePlaceholder(),
           ),
         ),

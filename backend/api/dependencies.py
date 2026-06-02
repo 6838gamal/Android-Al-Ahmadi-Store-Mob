@@ -1,3 +1,4 @@
+from datetime import datetime
 from fastapi import Depends, HTTPException, status, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
@@ -7,6 +8,21 @@ from backend.models.user import User, UserRole
 
 security = HTTPBearer()
 security_optional = HTTPBearer(auto_error=False)
+
+
+def _check_token_revoked(user: User, payload: dict) -> None:
+    """Raise 401 if the token was issued before the user's revocation timestamp."""
+    if user.tokens_invalidated_at is None:
+        return
+    iat = payload.get("iat")
+    if iat is None:
+        return
+    issued_at = datetime.utcfromtimestamp(iat)
+    if issued_at < user.tokens_invalidated_at.replace(tzinfo=None):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token has been revoked. Please log in again."
+        )
 
 
 def get_current_user(
@@ -23,6 +39,7 @@ def get_current_user(
     user = db.query(User).filter(User.id == int(user_id)).first()
     if not user or not user.is_active:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
+    _check_token_revoked(user, payload)
     return user
 
 
@@ -38,7 +55,13 @@ def get_current_user_optional(
     user_id = payload.get("sub")
     if not user_id:
         return None
-    return db.query(User).filter(User.id == int(user_id), User.is_active == True).first()
+    user = db.query(User).filter(User.id == int(user_id), User.is_active == True).first()
+    if user:
+        try:
+            _check_token_revoked(user, payload)
+        except HTTPException:
+            return None
+    return user
 
 
 # ── RBAC helpers ────────────────────────────────────────────────────────────

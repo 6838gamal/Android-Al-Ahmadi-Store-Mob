@@ -42,18 +42,21 @@ def run_migrations():
         finally:
             raw_engine.dispose()
 
+    ts_type = "TIMESTAMP" if _is_postgres() else "DATETIME"
+
     with engine.connect() as conn:
         # ── users table ────────────────────────────────────────────────────
         if "users" in existing_tables:
             users_cols = [c["name"] for c in inspector.get_columns("users")]
             new_user_cols = [
-                ("branch_id",       "INTEGER"),
-                ("referral_code",   "VARCHAR(20)"),
-                ("referred_by_id",  "INTEGER"),
-                ("wallet_balance",  "FLOAT DEFAULT 0.0"),
-                ("wallet_currency", "VARCHAR(3) DEFAULT 'YER'"),
-                ("referral_level",  "INTEGER DEFAULT 1 NOT NULL"),
-                ("level1_locked",   "BOOLEAN DEFAULT FALSE NOT NULL"),
+                ("branch_id",               "INTEGER"),
+                ("referral_code",            "VARCHAR(20)"),
+                ("referred_by_id",           "INTEGER"),
+                ("wallet_balance",           "FLOAT DEFAULT 0.0"),
+                ("wallet_currency",          "VARCHAR(3) DEFAULT 'YER'"),
+                ("referral_level",           "INTEGER DEFAULT 1 NOT NULL"),
+                ("level1_locked",            "BOOLEAN DEFAULT FALSE NOT NULL"),
+                ("tokens_invalidated_at",    ts_type),
             ]
             for col_name, col_def in new_user_cols:
                 if col_name not in users_cols:
@@ -84,7 +87,6 @@ def run_migrations():
                 ))
 
         # ── warranty table (new approve/reject + resolve fields) ───────────
-        ts_type = "TIMESTAMP" if _is_postgres() else "DATETIME"
         if "warranties" in existing_tables:
             war_cols = [c["name"] for c in inspector.get_columns("warranties")]
             new_war_cols = [
@@ -136,44 +138,55 @@ def run_migrations():
 
         conn.commit()
 
-    # ── Unique index on users.referral_code ─────────────────────────────────
-    try:
-        with engine.connect() as conn:
-            if _is_sqlite():
-                conn.execute(text(
-                    "CREATE UNIQUE INDEX IF NOT EXISTS "
-                    "ix_users_referral_code_uniq ON users (referral_code)"
-                ))
-            else:
-                conn.execute(text(
-                    "CREATE UNIQUE INDEX IF NOT EXISTS "
-                    "ix_users_referral_code_uniq ON users (referral_code) "
-                    "WHERE referral_code IS NOT NULL"
-                ))
-            conn.commit()
-    except Exception:
-        pass
+    # ── Indexes for performance ──────────────────────────────────────────────
+    _create_index(engine, "ix_users_referral_code_uniq",
+                  "CREATE UNIQUE INDEX IF NOT EXISTS ix_users_referral_code_uniq "
+                  "ON users (referral_code)" +
+                  (" WHERE referral_code IS NOT NULL" if _is_postgres() else ""))
 
-    # ── Unique index on referrals.referred_id ──────────────────────────────
-    try:
-        with engine.connect() as conn:
-            conn.execute(text(
-                "CREATE UNIQUE INDEX IF NOT EXISTS "
-                "ix_referrals_referred_id_uniq ON referrals (referred_id)"
-            ))
-            conn.commit()
-    except Exception:
-        pass
+    _create_index(engine, "ix_referrals_referred_id_uniq",
+                  "CREATE UNIQUE INDEX IF NOT EXISTS ix_referrals_referred_id_uniq "
+                  "ON referrals (referred_id)")
 
-    # ── Index on referrals.device_fingerprint ──────────────────────────────
-    try:
-        with engine.connect() as conn:
-            conn.execute(text(
-                "CREATE INDEX IF NOT EXISTS "
-                "ix_referrals_device_fingerprint ON referrals (device_fingerprint)"
-            ))
-            conn.commit()
-    except Exception:
-        pass
+    _create_index(engine, "ix_referrals_device_fingerprint",
+                  "CREATE INDEX IF NOT EXISTS ix_referrals_device_fingerprint "
+                  "ON referrals (device_fingerprint)")
+
+    _create_index(engine, "ix_notifications_user_id",
+                  "CREATE INDEX IF NOT EXISTS ix_notifications_user_id "
+                  "ON notifications (user_id)")
+
+    _create_index(engine, "ix_notifications_is_read",
+                  "CREATE INDEX IF NOT EXISTS ix_notifications_is_read "
+                  "ON notifications (user_id, is_read)")
+
+    if "orders" in inspector.get_table_names():
+        _create_index(engine, "ix_orders_customer_id",
+                      "CREATE INDEX IF NOT EXISTS ix_orders_customer_id "
+                      "ON orders (customer_id)")
+
+    if "inventory_items" in inspector.get_table_names():
+        _create_index(engine, "ix_inventory_items_status",
+                      "CREATE INDEX IF NOT EXISTS ix_inventory_items_status "
+                      "ON inventory_items (status)")
+
+    if "warranties" in inspector.get_table_names():
+        _create_index(engine, "ix_warranties_customer_id",
+                      "CREATE INDEX IF NOT EXISTS ix_warranties_customer_id "
+                      "ON warranties (customer_id)")
+
+    if "inspection_requests" in inspector.get_table_names():
+        _create_index(engine, "ix_inspection_requests_customer_id",
+                      "CREATE INDEX IF NOT EXISTS ix_inspection_requests_customer_id "
+                      "ON inspection_requests (customer_id)")
 
     print("✅ Migrations applied successfully")
+
+
+def _create_index(eng, name: str, sql: str):
+    try:
+        with eng.connect() as conn:
+            conn.execute(text(sql))
+            conn.commit()
+    except Exception:
+        pass

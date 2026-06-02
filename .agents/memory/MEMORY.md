@@ -10,3 +10,5 @@
 - [Flutter pub cache path](flutter-pub-cache.md) — Replit stores pub cache at ../.pub-cache (parent dir); must set PUB_CACHE=realpath(../.pub-cache) before flutter pub get / build web
 - [Admin panel API architecture](admin-api-arch.md) — Admin panel calls Render.com API (same URL as Flutter); uses to_obj() helper for SimpleNamespace; do NOT change to local backend
 - [Migrations for new columns](migrations-new-cols.md) — Always add new DB columns via migrations.py (not just create_all); new tables get create_all; existing tables need ALTER TABLE in run_migrations()
+- [Flutter web build flags](flutter-build-flags.md) — Flutter 3.32+: use `flutter build web` with NO --web-renderer or --no-sound-null-safety flags (removed); PUB_CACHE=realpath(../.pub-cache) still required
+- [Token revocation pattern](token-revocation.md) — Add iat claim to JWT on creation; check iat vs user.tokens_invalidated_at in get_current_user; POST /auth/logout sets tokens_invalidated_at=now(); password change also revokes

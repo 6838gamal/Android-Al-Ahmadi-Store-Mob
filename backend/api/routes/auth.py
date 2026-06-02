@@ -1,4 +1,5 @@
 import random, string, time, os
+from datetime import datetime
 from collections import defaultdict
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
@@ -187,6 +188,17 @@ def refresh_token(data: RefreshTokenRequest, db: Session = Depends(get_db)):
     return _build_token_response(user)
 
 
+@router.post("/logout")
+def logout(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Invalidate all existing tokens for this user."""
+    current_user.tokens_invalidated_at = datetime.utcnow()
+    db.commit()
+    return {"message": "تم تسجيل الخروج بنجاح"}
+
+
 @router.get("/me", response_model=UserResponse)
 def get_me(current_user: User = Depends(get_current_user)):
     return current_user
@@ -204,6 +216,8 @@ def update_profile(
         if not verify_password(update_data.current_password, current_user.hashed_password):
             raise HTTPException(status_code=400, detail="كلمة المرور الحالية غير صحيحة")
         current_user.hashed_password = get_password_hash(update_data.new_password)
+        # Invalidate all existing tokens after password change
+        current_user.tokens_invalidated_at = datetime.utcnow()
 
     if update_data.name is not None and update_data.name.strip():
         current_user.name = update_data.name.strip()

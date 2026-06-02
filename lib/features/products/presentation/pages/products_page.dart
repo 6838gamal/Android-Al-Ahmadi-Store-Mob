@@ -7,6 +7,7 @@ import '../../../home/presentation/pages/main_shell.dart';
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/utils/app_utils.dart';
 import '../../../../shared/widgets/loading_widget.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../../../../shared/widgets/status_badge.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../providers/products_provider.dart';
@@ -286,10 +287,11 @@ class _ProductCard extends StatelessWidget {
               child: AspectRatio(
                 aspectRatio: 1.15,
                 child: product['image_url'] != null
-                    ? Image.network(
-                        '${AppConstants.baseUrl}${product['image_url']}',
+                    ? CachedNetworkImage(
+                        imageUrl: '${AppConstants.baseUrl}${product['image_url']}',
                         fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => _placeholder(),
+                        placeholder: (_, __) => _placeholder(),
+                        errorWidget: (_, __, ___) => _placeholder(),
                       )
                     : _placeholder(),
               ),

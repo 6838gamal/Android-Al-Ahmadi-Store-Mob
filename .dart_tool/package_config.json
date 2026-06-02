@@ -458,24 +458,6 @@
       "languageVersion": "3.4"
     },
     {
-      "name": "hive",
-      "rootUri": "file:///home/runner/.pub-cache/hosted/pub.dev/hive-2.2.3",
-      "packageUri": "lib/",
-      "languageVersion": "2.12"
-    },
-    {
-      "name": "hive_flutter",
-      "rootUri": "file:///home/runner/.pub-cache/hosted/pub.dev/hive_flutter-1.1.0",
-      "packageUri": "lib/",
-      "languageVersion": "2.12"
-    },
-    {
-      "name": "hive_generator",
-      "rootUri": "file:///home/runner/.pub-cache/hosted/pub.dev/hive_generator-2.0.1",
-      "packageUri": "lib/",
-      "languageVersion": "2.12"
-    },
-    {
       "name": "http",
       "rootUri": "file:///home/runner/.pub-cache/hosted/pub.dev/http-1.6.0",
       "packageUri": "lib/",

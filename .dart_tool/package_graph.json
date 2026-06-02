@@ -24,8 +24,6 @@
         "font_awesome_flutter",
         "go_router",
         "google_fonts",
-        "hive",
-        "hive_flutter",
         "image",
         "image_picker",
         "intl",
@@ -52,7 +50,6 @@
         "custom_lint",
         "flutter_lints",
         "flutter_test",
-        "hive_generator",
         "json_annotation",
         "json_serializable",
         "retrofit_generator",
@@ -106,17 +103,6 @@
         "rxdart",
         "uuid",
         "yaml"
-      ]
-    },
-    {
-      "name": "hive_generator",
-      "version": "2.0.1",
-      "dependencies": [
-        "analyzer",
-        "build",
-        "hive",
-        "source_gen",
-        "source_helper"
       ]
     },
     {
@@ -528,24 +514,6 @@
         "shared_preferences_platform_interface",
         "shared_preferences_web",
         "shared_preferences_windows"
-      ]
-    },
-    {
-      "name": "hive_flutter",
-      "version": "1.1.0",
-      "dependencies": [
-        "flutter",
-        "hive",
-        "path",
-        "path_provider"
-      ]
-    },
-    {
-      "name": "hive",
-      "version": "2.2.3",
-      "dependencies": [
-        "crypto",
-        "meta"
       ]
     },
     {

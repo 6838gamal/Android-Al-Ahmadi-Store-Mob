@@ -192,6 +192,11 @@ class AuthNotifier extends StateNotifier<AuthState> {
   }
 
   Future<void> logout() async {
+    try {
+      await _api.post('/auth/logout', data: {});
+    } catch (_) {
+      // Always clear local session even if the server call fails
+    }
     await StorageService.clearToken();
     state = const AuthState(isInitialized: true);
   }
