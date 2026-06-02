@@ -3,9 +3,15 @@ from collections import defaultdict
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 from backend.core.database import get_db
-from backend.core.security import verify_password, get_password_hash, create_access_token
+from backend.core.security import (
+    verify_password, get_password_hash,
+    create_access_token, create_refresh_token, decode_refresh_token,
+)
 from backend.models.user import User, UserRole
-from backend.schemas.auth import UserCreate, UserLogin, UserResponse, TokenResponse, PasswordReset, ProfileUpdate
+from backend.schemas.auth import (
+    UserCreate, UserLogin, UserResponse, TokenResponse,
+    PasswordReset, ProfileUpdate, RefreshTokenRequest,
+)
 from backend.api.dependencies import get_current_user
 
 router = APIRouter()
@@ -16,11 +22,9 @@ _rate_store: dict = defaultdict(list)
 
 
 def _get_client_ip(request: Request) -> str:
-    """Extract real client IP, looking through reverse-proxy headers."""
     for header in ("x-real-ip", "x-forwarded-for", "cf-connecting-ip"):
         val = request.headers.get(header)
         if val:
-            # X-Forwarded-For can be a comma-separated list; take the first
             return val.split(",")[0].strip()
     return request.client.host if request.client else "unknown"
 
@@ -43,23 +47,31 @@ def _gen_referral_code(db: Session) -> str:
             return code
 
 
+def _build_token_response(user: User) -> TokenResponse:
+    payload = {"sub": str(user.id), "role": user.role.value}
+    return TokenResponse(
+        access_token=create_access_token(payload),
+        refresh_token=create_refresh_token(payload),
+        user=UserResponse.from_orm(user),
+    )
+
+
 @router.post("/register", response_model=TokenResponse)
 def register(user_data: UserCreate, request: Request, db: Session = Depends(get_db)):
     client_ip = _get_client_ip(request)
     _check_rate_limit(f"register:{client_ip}", limit=5, window=60)
 
     if not user_data.email and not user_data.phone:
-        raise HTTPException(status_code=400, detail="Email or phone required")
+        raise HTTPException(status_code=400, detail="البريد الإلكتروني أو رقم الهاتف مطلوب")
 
     if user_data.email:
         if db.query(User).filter(User.email == user_data.email).first():
-            raise HTTPException(status_code=400, detail="Email already registered")
+            raise HTTPException(status_code=400, detail="البريد الإلكتروني مسجل مسبقاً")
 
     if user_data.phone:
         if db.query(User).filter(User.phone == user_data.phone).first():
-            raise HTTPException(status_code=400, detail="Phone already registered")
+            raise HTTPException(status_code=400, detail="رقم الهاتف مسجل مسبقاً")
 
-    # Resolve referrer from supplied referral_code
     referred_by_id = None
     if user_data.referral_code:
         referrer = db.query(User).filter(
@@ -68,7 +80,6 @@ def register(user_data: UserCreate, request: Request, db: Session = Depends(get_
         if referrer:
             referred_by_id = referrer.id
 
-    # Public registration only allows customer role
     user = User(
         name=user_data.name,
         email=user_data.email,
@@ -82,7 +93,6 @@ def register(user_data: UserCreate, request: Request, db: Session = Depends(get_
     db.commit()
     db.refresh(user)
 
-    # Record the referral relationship
     if referred_by_id:
         from backend.models.referral import Referral
         ref_record = Referral(
@@ -93,8 +103,7 @@ def register(user_data: UserCreate, request: Request, db: Session = Depends(get_
         db.add(ref_record)
         db.commit()
 
-    token = create_access_token({"sub": str(user.id), "role": user.role.value})
-    return TokenResponse(access_token=token, user=UserResponse.from_orm(user))
+    return _build_token_response(user)
 
 
 @router.post("/login", response_model=TokenResponse)
@@ -111,18 +120,16 @@ def login(login_data: UserLogin, request: Request, db: Session = Depends(get_db)
         user = db.query(User).filter(User.phone == identifier).first()
 
     if not user or not verify_password(login_data.password, user.hashed_password):
-        raise HTTPException(status_code=401, detail="Invalid credentials")
+        raise HTTPException(status_code=401, detail="بيانات الدخول غير صحيحة")
 
     if not user.is_active:
-        raise HTTPException(status_code=403, detail="Account disabled")
+        raise HTTPException(status_code=403, detail="الحساب معطّل")
 
-    token = create_access_token({"sub": str(user.id), "role": user.role.value})
-    return TokenResponse(access_token=token, user=UserResponse.from_orm(user))
+    return _build_token_response(user)
 
 
 @router.post("/staff-login", response_model=TokenResponse)
 def staff_login(login_data: UserLogin, request: Request, db: Session = Depends(get_db)):
-    """Login for staff, branch_manager, and admin roles."""
     client_ip = _get_client_ip(request)
     _check_rate_limit(f"staff_login:{client_ip}", limit=10, window=60)
 
@@ -140,8 +147,7 @@ def staff_login(login_data: UserLogin, request: Request, db: Session = Depends(g
     if not user.is_active:
         raise HTTPException(status_code=403, detail="الحساب معطّل")
 
-    token = create_access_token({"sub": str(user.id), "role": user.role.value})
-    return TokenResponse(access_token=token, user=UserResponse.from_orm(user))
+    return _build_token_response(user)
 
 
 @router.post("/admin-login", response_model=TokenResponse)
@@ -160,8 +166,25 @@ def admin_login(login_data: UserLogin, request: Request, db: Session = Depends(g
     if not user or not verify_password(login_data.password, user.hashed_password):
         raise HTTPException(status_code=401, detail="بيانات الدخول غير صحيحة")
 
-    token = create_access_token({"sub": str(user.id), "role": user.role.value})
-    return TokenResponse(access_token=token, user=UserResponse.from_orm(user))
+    return _build_token_response(user)
+
+
+@router.post("/refresh", response_model=TokenResponse)
+def refresh_token(data: RefreshTokenRequest, db: Session = Depends(get_db)):
+    """Exchange a valid refresh token for a new access + refresh token pair."""
+    payload = decode_refresh_token(data.refresh_token)
+    if not payload:
+        raise HTTPException(status_code=401, detail="Refresh token غير صالح أو منتهي الصلاحية")
+
+    user_id = payload.get("sub")
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Token غير صالح")
+
+    user = db.query(User).filter(User.id == int(user_id), User.is_active == True).first()
+    if not user:
+        raise HTTPException(status_code=401, detail="المستخدم غير موجود أو الحساب معطّل")
+
+    return _build_token_response(user)
 
 
 @router.get("/me", response_model=UserResponse)
@@ -208,7 +231,6 @@ def update_profile(
 
 @router.get("/seed-admin")
 def seed_admin(db: Session = Depends(get_db)):
-    # Only available in development environment
     env = os.getenv("ENVIRONMENT", "development").lower()
     if env == "production":
         raise HTTPException(status_code=404, detail="Not found")

@@ -1,10 +1,12 @@
-- [Flutter web API URL](flutter-web-api.md) — always hardcoded to Render.com URL (const String); no more Uri.base.origin
+- [Flutter web API URL](flutter-web-api.md) — ApiClient uses Uri.base.origin on kIsWeb, Render.com URL for mobile; no static const baseUrl override needed
 - [Passlib bcrypt compat](passlib-bcrypt.md) — bcrypt must be pinned to 4.0.1; 5.x breaks passlib with AttributeError on __about__
 - [Node proxy redirects](node-proxy.md) — FastAPI 307-redirects bare paths to trailing-slash; proxy must follow redirects internally
 - [Replit HTTPS proxy POST redirect bug](replit-proxy-post-redirect.md) — Replit's HTTPS proxy re-POSTs 302/303 redirects instead of switching to GET; fix: return 200 + JS window.location.replace() with Set-Cookie forwarded
 - [Backend workflow binding](backend-workflow.md) — uvicorn must bind 0.0.0.0 (not localhost) for Replit workflow port detection
 - [ShellRoute nested Scaffold drawer bug](shell-drawer-bug.md) — Scaffold.of(ctx) inside Builder inside a child page finds the inner Scaffold (no drawer); use build's context directly instead
-- [Postgres enum migration](postgres-enum-migration.md) — ALTER TYPE userrole ADD VALUE needs AUTOCOMMIT + engine.url object (not str); str() masks password in SQLAlchemy 1.4+
+- [Postgres enum migration](postgres-enum-migration.md) — ALTER TYPE needs AUTOCOMMIT + engine.url object; also add new enum values (alert/event for AnnouncementType) in same AUTOCOMMIT block
+- [Postgres datetime type](postgres-datetime.md) — PostgreSQL has no DATETIME type; use TIMESTAMP for ALTER TABLE ADD COLUMN; SQLite uses DATETIME; gate with _is_postgres() check
 - [Model import order](model-import-order.md) — Branch must import before User in models/__init__.py; User has FK branch_id → branches table
 - [Flutter pub cache path](flutter-pub-cache.md) — Replit stores pub cache at ../.pub-cache (parent dir); must set PUB_CACHE=realpath(../.pub-cache) before flutter pub get / build web
-- [Admin panel API architecture](admin-api-arch.md) — Admin panel calls Render.com API via httpx; uses to_obj() helper to convert JSON dicts to SimpleNamespace; needs backend redeploy to Render.com for new staff/customer endpoints
+- [Admin panel API architecture](admin-api-arch.md) — Admin panel now points to http://127.0.0.1:8000 (local backend); was Render.com; uses to_obj() helper for SimpleNamespace conversion
+- [Migrations for new columns](migrations-new-cols.md) — Always add new DB columns via migrations.py (not just create_all); new tables get create_all; existing tables need ALTER TABLE in run_migrations()

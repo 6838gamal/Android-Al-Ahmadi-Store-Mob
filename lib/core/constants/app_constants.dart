@@ -14,13 +14,15 @@ class AppConstants {
     'الجمعة': '4:00 م - 11:00 م',
   };
 
-  // API — always points to the deployed Render.com backend
+  // API base URL — for mobile builds use the Render.com deployment
+  // For Flutter Web the ApiClient overrides this with Uri.base.origin
   static const String baseUrl = 'https://android-al-ahmadi-store-api.onrender.com';
 
   static const String apiVersion = '/api';
 
   // Storage Keys
   static const String tokenKey = 'auth_token';
+  static const String refreshTokenKey = 'refresh_token';
   static const String userKey = 'user_data';
   static const String themeKey = 'theme_mode';
   static const String onboardingKey = 'onboarding_done';

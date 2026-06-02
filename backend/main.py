@@ -2,7 +2,6 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
-import asyncio
 import os
 
 from backend.core.database import engine, Base, SessionLocal
@@ -15,6 +14,7 @@ from backend.models import (  # noqa
     inventory_item, referral, warranty,
     inspection, wallet, notification, audit_log,
 )
+from backend.models.announcement import Announcement  # noqa
 
 from backend.api.routes import (
     auth, products, orders, reservations, maintenance,
@@ -22,6 +22,7 @@ from backend.api.routes import (
     branches, inventory, referrals, warranty as warranty_routes,
     inspection as inspection_routes, wallet as wallet_routes,
     notifications, search, reports, audit, staff,
+    announcements as announcement_routes,
 )
 
 
@@ -79,12 +80,10 @@ def _seed_admin():
         db.close()
 
 
-# Only seed admin in non-production environments
 _env = os.getenv("ENVIRONMENT", "development").lower()
 if _env != "production":
     _seed_admin()
 else:
-    # In production, still ensure admin exists but don't print credentials
     def _ensure_admin_production():
         from backend.models.user import User, UserRole
         from backend.core.security import get_password_hash
@@ -113,12 +112,11 @@ else:
                 )
                 db.add(admin)
                 db.commit()
-                print("✅ Admin user ensured in production")
         finally:
             db.close()
     _ensure_admin_production()
 
-# CORS — restrict to specific origins in production
+# CORS
 _raw_origins = os.getenv("ALLOWED_ORIGINS", "")
 if _raw_origins:
     _allowed_origins = [o.strip() for o in _raw_origins.split(",") if o.strip()]
@@ -136,28 +134,27 @@ app.add_middleware(
 os.makedirs("uploads", exist_ok=True)
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
-# ── Existing routes (preserved) ───────────────────────────────────────────────
-app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
-app.include_router(products.router, prefix="/api/products", tags=["Products"])
-app.include_router(orders.router, prefix="/api/orders", tags=["Orders"])
-app.include_router(reservations.router, prefix="/api/reservations", tags=["Reservations"])
-app.include_router(maintenance.router, prefix="/api/maintenance", tags=["Maintenance"])
-app.include_router(customers.router, prefix="/api/customers", tags=["Customers"])
-app.include_router(dashboard.router, prefix="/api/dashboard", tags=["Dashboard"])
-app.include_router(uploads.router, prefix="/api/uploads", tags=["Uploads"])
-
-# ── New routes ────────────────────────────────────────────────────────────────
-app.include_router(branches.router, prefix="/api/branches", tags=["Branches"])
-app.include_router(inventory.router, prefix="/api/inventory", tags=["Inventory"])
-app.include_router(referrals.router, prefix="/api/referrals", tags=["Referrals"])
-app.include_router(warranty_routes.router, prefix="/api/warranty", tags=["Warranty"])
-app.include_router(inspection_routes.router, prefix="/api/inspection", tags=["Inspection"])
-app.include_router(wallet_routes.router, prefix="/api/wallet", tags=["Wallet"])
-app.include_router(notifications.router, prefix="/api/notifications", tags=["Notifications"])
-app.include_router(search.router, prefix="/api/search", tags=["Search"])
-app.include_router(reports.router, prefix="/api/reports", tags=["Reports"])
-app.include_router(audit.router, prefix="/api/audit", tags=["Audit"])
-app.include_router(staff.router, prefix="/api/staff", tags=["Staff"])
+# ── Routes ────────────────────────────────────────────────────────────────────
+app.include_router(auth.router,               prefix="/api/auth",          tags=["Authentication"])
+app.include_router(products.router,           prefix="/api/products",      tags=["Products"])
+app.include_router(orders.router,             prefix="/api/orders",        tags=["Orders"])
+app.include_router(reservations.router,       prefix="/api/reservations",  tags=["Reservations"])
+app.include_router(maintenance.router,        prefix="/api/maintenance",   tags=["Maintenance"])
+app.include_router(customers.router,          prefix="/api/customers",     tags=["Customers"])
+app.include_router(dashboard.router,          prefix="/api/dashboard",     tags=["Dashboard"])
+app.include_router(uploads.router,            prefix="/api/uploads",       tags=["Uploads"])
+app.include_router(branches.router,           prefix="/api/branches",      tags=["Branches"])
+app.include_router(inventory.router,          prefix="/api/inventory",     tags=["Inventory"])
+app.include_router(referrals.router,          prefix="/api/referrals",     tags=["Referrals"])
+app.include_router(warranty_routes.router,    prefix="/api/warranty",      tags=["Warranty"])
+app.include_router(inspection_routes.router,  prefix="/api/inspection",    tags=["Inspection"])
+app.include_router(wallet_routes.router,      prefix="/api/wallet",        tags=["Wallet"])
+app.include_router(notifications.router,      prefix="/api/notifications", tags=["Notifications"])
+app.include_router(search.router,             prefix="/api/search",        tags=["Search"])
+app.include_router(reports.router,            prefix="/api/reports",       tags=["Reports"])
+app.include_router(audit.router,              prefix="/api/audit",         tags=["Audit"])
+app.include_router(staff.router,              prefix="/api/staff",         tags=["Staff"])
+app.include_router(announcement_routes.router, prefix="/api/announcements", tags=["Announcements"])
 
 
 @app.get("/api/health")

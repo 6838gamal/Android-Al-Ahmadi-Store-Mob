@@ -11,8 +11,8 @@ from types import SimpleNamespace
 from datetime import datetime
 import httpx
 
-# ── External Render.com API ────────────────────────────────────────────────────
-API_BASE = "https://android-al-ahmadi-store-api.onrender.com"
+# ── Local backend (runs on port 8000 alongside the admin panel) ───────────────
+API_BASE = "http://127.0.0.1:8000"
 
 app = FastAPI(title="لوحة إدارة اندرويد الاحمدي", docs_url=None, redoc_url=None)
 app.add_middleware(
@@ -685,11 +685,16 @@ async def warranty_add(
 
 
 @app.post("/warranty/{warranty_id}/resolve")
-async def warranty_resolve(warranty_id: int, request: Request):
+async def warranty_resolve(
+    warranty_id: int, request: Request,
+    approved: Optional[str] = Form(None),
+    notes: str = Form(""),
+):
     if not _logged(request):
         return _redirect_login()
+    is_approved = approved == "true"
     await api("post", f"/api/warranty/{warranty_id}/resolve-return", token=_token(request),
-              json={"notes": "تم الحل من لوحة الإدارة"})
+              json={"approved": is_approved, "notes": notes or "تم الحل من لوحة الإدارة"})
     return RedirectResponse("/warranty", status_code=302)
 
 
@@ -985,3 +990,56 @@ async def audit_page(request: Request):
         "admin_name": _name(request), "active": "audit",
         "logs": to_obj(raw),
     })
+
+
+# ── Announcements ────────────────────────────────────────────────────────────
+
+@app.get("/announcements", response_class=HTMLResponse)
+async def announcements_list(request: Request):
+    if not _logged(request):
+        return _redirect_login()
+    raw = await api("get", "/api/announcements/", token=_token(request),
+                    params={"active_only": "false"}) or []
+    return templates.TemplateResponse(request, "announcements.html", {
+        "admin_name": _name(request), "active": "announcements",
+        "announcements": to_obj(raw),
+    })
+
+
+@app.post("/announcements/add")
+async def announcement_add(
+    request: Request,
+    title: str = Form(...), body: str = Form(...),
+    announcement_type: str = Form("info"),
+    image_url: str = Form(""), action_url: str = Form(""),
+    is_pinned: Optional[str] = Form(None),
+    is_active: Optional[str] = Form(None),
+):
+    if not _logged(request):
+        return _redirect_login()
+    await api("post", "/api/announcements/", token=_token(request),
+              json={
+                  "title": title, "body": body,
+                  "announcement_type": announcement_type,
+                  "image_url": image_url or None,
+                  "action_url": action_url or None,
+                  "is_pinned": bool(is_pinned),
+                  "is_active": bool(is_active),
+              })
+    return RedirectResponse("/announcements", status_code=302)
+
+
+@app.post("/announcements/{ann_id}/toggle")
+async def announcement_toggle(ann_id: int, request: Request):
+    if not _logged(request):
+        return _redirect_login()
+    await api("post", f"/api/announcements/{ann_id}/toggle", token=_token(request))
+    return RedirectResponse("/announcements", status_code=302)
+
+
+@app.post("/announcements/{ann_id}/delete")
+async def announcement_delete(ann_id: int, request: Request):
+    if not _logged(request):
+        return _redirect_login()
+    await api("delete", f"/api/announcements/{ann_id}", token=_token(request))
+    return RedirectResponse("/announcements", status_code=302)

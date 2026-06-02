@@ -6,11 +6,13 @@ from backend.models.user import User
 from backend.models.referral import Referral
 from backend.schemas.referral import ReferralResponse, ReferralStatsResponse
 from backend.api.dependencies import get_current_user, require_admin
+from backend.core.notifications_helper import push_notification
+from backend.models.notification import NotificationType
 from typing import List
 
 router = APIRouter()
 
-LEVEL1_TARGET = 50   # referrals needed to complete level 1 and unlock level 2
+LEVEL1_TARGET = 50
 
 
 def _generate_code(length=8) -> str:
@@ -28,9 +30,8 @@ def _ensure_referral_code(user: User, db: Session) -> str:
 
 
 def _update_referrer_level(referrer: User, db: Session):
-    """Promote referrer to level 2 and lock level 1 once they hit 50 verified referrals."""
     if referrer.level1_locked:
-        return  # already promoted, nothing to do
+        return
     verified_count = (
         db.query(Referral)
         .filter(Referral.referrer_id == referrer.id, Referral.is_verified == True)
@@ -68,7 +69,6 @@ def my_referral_stats(
         .count()
     )
 
-    # Progress toward level 1 completion (capped at 50)
     progress = min(verified, LEVEL1_TARGET)
 
     return ReferralStatsResponse(
@@ -92,21 +92,18 @@ def register_referral(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    # ── 1. Validate referrer ────────────────────────────────────────────────
     referrer = db.query(User).filter(User.referral_code == referral_code).first()
     if not referrer:
         raise HTTPException(404, "رمز الإحالة غير صحيح")
     if referrer.id == current_user.id:
         raise HTTPException(400, "لا يمكنك إحالة نفسك")
 
-    # ── 2. Strict: this user was never referred before (globally) ──────────
     already_referred = (
         db.query(Referral).filter(Referral.referred_id == current_user.id).first()
     )
     if already_referred:
         raise HTTPException(400, "هذا المستخدم مُحال مسبقاً — لا يمكن تكرار الإحالة")
 
-    # ── 3. Strict: device fingerprint never used in any referral ───────────
     if device_fingerprint:
         fp_existing = (
             db.query(Referral)
@@ -116,7 +113,6 @@ def register_referral(
         if fp_existing:
             raise HTTPException(400, "هذا الجهاز مُستخدم مسبقاً في إحالة أخرى")
 
-    # ── 4. Strict: referrer hasn't already referred this user ──────────────
     pair_existing = (
         db.query(Referral)
         .filter(
@@ -128,10 +124,8 @@ def register_referral(
     if pair_existing:
         raise HTTPException(400, "لقد قمت بإحالة هذا المستخدم من قبل")
 
-    # ── 5. Determine which level this referral belongs to ───────────────────
-    referral_level = referrer.referral_level  # 1 until locked, then 2
+    referral_level = referrer.referral_level
 
-    # ── 6. Create referral record ───────────────────────────────────────────
     referral = Referral(
         referrer_id=referrer.id,
         referred_id=current_user.id,
@@ -141,20 +135,40 @@ def register_referral(
     )
     current_user.referred_by_id = referrer.id
     db.add(referral)
+    db.flush()
+
+    push_notification(
+        db, referrer.id,
+        title="🎉 إحالة جديدة ناجحة!",
+        body=f"انضم {current_user.name} عبر رابط إحالتك. استمر في المشاركة!",
+        notif_type=NotificationType.referral,
+        is_important=False,
+        reference_id=referral.id,
+        reference_type="referral",
+    )
+
     db.commit()
 
-    # ── 7. Check level promotion after committing ───────────────────────────
     _update_referrer_level(referrer, db)
-
-    # Refresh to get updated values
     db.refresh(referrer)
 
-    # ── 8. Build response ───────────────────────────────────────────────────
     verified_now = (
         db.query(Referral)
         .filter(Referral.referrer_id == referrer.id, Referral.is_verified == True)
         .count()
     )
+
+    if referrer.level1_locked and verified_now == LEVEL1_TARGET:
+        push_notification(
+            db, referrer.id,
+            title="🏆 ترقية المستوى!",
+            body="وصلت إلى 50 إحالة — تم ترقيتك للمستوى الثاني 🎊",
+            notif_type=NotificationType.referral,
+            is_important=True,
+            reference_id=referrer.id,
+            reference_type="user",
+        )
+        db.commit()
 
     msg: dict = {
         "message": "تمت الإحالة بنجاح",
@@ -164,10 +178,7 @@ def register_referral(
     }
     if referrer.level1_locked and verified_now == LEVEL1_TARGET:
         msg["level_up"] = True
-        msg["message"] = (
-            "تمت الإحالة بنجاح! وصلت إلى 50 إحالة — "
-            "تم إغلاق المستوى الأول وترقيتك للمستوى الثاني 🎉"
-        )
+        msg["message"] = "تمت الإحالة بنجاح! وصلت إلى 50 إحالة — تم إغلاق المستوى الأول وترقيتك للمستوى الثاني 🎉"
 
     return msg
 
@@ -183,7 +194,6 @@ def user_referrals(
     current_user=Depends(require_admin),
     db: Session = Depends(get_db),
 ):
-    """Admin: get all referrals made by a specific user, grouped by level."""
     return (
         db.query(Referral)
         .filter(Referral.referrer_id == user_id)

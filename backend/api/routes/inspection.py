@@ -7,6 +7,8 @@ from backend.models.inspection import InspectionRequest, InspectionStatus
 from backend.models.user import User
 from backend.schemas.inspection import InspectionCreate, InspectionResponse, InspectionItemResponse
 from backend.api.dependencies import get_current_user, require_staff_or_above
+from backend.core.notifications_helper import push_notification, push_notification_to_admins
+from backend.models.notification import NotificationType
 
 router = APIRouter()
 
@@ -23,6 +25,18 @@ def create_inspection(data: InspectionCreate, current_user: User = Depends(get_c
         video_url=data.video_url,
     )
     db.add(req)
+    db.flush()
+
+    push_notification_to_admins(
+        db,
+        title="🔍 طلب فحص جديد",
+        body=f"العميل {current_user.name} يطلب فحص: {data.device_model} — {data.problem_description[:80]}",
+        notif_type=NotificationType.inspection,
+        is_important=True,
+        reference_id=req.id,
+        reference_type="inspection",
+    )
+
     db.commit()
     db.refresh(req)
     return req
@@ -38,13 +52,15 @@ def my_inspections(current_user: User = Depends(get_current_user), db: Session =
 @router.get("/", response_model=List[InspectionItemResponse])
 def list_inspections(
     status: Optional[str] = None,
+    skip: int = 0,
+    limit: int = 50,
     db: Session = Depends(get_db),
     current_user=Depends(require_staff_or_above)
 ):
     q = db.query(InspectionRequest)
     if status:
         q = q.filter(InspectionRequest.status == status)
-    return q.order_by(InspectionRequest.created_at.desc()).all()
+    return q.order_by(InspectionRequest.created_at.desc()).offset(skip).limit(limit).all()
 
 
 @router.get("/{req_id}", response_model=InspectionItemResponse)
@@ -75,6 +91,19 @@ def respond_to_inspection(
     req.response_images = data.response_images or []
     req.status = InspectionStatus.responded
     req.responded_at = datetime.utcnow()
+
+    if req.customer_id:
+        price_text = f" — التكلفة المقدرة: {data.estimated_price} ريال" if data.estimated_price else ""
+        push_notification(
+            db, req.customer_id,
+            title="💬 تم الرد على طلب الفحص",
+            body=f"تم فحص جهازك {req.device_model} وإرسال التشخيص{price_text}. افتح التطبيق لمشاهدة التفاصيل.",
+            notif_type=NotificationType.inspection,
+            is_important=True,
+            reference_id=req.id,
+            reference_type="inspection",
+        )
+
     db.commit()
     db.refresh(req)
     return req

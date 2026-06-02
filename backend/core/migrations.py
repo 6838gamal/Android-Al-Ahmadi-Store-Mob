@@ -16,7 +16,7 @@ def run_migrations():
     inspector = inspect(engine)
     existing_tables = inspector.get_table_names()
 
-    # ── PostgreSQL: extend userrole enum BEFORE table ops ──────────────────
+    # ── PostgreSQL: extend enums BEFORE table ops ──────────────────────────
     if _is_postgres():
         raw_engine = create_engine(
             engine.url, isolation_level="AUTOCOMMIT", poolclass=NullPool
@@ -30,21 +30,30 @@ def run_migrations():
                         ))
                     except Exception:
                         pass
+                for val in ("alert", "event"):
+                    try:
+                        conn.execute(text(
+                            f"ALTER TYPE announcementtype ADD VALUE IF NOT EXISTS '{val}'"
+                        ))
+                    except Exception:
+                        pass
         except Exception:
             pass
         finally:
             raw_engine.dispose()
 
     with engine.connect() as conn:
-        # ── users table additions ──────────────────────────────────────────
+        # ── users table ────────────────────────────────────────────────────
         if "users" in existing_tables:
             users_cols = [c["name"] for c in inspector.get_columns("users")]
             new_user_cols = [
-                ("branch_id",      "INTEGER"),
-                ("referral_code",  "VARCHAR(20)"),
-                ("referred_by_id", "INTEGER"),
+                ("branch_id",       "INTEGER"),
+                ("referral_code",   "VARCHAR(20)"),
+                ("referred_by_id",  "INTEGER"),
                 ("wallet_balance",  "FLOAT DEFAULT 0.0"),
                 ("wallet_currency", "VARCHAR(3) DEFAULT 'YER'"),
+                ("referral_level",  "INTEGER DEFAULT 1 NOT NULL"),
+                ("level1_locked",   "BOOLEAN DEFAULT FALSE NOT NULL"),
             ]
             for col_name, col_def in new_user_cols:
                 if col_name not in users_cols:
@@ -52,20 +61,7 @@ def run_migrations():
                         f"ALTER TABLE users ADD COLUMN {col_name} {col_def}"
                     ))
 
-        # ── users table additions ─────────────────────────────────────────
-        if "users" in existing_tables:
-            users_cols = [c["name"] for c in inspector.get_columns("users")]
-            new_user_cols_v2 = [
-                ("referral_level", "INTEGER DEFAULT 1 NOT NULL"),
-                ("level1_locked",  "BOOLEAN DEFAULT FALSE NOT NULL"),
-            ]
-            for col_name, col_def in new_user_cols_v2:
-                if col_name not in users_cols:
-                    conn.execute(text(
-                        f"ALTER TABLE users ADD COLUMN {col_name} {col_def}"
-                    ))
-
-        # ── products table additions ───────────────────────────────────────
+        # ── products table ─────────────────────────────────────────────────
         if "products" in existing_tables:
             prod_cols = [c["name"] for c in inspector.get_columns("products")]
             new_prod_cols = [
@@ -79,13 +75,64 @@ def run_migrations():
                         f"ALTER TABLE products ADD COLUMN {col_name} {col_def}"
                     ))
 
-        # ── referrals table additions ──────────────────────────────────────
+        # ── referrals table ────────────────────────────────────────────────
         if "referrals" in existing_tables:
             ref_cols = [c["name"] for c in inspector.get_columns("referrals")]
             if "level" not in ref_cols:
                 conn.execute(text(
                     "ALTER TABLE referrals ADD COLUMN level INTEGER DEFAULT 1 NOT NULL"
                 ))
+
+        # ── warranty table (new approve/reject + resolve fields) ───────────
+        ts_type = "TIMESTAMP" if _is_postgres() else "DATETIME"
+        if "warranties" in existing_tables:
+            war_cols = [c["name"] for c in inspector.get_columns("warranties")]
+            new_war_cols = [
+                ("return_approved",  "BOOLEAN"),
+                ("return_notes",     "TEXT DEFAULT ''"),
+                ("resolved_by_id",   "INTEGER"),
+                ("resolved_at",      ts_type),
+                ("return_resolved",  "BOOLEAN DEFAULT FALSE NOT NULL"),
+            ]
+            for col_name, col_def in new_war_cols:
+                if col_name not in war_cols:
+                    conn.execute(text(
+                        f"ALTER TABLE warranties ADD COLUMN {col_name} {col_def}"
+                    ))
+
+        # ── inspection_requests table (responded_at field) ─────────────────
+        if "inspection_requests" in existing_tables:
+            ins_cols = [c["name"] for c in inspector.get_columns("inspection_requests")]
+            new_ins_cols = [
+                ("responded_at",    ts_type),
+                ("response_images", "TEXT DEFAULT '[]'"),
+            ]
+            for col_name, col_def in new_ins_cols:
+                if col_name not in ins_cols:
+                    conn.execute(text(
+                        f"ALTER TABLE inspection_requests ADD COLUMN {col_name} {col_def}"
+                    ))
+
+        # ── announcements table (new fields) ──────────────────────────────
+        if "announcements" in existing_tables:
+            ann_cols = [c["name"] for c in inspector.get_columns("announcements")]
+            if "action_url" not in ann_cols:
+                conn.execute(text(
+                    "ALTER TABLE announcements ADD COLUMN action_url VARCHAR(500)"
+                ))
+
+        # ── inventory_items table (sold tracking) ──────────────────────────
+        if "inventory_items" in existing_tables:
+            inv_cols = [c["name"] for c in inspector.get_columns("inventory_items")]
+            new_inv_cols = [
+                ("sold_to_id",    "INTEGER"),
+                ("sold_order_id", "INTEGER"),
+            ]
+            for col_name, col_def in new_inv_cols:
+                if col_name not in inv_cols:
+                    conn.execute(text(
+                        f"ALTER TABLE inventory_items ADD COLUMN {col_name} {col_def}"
+                    ))
 
         conn.commit()
 
@@ -107,7 +154,7 @@ def run_migrations():
     except Exception:
         pass
 
-    # ── Unique index on referrals.referred_id (one referral per referred user) ─
+    # ── Unique index on referrals.referred_id ──────────────────────────────
     try:
         with engine.connect() as conn:
             conn.execute(text(

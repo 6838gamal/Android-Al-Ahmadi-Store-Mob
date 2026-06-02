@@ -5,6 +5,8 @@ from backend.core.database import get_db
 from backend.models.inventory_item import InventoryItem, ItemStatus, ItemGrade
 from backend.schemas.inventory import InventoryItemCreate, InventoryItemUpdate, InventoryItemResponse
 from backend.api.dependencies import get_current_user, require_staff_or_above, require_admin
+from backend.core.notifications_helper import push_notification
+from backend.models.notification import NotificationType
 
 router = APIRouter()
 
@@ -51,6 +53,15 @@ def create_item(data: InventoryItemCreate, db: Session = Depends(get_db), curren
     return item
 
 
+@router.get("/stats/summary")
+def inventory_stats(db: Session = Depends(get_db), current_user=Depends(require_staff_or_above)):
+    total = db.query(InventoryItem).filter(InventoryItem.is_active == True).count()
+    available = db.query(InventoryItem).filter(InventoryItem.is_active == True, InventoryItem.status == ItemStatus.available).count()
+    reserved = db.query(InventoryItem).filter(InventoryItem.is_active == True, InventoryItem.status == ItemStatus.reserved).count()
+    sold = db.query(InventoryItem).filter(InventoryItem.is_active == True, InventoryItem.status == ItemStatus.sold).count()
+    return {"total": total, "available": available, "reserved": reserved, "sold": sold}
+
+
 @router.get("/{item_id}", response_model=InventoryItemResponse)
 def get_item(item_id: int, db: Session = Depends(get_db), current_user=Depends(require_staff_or_above)):
     item = db.query(InventoryItem).filter(InventoryItem.id == item_id).first()
@@ -72,30 +83,66 @@ def update_item(item_id: int, data: InventoryItemUpdate, db: Session = Depends(g
 
 
 @router.post("/{item_id}/sell")
-def mark_sold(item_id: int, customer_id: Optional[int] = None, order_id: Optional[int] = None,
-              db: Session = Depends(get_db), current_user=Depends(require_staff_or_above)):
+def mark_sold(
+    item_id: int,
+    customer_id: Optional[int] = None,
+    order_id: Optional[int] = None,
+    db: Session = Depends(get_db),
+    current_user=Depends(require_staff_or_above),
+):
     item = db.query(InventoryItem).filter(InventoryItem.id == item_id).first()
     if not item:
         raise HTTPException(404, "Item not found")
     if item.status == ItemStatus.sold:
         raise HTTPException(400, "Item already sold")
+
     item.status = ItemStatus.sold
     if customer_id:
         item.sold_to_id = customer_id
     if order_id:
         item.sold_order_id = order_id
+
+    if customer_id:
+        item_label = f"{item.brand or ''} {item.model or ''}".strip() or item.serial_number or "الجهاز"
+        push_notification(
+            db, customer_id,
+            title="📦 تم بيع الجهاز",
+            body=f"تم تسجيل بيع {item_label} بنجاح. شكراً لثقتك بنا!",
+            notif_type=NotificationType.order,
+            reference_id=item.id,
+            reference_type="inventory_item",
+        )
+
     db.commit()
     return {"message": "Item marked as sold"}
 
 
 @router.post("/{item_id}/return-to-stock")
-def return_to_stock(item_id: int, db: Session = Depends(get_db), current_user=Depends(require_staff_or_above)):
+def return_to_stock(
+    item_id: int,
+    customer_id: Optional[int] = None,
+    db: Session = Depends(get_db),
+    current_user=Depends(require_staff_or_above),
+):
     item = db.query(InventoryItem).filter(InventoryItem.id == item_id).first()
     if not item:
         raise HTTPException(404, "Item not found")
+
     item.status = ItemStatus.available
     item.sold_to_id = None
     item.sold_order_id = None
+
+    if customer_id:
+        item_label = f"{item.brand or ''} {item.model or ''}".strip() or item.serial_number or "الجهاز"
+        push_notification(
+            db, customer_id,
+            title="🔄 تم إرجاع الجهاز",
+            body=f"تم قبول إرجاع {item_label} وإعادته للمخزون.",
+            notif_type=NotificationType.order,
+            reference_id=item.id,
+            reference_type="inventory_item",
+        )
+
     db.commit()
     return {"message": "Item returned to stock"}
 
@@ -108,12 +155,3 @@ def delete_item(item_id: int, db: Session = Depends(get_db), current_user=Depend
     item.is_active = False
     db.commit()
     return {"message": "Item removed"}
-
-
-@router.get("/stats/summary")
-def inventory_stats(db: Session = Depends(get_db), current_user=Depends(require_staff_or_above)):
-    total = db.query(InventoryItem).filter(InventoryItem.is_active == True).count()
-    available = db.query(InventoryItem).filter(InventoryItem.is_active == True, InventoryItem.status == ItemStatus.available).count()
-    reserved = db.query(InventoryItem).filter(InventoryItem.is_active == True, InventoryItem.status == ItemStatus.reserved).count()
-    sold = db.query(InventoryItem).filter(InventoryItem.is_active == True, InventoryItem.status == ItemStatus.sold).count()
-    return {"total": total, "available": available, "reserved": reserved, "sold": sold}

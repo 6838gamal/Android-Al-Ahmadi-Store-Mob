@@ -20,11 +20,16 @@ class Warranty(Base):
     is_return_requested = Column(Boolean, default=False)
     return_reason = Column(Text, nullable=True)
     return_requested_at = Column(DateTime(timezone=True), nullable=True)
+
     return_resolved = Column(Boolean, default=False)
+    return_approved = Column(Boolean, nullable=True)
     return_notes = Column(Text, nullable=True)
+    resolved_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    resolved_at = Column(DateTime(timezone=True), nullable=True)
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
     order = relationship("Order", foreign_keys=[order_id])
     customer = relationship("User", foreign_keys=[customer_id])
+    resolved_by = relationship("User", foreign_keys=[resolved_by_id])

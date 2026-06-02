@@ -1,12 +1,14 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List
-from datetime import datetime, timedelta
+from datetime import datetime
 from backend.core.database import get_db
 from backend.models.warranty import Warranty
 from backend.models.user import User
-from backend.schemas.warranty import WarrantyCreate, WarrantyResponse, ReturnRequest
-from backend.api.dependencies import get_current_user, require_staff_or_above, require_admin
+from backend.schemas.warranty import WarrantyCreate, WarrantyResponse, ReturnRequest, ResolveReturn
+from backend.api.dependencies import get_current_user, require_staff_or_above
+from backend.core.notifications_helper import push_notification, push_notification_to_admins
+from backend.models.notification import NotificationType
 
 router = APIRouter()
 
@@ -14,6 +16,8 @@ router = APIRouter()
 @router.post("/", response_model=WarrantyResponse)
 def create_warranty(data: WarrantyCreate, db: Session = Depends(get_db), current_user=Depends(require_staff_or_above)):
     starts = datetime.utcnow()
+    ends = starts + __import__('datetime').timedelta(days=data.warranty_days)
+    from datetime import timedelta
     ends = starts + timedelta(days=data.warranty_days)
     warranty = Warranty(
         order_id=data.order_id,
@@ -26,6 +30,19 @@ def create_warranty(data: WarrantyCreate, db: Session = Depends(get_db), current
         ends_at=ends,
     )
     db.add(warranty)
+    db.flush()
+
+    if data.customer_id:
+        push_notification(
+            db, data.customer_id,
+            title="✅ تم تسجيل ضمانك",
+            body=f"تم تسجيل ضمان المنتج: {data.product_name} لمدة {data.warranty_days} أيام",
+            notif_type=NotificationType.warranty,
+            is_important=True,
+            reference_id=warranty.id,
+            reference_type="warranty",
+        )
+
     db.commit()
     db.refresh(warranty)
     return warranty
@@ -57,22 +74,70 @@ def request_return(warranty_id: int, data: ReturnRequest, current_user: User = D
     if w.customer_id != current_user.id:
         raise HTTPException(403, "Not your warranty")
     if datetime.utcnow() > w.ends_at:
-        raise HTTPException(400, "Warranty period has expired")
+        raise HTTPException(400, "انتهت مدة الضمان")
     if w.is_return_requested:
-        raise HTTPException(400, "Return already requested")
+        raise HTTPException(400, "تم تقديم طلب الإرجاع مسبقاً")
+
     w.is_return_requested = True
     w.return_reason = data.return_reason
     w.return_requested_at = datetime.utcnow()
+
+    push_notification_to_admins(
+        db,
+        title="🔔 طلب إرجاع ضمان جديد",
+        body=f"العميل {current_user.name} يطلب إرجاع: {w.product_name}. السبب: {data.return_reason}",
+        notif_type=NotificationType.warranty,
+        is_important=True,
+        reference_id=w.id,
+        reference_type="warranty",
+    )
+
     db.commit()
-    return {"message": "Return request submitted"}
+    return {"message": "تم تقديم طلب الإرجاع بنجاح"}
 
 
 @router.post("/{warranty_id}/resolve-return")
-def resolve_return(warranty_id: int, notes: str = "", db: Session = Depends(get_db), current_user=Depends(require_staff_or_above)):
+def resolve_return(
+    warranty_id: int,
+    data: ResolveReturn,
+    db: Session = Depends(get_db),
+    current_user=Depends(require_staff_or_above),
+):
     w = db.query(Warranty).filter(Warranty.id == warranty_id).first()
     if not w:
         raise HTTPException(404, "Warranty not found")
+    if not w.is_return_requested:
+        raise HTTPException(400, "لم يُقدَّم أي طلب إرجاع بعد")
+    if w.return_resolved:
+        raise HTTPException(400, "الطلب مُعالَج مسبقاً")
+
     w.return_resolved = True
-    w.return_notes = notes
+    w.return_approved = data.approved
+    w.return_notes = data.notes or ""
+    w.resolved_by_id = current_user.id
+    w.resolved_at = datetime.utcnow()
+
+    if w.customer_id:
+        if data.approved:
+            push_notification(
+                db, w.customer_id,
+                title="✅ تمت الموافقة على طلب الإرجاع",
+                body=f"تمت الموافقة على إرجاع منتجك: {w.product_name}. تواصل معنا لإتمام الإجراءات.",
+                notif_type=NotificationType.warranty,
+                is_important=True,
+                reference_id=w.id,
+                reference_type="warranty",
+            )
+        else:
+            push_notification(
+                db, w.customer_id,
+                title="❌ تم رفض طلب الإرجاع",
+                body=f"تم رفض طلب إرجاع منتجك: {w.product_name}. {data.notes or 'للاستفسار تواصل معنا.'}",
+                notif_type=NotificationType.warranty,
+                is_important=True,
+                reference_id=w.id,
+                reference_type="warranty",
+            )
+
     db.commit()
-    return {"message": "Return resolved"}
+    return {"message": "تم معالجة طلب الإرجاع", "approved": data.approved}

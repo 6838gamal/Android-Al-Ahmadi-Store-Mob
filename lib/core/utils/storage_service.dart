@@ -12,9 +12,20 @@ class StorageService {
     return prefs.getString(AppConstants.tokenKey);
   }
 
+  static Future<void> saveRefreshToken(String token) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(AppConstants.refreshTokenKey, token);
+  }
+
+  static Future<String?> getRefreshToken() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(AppConstants.refreshTokenKey);
+  }
+
   static Future<void> clearToken() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(AppConstants.tokenKey);
+    await prefs.remove(AppConstants.refreshTokenKey);
     await prefs.remove(AppConstants.userKey);
   }
 

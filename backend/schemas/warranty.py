@@ -16,6 +16,11 @@ class ReturnRequest(BaseModel):
     return_reason: str
 
 
+class ResolveReturn(BaseModel):
+    approved: bool
+    notes: Optional[str] = ""
+
+
 class WarrantyResponse(BaseModel):
     id: int
     order_id: Optional[int]
@@ -30,7 +35,9 @@ class WarrantyResponse(BaseModel):
     return_reason: Optional[str]
     return_requested_at: Optional[datetime]
     return_resolved: bool
+    return_approved: Optional[bool]
     return_notes: Optional[str]
+    resolved_at: Optional[datetime]
     created_at: datetime
 
     class Config:
