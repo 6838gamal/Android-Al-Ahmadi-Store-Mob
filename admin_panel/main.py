@@ -11,8 +11,8 @@ from types import SimpleNamespace
 from datetime import datetime
 import httpx
 
-# ── Local backend (runs on port 8000 alongside the admin panel) ───────────────
-API_BASE = "http://127.0.0.1:8000"
+# ── External Render.com API ────────────────────────────────────────────────────
+API_BASE = "https://android-al-ahmadi-store-api.onrender.com"
 
 app = FastAPI(title="لوحة إدارة اندرويد الاحمدي", docs_url=None, redoc_url=None)
 app.add_middleware(
