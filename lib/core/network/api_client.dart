@@ -24,13 +24,19 @@ class ApiClient {
         }
         handler.next(options);
       },
-      onError: (error, handler) {
+      onError: (error, handler) async {
+        // 401 = token expired → clear session so router redirects to login
+        if (error.response?.statusCode == 401) {
+          await StorageService.clearToken();
+        }
         handler.next(error);
       },
     ));
   }
 
-  Future<Response> get(String path, {Map<String, dynamic>? params, Map<String, dynamic>? queryParameters}) =>
+  Future<Response> get(String path,
+          {Map<String, dynamic>? params,
+          Map<String, dynamic>? queryParameters}) =>
       _dio.get(path, queryParameters: queryParameters ?? params);
 
   Future<Response> post(String path, {dynamic data}) =>
@@ -44,6 +50,6 @@ class ApiClient {
 
   Future<Response> delete(String path) => _dio.delete(path);
 
-  Future<Response> postForm(String path, FormData data) =>
-      _dio.post(path, data: data, options: Options(contentType: 'multipart/form-data'));
+  Future<Response> postForm(String path, FormData data) => _dio.post(path,
+      data: data, options: Options(contentType: 'multipart/form-data'));
 }

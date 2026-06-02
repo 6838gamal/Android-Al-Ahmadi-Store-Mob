@@ -4,7 +4,9 @@ import 'package:go_router/go_router.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/constants/app_constants.dart';
+import '../../../../core/providers/connectivity_provider.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
+import '../../../notifications/presentation/providers/notifications_provider.dart';
 
 class MainShell extends ConsumerStatefulWidget {
   final Widget child;
@@ -19,6 +21,19 @@ class MainShell extends ConsumerStatefulWidget {
 class _MainShellState extends ConsumerState<MainShell> {
   int _selectedIndex = 0;
 
+  @override
+  void initState() {
+    super.initState();
+    Future.microtask(
+        () => ref.read(notificationsProvider.notifier).startPolling());
+  }
+
+  @override
+  void dispose() {
+    ref.read(notificationsProvider.notifier).stopPolling();
+    super.dispose();
+  }
+
   static const _tabs = [
     _TabItem(icon: Icons.home_outlined, activeIcon: Icons.home, label: 'الرئيسية', route: '/products'),
     _TabItem(icon: Icons.inventory_2_outlined, activeIcon: Icons.inventory_2, label: 'المنتجات', route: '/products'),
@@ -29,16 +44,48 @@ class _MainShellState extends ConsumerState<MainShell> {
 
   @override
   Widget build(BuildContext context) {
+    final isOnline = ref.watch(connectivityProvider);
     return Scaffold(
       key: MainShell.scaffoldKey,
       backgroundColor: AppColors.darkBg,
       drawer: _buildDrawer(context),
-      body: widget.child,
+      body: Column(
+        children: [
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 300),
+            height: isOnline ? 0 : 36,
+            child: isOnline
+                ? const SizedBox.shrink()
+                : Container(
+                    color: const Color(0xFFF57F17),
+                    alignment: Alignment.center,
+                    child: const Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.wifi_off, color: Colors.white, size: 16),
+                        SizedBox(width: 8),
+                        Text(
+                          'لا يوجد اتصال — يعرض بيانات محفوظة',
+                          style: TextStyle(
+                              fontFamily: 'Cairo',
+                              color: Colors.white,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700),
+                        ),
+                      ],
+                    ),
+                  ),
+          ),
+          Expanded(child: widget.child),
+        ],
+      ),
       bottomNavigationBar: _buildBottomNav(),
     );
   }
 
   Widget _buildBottomNav() {
+    final unread = ref.watch(notificationsProvider).unreadCount;
+    // notifications tab is index 3
     return Container(
       decoration: const BoxDecoration(
         color: AppColors.darkSurface,
@@ -52,6 +99,7 @@ class _MainShellState extends ConsumerState<MainShell> {
             children: List.generate(_tabs.length, (i) {
               final tab = _tabs[i];
               final selected = _selectedIndex == i;
+              final showBadge = i == 3 && unread > 0;
               return GestureDetector(
                 onTap: () {
                   setState(() => _selectedIndex = i);
@@ -67,10 +115,38 @@ class _MainShellState extends ConsumerState<MainShell> {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(
-                        selected ? tab.activeIcon : tab.icon,
-                        color: selected ? AppColors.primary : AppColors.textMuted,
-                        size: 24,
+                      Stack(
+                        clipBehavior: Clip.none,
+                        children: [
+                          Icon(
+                            selected ? tab.activeIcon : tab.icon,
+                            color: selected ? AppColors.primary : AppColors.textMuted,
+                            size: 24,
+                          ),
+                          if (showBadge)
+                            Positioned(
+                              top: -4,
+                              right: -6,
+                              child: Container(
+                                padding: const EdgeInsets.all(3),
+                                constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+                                decoration: const BoxDecoration(
+                                  color: AppColors.error,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Text(
+                                  unread > 99 ? '99+' : '$unread',
+                                  style: const TextStyle(
+                                    fontFamily: 'Cairo',
+                                    fontSize: 9,
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ),
+                            ),
+                        ],
                       ),
                       const SizedBox(height: 4),
                       Text(
@@ -169,6 +245,9 @@ class _MainShellState extends ConsumerState<MainShell> {
           _DrawerItem(icon: Icons.track_changes_rounded, label: 'تتبع الطلبات', onTap: () { Navigator.pop(context); context.go('/orders'); }),
           _DrawerItem(icon: Icons.bookmark_outline, label: 'الحجوزات', onTap: () { Navigator.pop(context); context.go('/reservations'); }),
           _DrawerItem(icon: Icons.build_outlined, label: 'الصيانة', onTap: () { Navigator.pop(context); context.go('/maintenance'); }),
+          _DrawerItem(icon: Icons.verified_user_outlined, label: 'الضمان', onTap: () { Navigator.pop(context); context.go('/warranty'); }),
+          _DrawerItem(icon: Icons.account_balance_wallet_outlined, label: 'محفظتي', onTap: () { Navigator.pop(context); context.go('/wallet'); }),
+          _DrawerItem(icon: Icons.people_outline, label: 'الإحالات', onTap: () { Navigator.pop(context); context.go('/referrals'); }),
           _DrawerItem(icon: Icons.notifications_outlined, label: 'الإشعارات', onTap: () { Navigator.pop(context); context.go('/notifications'); }),
           const Divider(color: AppColors.darkDivider, indent: 16, endIndent: 16),
           _DrawerItem(icon: Icons.person_outline, label: 'الملف الشخصي', onTap: () { Navigator.pop(context); context.go('/profile'); }),

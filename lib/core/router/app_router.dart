@@ -19,6 +19,9 @@ import '../../features/notifications/presentation/pages/notifications_page.dart'
 import '../../features/profile/presentation/pages/profile_page.dart';
 import '../../features/settings/presentation/pages/settings_page.dart';
 import '../../features/contact/presentation/pages/contact_page.dart';
+import '../../features/wallet/presentation/pages/wallet_page.dart';
+import '../../features/warranty/presentation/pages/warranty_page.dart';
+import '../../features/referrals/presentation/pages/referrals_page.dart';
 import '../../features/staff/presentation/pages/staff_shell.dart';
 import '../../features/staff/presentation/pages/staff_home_page.dart';
 import '../../features/staff/presentation/pages/staff_orders_page.dart';
@@ -29,6 +32,7 @@ import '../../features/auth/presentation/providers/auth_provider.dart';
 final _customerRoutes = {
   '/home', '/products', '/orders', '/reservations',
   '/maintenance', '/notifications', '/profile', '/settings', '/contact',
+  '/wallet', '/warranty', '/referrals',
 };
 
 final _staffRoutes = {
@@ -113,6 +117,9 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(path: '/profile',        builder: (ctx, state) => const ProfilePage()),
           GoRoute(path: '/settings',       builder: (ctx, state) => const SettingsPage()),
           GoRoute(path: '/contact',        builder: (ctx, state) => const ContactPage()),
+          GoRoute(path: '/wallet',         builder: (ctx, state) => const WalletPage()),
+          GoRoute(path: '/warranty',       builder: (ctx, state) => const WarrantyPage()),
+          GoRoute(path: '/referrals',      builder: (ctx, state) => const ReferralsPage()),
         ],
       ),
 

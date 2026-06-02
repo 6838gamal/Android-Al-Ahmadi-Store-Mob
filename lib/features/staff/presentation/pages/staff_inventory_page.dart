@@ -146,6 +146,35 @@ class _StaffInventoryPageState extends ConsumerState<StaffInventoryPage> {
   }
 
   Future<void> _updateItemStatus(int itemId, String newStatus) async {
+    // Confirmation dialog before marking as sold
+    if (newStatus == 'sold') {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          backgroundColor: AppColors.darkCard,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+          title: const Text('تأكيد البيع',
+              style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.w700, color: Colors.white)),
+          content: const Text('هل أنت متأكد من تسجيل هذه الشاشة كمباعة؟ لا يمكن التراجع بسهولة.',
+              style: TextStyle(fontFamily: 'Cairo', color: AppColors.textSecondary)),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('إلغاء', style: TextStyle(fontFamily: 'Cairo', color: AppColors.textMuted)),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.error,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+              child: const Text('تأكيد البيع', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.w700)),
+            ),
+          ],
+        ),
+      );
+      if (confirmed != true) return;
+    }
     try {
       final api = ref.read(apiClientProvider);
       if (newStatus == 'sold') {
