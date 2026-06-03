@@ -11,9 +11,10 @@ class ApiClient {
   bool _isRefreshing = false;
 
   ApiClient() {
-    // On Flutter Web, use the current page origin so requests go through
-    // the Node.js proxy (/api/* → backend:8000). On mobile, use Render.com.
-    final String base = kIsWeb
+    // On Replit dev (host contains 'replit'), use the page origin so requests
+    // go through the Node.js proxy (/api/* → backend:8000).
+    // On Netlify or mobile, call the backend URL directly.
+    final String base = kIsWeb && Uri.base.host.contains('replit')
         ? Uri.base.origin
         : AppConstants.baseUrl;
 
