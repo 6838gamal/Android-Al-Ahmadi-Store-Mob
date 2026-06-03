@@ -77,22 +77,23 @@
           <td class="px-4 py-3 text-gray-300 text-sm">{{ item.brand or '' }} {{ item.model or '' }}</td>
           <td class="px-4 py-3">
             {% set grade_colors = {'A+':'#22C55E','A':'#3B82F6','B':'#F59E0B','C':'#EF4444'} %}
-            <span class="badge" style="background:{{ grade_colors.get(item.grade.value,'#6B7280') }}22;color:{{ grade_colors.get(item.grade.value,'#6B7280') }}">{{ item.grade.value }}</span>
+            <span class="badge" style="background:{{ grade_colors.get(item.grade|v,'#6B7280') }}22;color:{{ grade_colors.get(item.grade|v,'#6B7280') }}">{{ item.grade|v }}</span>
           </td>
           <td class="px-4 py-3 text-white font-bold text-sm">{{ item.price }}</td>
           <td class="px-4 py-3">
             {% set sc = {'available':'#22C55E','reserved':'#F59E0B','sold':'#EF4444'} %}
             {% set sl = {'available':'متوفر','reserved':'محجوز','sold':'مباع'} %}
-            <span class="badge" style="background:{{ sc.get(item.status.value,'#6B7280') }}22;color:{{ sc.get(item.status.value,'#6B7280') }}">{{ sl.get(item.status.value, item.status.value) }}</span>
+            {% set ist = item.status|v %}
+            <span class="badge" style="background:{{ sc.get(ist,'#6B7280') }}22;color:{{ sc.get(ist,'#6B7280') }}">{{ sl.get(ist, ist) }}</span>
           </td>
           <td class="px-4 py-3 text-gray-400 text-sm">{{ item.branch.name if item.branch else '—' }}</td>
           <td class="px-4 py-3 text-gray-500 text-xs">{{ item.created_at.strftime('%Y-%m-%d %H:%M') if item.created_at else '—' }}</td>
           <td class="px-4 py-3">
-            {% if item.status.value == 'sold' %}
+            {% if ist == 'sold' %}
             <form method="post" action="/inventory/{{ item.id }}/return-stock" class="inline">
               <button class="text-xs text-yellow-400 hover:text-yellow-300 font-bold">إعادة للمخزون</button>
             </form>
-            {% elif item.status.value == 'available' %}
+            {% elif ist == 'available' %}
             <form method="post" action="/inventory/{{ item.id }}/sell" class="inline">
               <button class="text-xs text-green-400 hover:text-green-300 font-bold">تسجيل بيع</button>
             </form>

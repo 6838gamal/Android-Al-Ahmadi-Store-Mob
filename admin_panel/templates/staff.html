@@ -42,8 +42,9 @@
           <td class="px-4 py-3">
             {% set role_colors = {'staff':'#3B82F6','branch_manager':'#8B5CF6','admin':'#EF4444'} %}
             {% set role_labels = {'staff':'موظف','branch_manager':'مدير فرع','admin':'مدير عام'} %}
-            <span class="badge" style="background:{{ role_colors.get(s.role.value,'#6B7280') }}22;color:{{ role_colors.get(s.role.value,'#6B7280') }}">
-              {{ role_labels.get(s.role.value, s.role.value) }}
+            {% set role_key = s.role|v %}
+            <span class="badge" style="background:{{ role_colors.get(role_key,'#6B7280') }}22;color:{{ role_colors.get(role_key,'#6B7280') }}">
+              {{ role_labels.get(role_key, role_key) }}
             </span>
           </td>
           <td class="px-4 py-3 text-gray-400 text-sm">{{ s.branch.name if s.branch else '—' }}</td>
@@ -57,7 +58,7 @@
           <td class="px-4 py-3 text-gray-500 text-xs">{{ s.created_at.strftime('%Y-%m-%d %H:%M') if s.created_at else '—' }}</td>
           <td class="px-4 py-3">
             <div class="flex items-center gap-2">
-              <button onclick="openEditStaff({{ s.id }}, '{{ s.name }}', '{{ s.phone or '' }}', '{{ s.email or '' }}', '{{ s.role.value }}')"
+              <button onclick="openEditStaff({{ s.id }}, '{{ s.name|replace("'","\\'")|replace('"','\\"') }}', '{{ (s.phone or '') }}', '{{ (s.email or '') }}', '{{ role_key }}')"
                 class="text-xs text-blue-400 hover:text-blue-300 font-bold">تعديل</button>
               <span class="text-gray-600">|</span>
               <form method="post" action="/staff/{{ s.id }}/toggle-active" class="inline">

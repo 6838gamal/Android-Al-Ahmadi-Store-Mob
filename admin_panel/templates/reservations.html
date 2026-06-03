@@ -33,7 +33,7 @@
       </thead>
       <tbody>
         {% for res in reservations %}
-        {% set s = res.status.value %}
+        {% set s = res.status|v %}
         <tr class="table-row">
           <td class="px-5 py-3 text-primary font-bold">{{ res.reservation_number }}</td>
           <td class="px-5 py-3">

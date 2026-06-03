@@ -25,8 +25,9 @@
       </div>
       {% set sc = {'pending':'#F59E0B','under_review':'#3B82F6','responded':'#22C55E','closed':'#6B7280'} %}
       {% set sl = {'pending':'انتظار','under_review':'قيد المراجعة','responded':'تمت الاستجابة','closed':'مغلق'} %}
-      <span class="badge" style="background:{{ sc.get(req.status.value,'#6B7280') }}22;color:{{ sc.get(req.status.value,'#6B7280') }}">
-        {{ sl.get(req.status.value, req.status.value) }}
+      {% set rst = req.status|v %}
+      <span class="badge" style="background:{{ sc.get(rst,'#6B7280') }}22;color:{{ sc.get(rst,'#6B7280') }}">
+        {{ sl.get(rst, rst) }}
       </span>
     </div>
     <p class="text-gray-300 text-sm mb-3 bg-dark-alt rounded-lg p-3">{{ req.problem_description }}</p>
@@ -45,7 +46,7 @@
     </div>
     {% endif %}
 
-    {% if req.status.value in ['pending','under_review'] %}
+    {% if rst in ['pending','under_review'] %}
     <form method="post" action="/inspection/{{ req.id }}/respond" enctype="multipart/form-data">
       <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
         <div>
@@ -66,7 +67,7 @@
     </form>
     {% endif %}
 
-    {% if req.status.value != 'closed' %}
+    {% if rst != 'closed' %}
     <form method="post" action="/inspection/{{ req.id }}/close" class="mt-2 inline">
       <button class="btn-secondary text-xs">إغلاق الطلب</button>
     </form>

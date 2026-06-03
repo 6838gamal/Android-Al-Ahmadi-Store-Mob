@@ -16,6 +16,18 @@ from urllib.parse import quote as _q
 API_BASE = "https://android-al-ahmadi-store-api.onrender.com"
 
 app = FastAPI(title="لوحة إدارة اندرويد الاحمدي", docs_url=None, redoc_url=None)
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    import traceback
+    tb = traceback.format_exc()
+    print(f"[UNHANDLED 500] {request.method} {request.url}\n{tb}")
+    from fastapi.responses import HTMLResponse
+    return HTMLResponse(
+        f"<pre style='color:red;padding:20px'><b>500 Internal Server Error</b>\n\n{tb}</pre>",
+        status_code=500,
+    )
+
 app.add_middleware(
     SessionMiddleware,
     secret_key=os.getenv("SECRET_KEY", "admin-alahmadi-panel-secret-2026"),
@@ -31,6 +43,9 @@ app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
 app.mount("/static", StaticFiles(directory=os.path.join(os.path.dirname(__file__), "static")), name="static")
 
 templates = Jinja2Templates(directory=os.path.join(os.path.dirname(__file__), "templates"))
+
+# Safe enum/string value: {{ item.status|v }} works for both plain str and enum-like object
+templates.env.filters['v'] = lambda x: (getattr(x, 'value', x) if x is not None else '')
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
 

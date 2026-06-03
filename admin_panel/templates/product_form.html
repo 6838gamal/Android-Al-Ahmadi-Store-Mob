@@ -54,7 +54,7 @@
             <label class="text-gray-400 text-sm font-semibold mb-2 block">الحالة</label>
             <select name="status" class="select-field w-full">
               {% for val, lbl in [('available','متوفر'),('reserved','محجوز'),('sold','مباع'),('unavailable','غير متوفر')] %}
-              <option value="{{ val }}" {% if product and product.status.value == val %}selected{% endif %}>{{ lbl }}</option>
+              <option value="{{ val }}" {% if product and product.status|v == val %}selected{% endif %}>{{ lbl }}</option>
               {% endfor %}
             </select>
           </div>

@@ -41,7 +41,7 @@
       </thead>
       <tbody>
         {% for p in products %}
-        {% set s = p.status.value %}
+        {% set s = p.status|v %}
         {% set status_colors = {'available':'#22C55E','reserved':'#F59E0B','sold':'#6B7280','unavailable':'#EF4444'} %}
         {% set status_labels_map = {'available':'متوفر','reserved':'محجوز','sold':'مباع','unavailable':'غير متوفر'} %}
         <tr class="table-row">

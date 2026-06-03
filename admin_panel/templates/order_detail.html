@@ -7,7 +7,7 @@
 <div class="flex items-center gap-3 mb-6">
   <a href="/orders" class="btn-secondary"><i class="fa-solid fa-arrow-right"></i> رجوع</a>
   <h1 class="text-white text-xl font-extrabold">طلب {{ order.order_number }}</h1>
-  {% set s = order.status.value %}
+  {% set s = order.status|v %}
   {% set status_colors = {'received':'#6B7280','reviewing':'#F59E0B','confirmed':'#3B82F6','preparing':'#8B5CF6','shipped':'#06B6D4','on_the_way':'#10B981','delivered':'#22C55E','cancelled':'#EF4444'} %}
   <span class="badge" style="background:{{ status_colors.get(s,'#6B7280') }}22; color:{{ status_colors.get(s,'#6B7280') }}">
     {{ status_labels.get(s, s) }}
@@ -86,7 +86,7 @@
           <label class="text-gray-400 text-sm font-semibold mb-2 block">الحالة الجديدة</label>
           <select name="status" class="select-field w-full">
             {% for val, lbl in all_statuses %}
-            <option value="{{ val }}" {% if order.status.value == val %}selected{% endif %}>{{ lbl }}</option>
+            <option value="{{ val }}" {% if s == val %}selected{% endif %}>{{ lbl }}</option>
             {% endfor %}
           </select>
         </div>

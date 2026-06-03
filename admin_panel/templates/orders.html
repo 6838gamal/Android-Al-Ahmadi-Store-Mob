@@ -48,7 +48,7 @@
       </thead>
       <tbody>
         {% for order in orders %}
-        {% set s = order.status.value %}
+        {% set s = order.status|v %}
         <tr class="table-row">
           <td class="px-5 py-3">
             <a href="/orders/{{ order.id }}" class="text-primary font-bold hover:underline">{{ order.order_number }}</a>
