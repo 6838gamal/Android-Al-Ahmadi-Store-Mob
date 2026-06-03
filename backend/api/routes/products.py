@@ -7,6 +7,8 @@ from backend.schemas.product import ProductCreate, ProductUpdate, ProductRespons
 from backend.api.dependencies import get_admin_user, get_current_user
 from backend.models.user import User
 from backend.core.samsung_catalog import get_catalog_tree, MODEL_TO_SERIES, ALL_MODEL_KEYS
+from backend.core.notifications_helper import push_notification
+from backend.models.notification import NotificationType
 
 router = APIRouter()
 
@@ -111,3 +113,28 @@ def delete_product(
     product.is_active = False
     db.commit()
     return {"message": "Product deleted"}
+
+
+@router.post("/{product_id}/restock-request")
+def request_restock(
+    product_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Customer requests restocking of a sold/unavailable product."""
+    product = db.query(Product).filter(Product.id == product_id, Product.is_active == True).first()
+    if not product:
+        raise HTTPException(status_code=404, detail="المنتج غير موجود")
+    admins = db.query(User).filter(User.role == "admin").all()
+    for admin in admins:
+        push_notification(
+            db, admin.id,
+            title="📦 طلب إعادة توفير منتج",
+            body=f"طلب {current_user.name} إعادة توفير: {product.name}",
+            notif_type=NotificationType.system,
+            is_important=True,
+            reference_id=product_id,
+            reference_type="product",
+        )
+    db.commit()
+    return {"message": "تم إرسال طلب إعادة التوفير بنجاح، سيتم إشعارك عند توفّره"}

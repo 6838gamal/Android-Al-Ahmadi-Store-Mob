@@ -38,18 +38,18 @@
             <label class="text-gray-400 text-sm font-semibold mb-2 block">الماركة</label>
             <input type="text" name="brand" value="{{ product.brand or '' if product else '' }}" class="input-field" placeholder="Samsung, Apple...">
           </div>
-          <div>
-            <label class="text-gray-400 text-sm font-semibold mb-2 block">الموديل</label>
-            <input type="text" name="model" value="{{ product.model or '' if product else '' }}" class="input-field" placeholder="S24, iPhone 15...">
-          </div>
+
+          <!-- Fئة -->
           <div>
             <label class="text-gray-400 text-sm font-semibold mb-2 block">الفئة <span class="text-red-400">*</span></label>
-            <select name="category" required class="select-field w-full">
+            <select name="category" id="categorySelect" required class="select-field w-full" onchange="onCategoryChange(this.value)">
               {% for val, label in categories %}
               <option value="{{ val }}" {% if product and product.category.value == val %}selected{% endif %}>{{ label }}</option>
               {% endfor %}
             </select>
           </div>
+
+          <!-- حالة -->
           <div>
             <label class="text-gray-400 text-sm font-semibold mb-2 block">الحالة</label>
             <select name="status" class="select-field w-full">
@@ -58,7 +58,42 @@
               {% endfor %}
             </select>
           </div>
+
+          <!-- الموديل -->
+          <div class="md:col-span-2">
+            <label class="text-gray-400 text-sm font-semibold mb-2 block">الموديل</label>
+            <input type="text" name="model" id="modelText" value="{{ product.model or '' if product else '' }}" class="input-field" placeholder="S24, iPhone 15... (يُملأ تلقائياً من القائمة أدناه)">
+          </div>
         </div>
+
+        <!-- Samsung Series block — shown only when category=screen -->
+        <div id="seriesBlock" class="hidden">
+          <div class="bg-blue-500/10 border border-blue-500/20 rounded-xl p-4 space-y-3">
+            <p class="text-blue-400 text-sm font-bold flex items-center gap-2">
+              <i class="fa-solid fa-mobile-screen-button"></i>
+              تصنيف سامسونج — اختر الفئة والموديل
+            </p>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label class="text-gray-400 text-sm font-semibold mb-2 block">الفئة الرئيسية</label>
+                <select id="seriesSelect" class="select-field w-full" onchange="onSeriesChange(this.value)">
+                  <option value="">-- اختر الفئة --</option>
+                  {% for s in samsung_series %}
+                  <option value="{{ s.key }}" {% if product and product.series == s.key %}selected{% endif %}>{{ s.label_ar }}</option>
+                  {% endfor %}
+                </select>
+                <input type="hidden" name="series" id="seriesHidden" value="{{ product.series if product and product.series else '' }}">
+              </div>
+              <div>
+                <label class="text-gray-400 text-sm font-semibold mb-2 block">الموديل (من القائمة)</label>
+                <select id="modelSelect" class="select-field w-full" onchange="onModelSelect(this.value)">
+                  <option value="">-- اختر الموديل --</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <div>
           <label class="text-gray-400 text-sm font-semibold mb-2 block">الوصف</label>
           <textarea name="description" rows="3" class="input-field resize-none" placeholder="وصف تفصيلي للمنتج...">{{ product.description or '' if product else '' }}</textarea>
@@ -70,13 +105,12 @@
       </div>
     </div>
 
-    <!-- Sidebar info -->
+    <!-- Sidebar -->
     <div class="space-y-5">
-      <!-- Pricing & Stock -->
       <div class="card p-6 space-y-4">
         <h2 class="text-white font-bold border-b border-dark-border pb-3">السعر والمخزون</h2>
         <div>
-          <label class="text-gray-400 text-sm font-semibold mb-2 block">السعر (ر.س) <span class="text-red-400">*</span></label>
+          <label class="text-gray-400 text-sm font-semibold mb-2 block">السعر (ر.ي) <span class="text-red-400">*</span></label>
           <input type="number" name="price" value="{{ product.price if product else '' }}" required step="0.01" min="0" class="input-field" placeholder="0.00">
         </div>
         <div>
@@ -90,7 +124,6 @@
         </label>
       </div>
 
-      <!-- Image -->
       <div class="card p-6 space-y-4">
         <h2 class="text-white font-bold border-b border-dark-border pb-3">صورة المنتج</h2>
         {% if product and product.image_url %}
@@ -118,6 +151,44 @@
 
 {% block scripts %}
 <script>
+const samsungSeries = {{ samsung_series | tojson }};
+
+function onCategoryChange(val) {
+  const block = document.getElementById('seriesBlock');
+  if (val === 'screen') {
+    block.classList.remove('hidden');
+  } else {
+    block.classList.add('hidden');
+    document.getElementById('seriesHidden').value = '';
+  }
+}
+
+function onSeriesChange(seriesKey) {
+  document.getElementById('seriesHidden').value = seriesKey;
+  const modelSelect = document.getElementById('modelSelect');
+  modelSelect.innerHTML = '<option value="">-- اختر الموديل --</option>';
+  const series = samsungSeries.find(s => s.key === seriesKey);
+  if (series) {
+    series.models.forEach(m => {
+      const opt = document.createElement('option');
+      opt.value = m.key;
+      opt.textContent = m.label_ar + ' (' + m.key + ')';
+      modelSelect.appendChild(opt);
+    });
+    // Restore existing model selection when editing
+    const cur = document.getElementById('modelText').value;
+    if (cur) {
+      for (let i = 0; i < modelSelect.options.length; i++) {
+        if (modelSelect.options[i].value === cur) { modelSelect.selectedIndex = i; break; }
+      }
+    }
+  }
+}
+
+function onModelSelect(modelKey) {
+  if (modelKey) document.getElementById('modelText').value = modelKey;
+}
+
 function previewImage(input) {
   if (input.files && input.files[0]) {
     const reader = new FileReader();
@@ -129,5 +200,15 @@ function previewImage(input) {
     reader.readAsDataURL(input.files[0]);
   }
 }
+
+(function() {
+  const cat = document.getElementById('categorySelect').value;
+  onCategoryChange(cat);
+  const existingSeries = document.getElementById('seriesHidden').value;
+  if (existingSeries) {
+    document.getElementById('seriesSelect').value = existingSeries;
+    onSeriesChange(existingSeries);
+  }
+})();
 </script>
 {% endblock %}

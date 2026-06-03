@@ -10,6 +10,7 @@ import '../../../../shared/widgets/status_badge.dart';
 import '../../../../shared/widgets/loading_widget.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../providers/products_provider.dart';
+import '../../../auth/presentation/providers/auth_provider.dart';
 
 class ProductDetailPage extends ConsumerStatefulWidget {
   final int productId;
@@ -22,6 +23,7 @@ class ProductDetailPage extends ConsumerStatefulWidget {
 class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
   Map<String, dynamic>? _product;
   bool _loading = true;
+  bool _requestingSrestock = false;
 
   @override
   void initState() {
@@ -49,7 +51,9 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
   Widget _buildDetail() {
     final p = _product!;
     final status = p['status'] as String? ?? 'available';
-    final canOrder = status == 'available';
+    final qty = (p['quantity'] as num?)?.toInt() ?? 0;
+    final canOrder = status == 'available' && qty > 0;
+    final isSoldOut = status == 'sold' || status == 'unavailable' || (status == 'available' && qty == 0);
 
     return CustomScrollView(
       slivers: [
@@ -63,19 +67,48 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
             IconButton(icon: const Icon(Icons.share_outlined, color: Colors.white), onPressed: () {}),
           ],
           flexibleSpace: FlexibleSpaceBar(
-            background: p['image_url'] != null
-                ? GestureDetector(
-                    onTap: () => _showImageZoom(context, '${AppConstants.baseUrl}${p['image_url']}'),
-                    child: Hero(
-                      tag: 'product_img_${widget.productId}',
-                      child: CachedNetworkImage(
-                          imageUrl: '${AppConstants.baseUrl}${p['image_url']}',
-                          fit: BoxFit.cover,
-                          placeholder: (_, __) => _imagePlaceholder(),
-                          errorWidget: (_, __, ___) => _imagePlaceholder()),
+            background: Stack(
+              fit: StackFit.expand,
+              children: [
+                p['image_url'] != null
+                    ? GestureDetector(
+                        onTap: () => _showImageZoom(context, '${AppConstants.baseUrl}${p['image_url']}'),
+                        child: Hero(
+                          tag: 'product_img_${widget.productId}',
+                          child: CachedNetworkImage(
+                              imageUrl: '${AppConstants.baseUrl}${p['image_url']}',
+                              fit: BoxFit.cover,
+                              placeholder: (_, __) => _imagePlaceholder(),
+                              errorWidget: (_, __, ___) => _imagePlaceholder()),
+                        ),
+                      )
+                    : _imagePlaceholder(),
+                // Sold-out overlay
+                if (isSoldOut)
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.55),
                     ),
-                  )
-                : _imagePlaceholder(),
+                    child: Center(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: status == 'sold' ? Colors.red.shade800 : Colors.grey.shade800,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.white24),
+                        ),
+                        child: Text(
+                          status == 'sold' ? 'تم البيع' : qty == 0 ? 'نفذت الكمية' : 'غير متوفر',
+                          style: const TextStyle(
+                            fontFamily: 'Cairo', color: Colors.white,
+                            fontSize: 18, fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
           ),
         ),
         SliverPadding(
@@ -94,6 +127,22 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
               const SizedBox(height: 8),
               if (p['brand'] != null)
                 Text('${p['brand']} ${p['model'] ?? ''}', style: const TextStyle(fontFamily: 'Cairo', color: AppColors.textSecondary)),
+              // Series badge
+              if (p['series'] != null) ...[
+                const SizedBox(height: 4),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withOpacity(0.12),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: AppColors.primary.withOpacity(0.25)),
+                  ),
+                  child: Text(
+                    p['series'] == 's_series' ? 'فئة S Series' : p['series'] == 'note_series' ? 'فئة Note Series' : p['series'],
+                    style: const TextStyle(fontFamily: 'Cairo', color: AppColors.primary, fontSize: 11, fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ],
               const SizedBox(height: 16),
               Row(
                 children: [
@@ -102,11 +151,8 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
                     style: const TextStyle(fontFamily: 'Cairo', fontSize: 26, fontWeight: FontWeight.w700, color: AppColors.primary),
                   ),
                   const Spacer(),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(color: AppColors.darkCard, borderRadius: BorderRadius.circular(10), border: Border.all(color: AppColors.darkBorder)),
-                    child: Text('المتوفر: ${p['quantity'] ?? 0}', style: const TextStyle(fontFamily: 'Cairo', color: AppColors.textSecondary, fontSize: 13)),
-                  ),
+                  // Quantity / availability chip
+                  _AvailabilityChip(status: status, qty: qty),
                 ],
               ),
               const SizedBox(height: 20),
@@ -118,36 +164,63 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
                 Text(p['description'], style: const TextStyle(fontFamily: 'Cairo', color: AppColors.textSecondary, height: 1.7)),
                 const SizedBox(height: 20),
               ],
-              // Specs
               _SpecRow(label: 'الفئة', value: AppConstants.categoryAr[p['category']] ?? p['category'] ?? ''),
               if (p['brand'] != null) _SpecRow(label: 'الماركة', value: p['brand']),
               if (p['model'] != null) _SpecRow(label: 'الموديل', value: p['model']),
               const SizedBox(height: 32),
-              Row(
-                children: [
-                  Expanded(
-                    child: AppButton(
-                      text: 'حجز',
-                      isOutlined: true,
-                      icon: Icons.bookmark_outline,
-                      onPressed: canOrder ? () => _reserve(context) : null,
+              // Action buttons
+              if (canOrder)
+                Row(
+                  children: [
+                    Expanded(
+                      child: AppButton(
+                        text: 'حجز',
+                        isOutlined: true,
+                        icon: Icons.bookmark_outline,
+                        onPressed: () => _reserve(context),
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: AppButton(
-                      text: 'طلب الآن',
-                      icon: Icons.shopping_cart_outlined,
-                      onPressed: canOrder ? () => context.push('/orders/create') : null,
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: AppButton(
+                        text: 'طلب الآن',
+                        icon: Icons.shopping_cart_outlined,
+                        onPressed: () => context.push('/orders/create'),
+                      ),
                     ),
-                  ),
-                ],
-              ).animate(delay: 200.ms).fadeIn().slideY(begin: 0.3, end: 0),
+                  ],
+                ).animate(delay: 200.ms).fadeIn().slideY(begin: 0.3, end: 0)
+              else
+                _RestockButton(
+                  productId: widget.productId,
+                  status: status,
+                  isRequesting: _requestingSrestock,
+                  onRequest: _handleRestockRequest,
+                ).animate(delay: 200.ms).fadeIn().slideY(begin: 0.3, end: 0),
               const SizedBox(height: 32),
             ]),
           ),
         ),
       ],
+    );
+  }
+
+  Future<void> _handleRestockRequest() async {
+    final auth = ref.read(authProvider);
+    if (!auth.isAuthenticated) {
+      if (!mounted) return;
+      AppUtils.showSnackBar(context, 'يجب تسجيل الدخول أولاً لطلب إعادة التوفير');
+      context.push('/login');
+      return;
+    }
+    setState(() => _requestingSrestock = true);
+    final msg = await ref.read(productsProvider.notifier).requestRestock(widget.productId);
+    if (!mounted) return;
+    setState(() => _requestingSrestock = false);
+    AppUtils.showSnackBar(
+      context,
+      msg ?? 'تم إرسال طلب إعادة التوفير',
+      isError: msg == null,
     );
   }
 
@@ -185,10 +258,7 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
             Positioned(
               top: 44, right: 16,
               child: Container(
-                decoration: BoxDecoration(
-                  color: Colors.black54,
-                  borderRadius: BorderRadius.circular(20),
-                ),
+                decoration: BoxDecoration(color: Colors.black54, borderRadius: BorderRadius.circular(20)),
                 child: IconButton(
                   icon: const Icon(Icons.close, color: Colors.white, size: 24),
                   onPressed: () => Navigator.pop(context),
@@ -196,15 +266,11 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
               ),
             ),
             Positioned(
-              bottom: 24,
-              left: 0, right: 0,
+              bottom: 24, left: 0, right: 0,
               child: Center(
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: Colors.black54,
-                    borderRadius: BorderRadius.circular(20),
-                  ),
+                  decoration: BoxDecoration(color: Colors.black54, borderRadius: BorderRadius.circular(20)),
                   child: const Text('اسحب للتكبير/التصغير',
                     style: TextStyle(fontFamily: 'Cairo', color: Colors.white70, fontSize: 12)),
                 ),
@@ -222,6 +288,132 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
     );
   }
 }
+
+// ── Availability chip ──────────────────────────────────────────────────────────
+
+class _AvailabilityChip extends StatelessWidget {
+  final String status;
+  final int qty;
+  const _AvailabilityChip({required this.status, required this.qty});
+
+  @override
+  Widget build(BuildContext context) {
+    Color bg;
+    Color fg;
+    String label;
+    IconData icon;
+
+    if (status == 'available' && qty > 0) {
+      bg = AppColors.success.withOpacity(0.15);
+      fg = AppColors.success;
+      icon = Icons.check_circle_outline;
+      label = 'متوفر ($qty)';
+    } else if (status == 'available' && qty == 0) {
+      bg = Colors.orange.withOpacity(0.15);
+      fg = Colors.orange;
+      icon = Icons.inventory_2_outlined;
+      label = 'نفذت الكمية';
+    } else if (status == 'sold') {
+      bg = Colors.red.withOpacity(0.15);
+      fg = Colors.red;
+      icon = Icons.sell_outlined;
+      label = 'تم البيع';
+    } else if (status == 'reserved') {
+      bg = AppColors.info.withOpacity(0.15);
+      fg = AppColors.info;
+      icon = Icons.bookmark_outlined;
+      label = 'محجوز';
+    } else {
+      bg = AppColors.darkCard;
+      fg = AppColors.textMuted;
+      icon = Icons.block_outlined;
+      label = 'غير متوفر';
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(10), border: Border.all(color: fg.withOpacity(0.3))),
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        Icon(icon, color: fg, size: 15),
+        const SizedBox(width: 5),
+        Text(label, style: TextStyle(fontFamily: 'Cairo', color: fg, fontSize: 12, fontWeight: FontWeight.w700)),
+      ]),
+    );
+  }
+}
+
+// ── Restock request button ─────────────────────────────────────────────────────
+
+class _RestockButton extends StatelessWidget {
+  final int productId;
+  final String status;
+  final bool isRequesting;
+  final VoidCallback onRequest;
+
+  const _RestockButton({
+    required this.productId,
+    required this.status,
+    required this.isRequesting,
+    required this.onRequest,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.orange.withOpacity(0.08),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.orange.withOpacity(0.25)),
+          ),
+          child: Column(children: [
+            Icon(
+              status == 'sold' ? Icons.sell_outlined : Icons.inventory_2_outlined,
+              color: Colors.orange, size: 36,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              status == 'sold' ? 'هذا المنتج تم بيعه' : 'هذا المنتج غير متوفر حالياً',
+              style: const TextStyle(fontFamily: 'Cairo', color: Colors.white, fontWeight: FontWeight.w700, fontSize: 15),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 4),
+            const Text(
+              'يمكنك طلب إعادة توفيره وسيتم إشعارك عند توفّره',
+              style: TextStyle(fontFamily: 'Cairo', color: AppColors.textMuted, fontSize: 12),
+              textAlign: TextAlign.center,
+            ),
+          ]),
+        ),
+        const SizedBox(height: 12),
+        SizedBox(
+          width: double.infinity,
+          child: ElevatedButton.icon(
+            onPressed: isRequesting ? null : onRequest,
+            icon: isRequesting
+                ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                : const Icon(Icons.notifications_active_outlined, size: 20),
+            label: Text(
+              isRequesting ? 'جارٍ الإرسال...' : 'طلب إعادة التوفير',
+              style: const TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.w700, fontSize: 14),
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.orange,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ── Spec row ───────────────────────────────────────────────────────────────────
 
 class _SpecRow extends StatelessWidget {
   final String label;

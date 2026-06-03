@@ -1,4 +1,4 @@
-import random, string
+import random, string, os
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 from backend.core.database import get_db
@@ -11,6 +11,16 @@ from backend.models.notification import NotificationType
 from typing import List
 
 router = APIRouter()
+
+
+def _frontend_base_url(request: Request) -> str:
+    """Return the public-facing frontend URL (Flutter app on port 5000 / Replit domain)."""
+    replit_domain = os.getenv("REPLIT_DEV_DOMAIN")
+    if replit_domain:
+        return f"https://{replit_domain}"
+    # Fallback: swap backend port 8000 → frontend port 5000
+    base = str(request.base_url).rstrip("/")
+    return base.replace(":8000", ":5000")
 
 LEVEL1_TARGET = 50
 
@@ -50,7 +60,7 @@ def my_referral_stats(
     db: Session = Depends(get_db),
 ):
     code = _ensure_referral_code(current_user, db)
-    base_url = str(request.base_url).rstrip("/")
+    base_url = _frontend_base_url(request)
 
     total = db.query(Referral).filter(Referral.referrer_id == current_user.id).count()
     verified = (

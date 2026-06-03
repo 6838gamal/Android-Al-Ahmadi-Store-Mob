@@ -206,15 +206,27 @@ async def products_list(request: Request, search: str = ""):
     })
 
 
+_CATEGORIES = [
+    ("screen","شاشة"), ("battery","بطارية"), ("camera","كاميرا"),
+    ("speaker","سماعة"), ("charger","شاحن"), ("device","جهاز"),
+    ("spare_part","قطعة غيار"), ("other","أخرى"),
+]
+
+from backend.core.samsung_catalog import SAMSUNG_CATALOG as _SAMSUNG_CATALOG
+
+_SAMSUNG_SERIES = [
+    {"key": k, "label_ar": v["label_ar"], "models": v["models"]}
+    for k, v in _SAMSUNG_CATALOG.items()
+]
+
+
 @app.get("/products/add", response_class=HTMLResponse)
 async def product_add_page(request: Request):
     if not _logged(request):
         return _redirect_login()
     return templates.TemplateResponse(request, "product_form.html", {
         "admin_name": _name(request), "product": None, "error": None,
-        "categories": [("screen","شاشة"),("battery","بطارية"),("camera","كاميرا"),
-                       ("speaker","سماعة"),("charger","شاحن"),("device","جهاز"),
-                       ("spare_part","قطعة غيار"),("other","أخرى")],
+        "categories": _CATEGORIES, "samsung_series": _SAMSUNG_SERIES,
     })
 
 
@@ -222,8 +234,9 @@ async def product_add_page(request: Request):
 async def product_add_post(
     request: Request,
     name: str = Form(...), name_ar: str = Form(""), brand: str = Form(""),
-    model: str = Form(""), category: str = Form(...), price: float = Form(...),
-    quantity: int = Form(0), description: str = Form(""), notes: str = Form(""),
+    model: str = Form(""), series: str = Form(""), category: str = Form(...),
+    price: float = Form(...), quantity: int = Form(0),
+    description: str = Form(""), notes: str = Form(""),
     is_featured: Optional[str] = Form(None),
     image: Optional[UploadFile] = File(None),
 ):
@@ -241,7 +254,8 @@ async def product_add_post(
 
     payload = {
         "name": name, "name_ar": name_ar or None, "brand": brand or None,
-        "model": model or None, "category": category, "price": price,
+        "model": model or None, "series": series or None,
+        "category": category, "price": price,
         "quantity": quantity, "description": description or None,
         "notes": notes or None, "is_featured": bool(is_featured),
         "image_url": image_url,
@@ -259,9 +273,7 @@ async def product_edit_page(product_id: int, request: Request):
         return RedirectResponse("/products", status_code=302)
     return templates.TemplateResponse(request, "product_form.html", {
         "admin_name": _name(request), "product": to_obj(raw), "error": None,
-        "categories": [("screen","شاشة"),("battery","بطارية"),("camera","كاميرا"),
-                       ("speaker","سماعة"),("charger","شاحن"),("device","جهاز"),
-                       ("spare_part","قطعة غيار"),("other","أخرى")],
+        "categories": _CATEGORIES, "samsung_series": _SAMSUNG_SERIES,
     })
 
 
@@ -269,8 +281,9 @@ async def product_edit_page(product_id: int, request: Request):
 async def product_edit_post(
     product_id: int, request: Request,
     name: str = Form(...), name_ar: str = Form(""), brand: str = Form(""),
-    model: str = Form(""), category: str = Form(...), price: float = Form(...),
-    quantity: int = Form(0), description: str = Form(""), notes: str = Form(""),
+    model: str = Form(""), series: str = Form(""), category: str = Form(...),
+    price: float = Form(...), quantity: int = Form(0),
+    description: str = Form(""), notes: str = Form(""),
     is_featured: Optional[str] = Form(None), status: str = Form("available"),
     image: Optional[UploadFile] = File(None),
 ):
@@ -288,7 +301,8 @@ async def product_edit_post(
 
     payload = {
         "name": name, "name_ar": name_ar or None, "brand": brand or None,
-        "model": model or None, "category": category, "price": price,
+        "model": model or None, "series": series or None,
+        "category": category, "price": price,
         "quantity": quantity, "description": description or None,
         "notes": notes or None, "is_featured": bool(is_featured), "status": status,
     }

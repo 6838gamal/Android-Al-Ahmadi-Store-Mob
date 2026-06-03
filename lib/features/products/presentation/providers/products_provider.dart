@@ -75,6 +75,15 @@ class ProductsNotifier extends StateNotifier<ProductsState> {
     }
   }
 
+  Future<String?> requestRestock(int productId) async {
+    try {
+      final res = await _api.post('/products/$productId/restock-request');
+      return res.data['message'] as String?;
+    } catch (e) {
+      return null;
+    }
+  }
+
   static Future<List<Map<String, dynamic>>> _loadCache() async {
     try {
       final prefs = await SharedPreferences.getInstance();
