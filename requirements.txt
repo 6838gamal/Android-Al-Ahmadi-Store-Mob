@@ -5,6 +5,7 @@ fastapi
 httpx
 itsdangerous
 Jinja2
+openpyxl
 passlib[bcrypt]
 pillow
 psycopg2-binary
