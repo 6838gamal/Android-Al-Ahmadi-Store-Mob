@@ -34,6 +34,7 @@
           <th class="px-5 py-3 text-right font-semibold">السعر</th>
           <th class="px-5 py-3 text-right font-semibold">الكمية</th>
           <th class="px-5 py-3 text-right font-semibold">الحالة</th>
+          <th class="px-5 py-3 text-right font-semibold">تاريخ الإضافة</th>
           <th class="px-5 py-3 text-right font-semibold">إجراءات</th>
         </tr>
       </thead>
@@ -71,6 +72,7 @@
               {{ status_labels_map.get(s, s) }}
             </span>
           </td>
+          <td class="px-5 py-3 text-gray-500 text-xs">{{ p.created_at.strftime('%Y-%m-%d %H:%M') if p.created_at else '—' }}</td>
           <td class="px-5 py-3">
             <div class="flex items-center gap-2">
               <a href="/products/edit/{{ p.id }}" class="text-primary hover:text-blue-300 p-2 rounded-lg hover:bg-primary-light transition">

@@ -60,7 +60,7 @@
     <table class="w-full">
       <thead>
         <tr class="border-b border-dark-border">
-          {% for h in ['#','الرقم التسلسلي','الفئة','الموديل','الدرجة','السعر','الحالة','الفرع','إجراءات'] %}
+          {% for h in ['#','الرقم التسلسلي','الفئة','الموديل','الدرجة','السعر','الحالة','الفرع','تاريخ الإضافة','إجراءات'] %}
           <th class="px-4 py-3 text-right text-gray-400 text-xs font-bold">{{ h }}</th>
           {% endfor %}
         </tr>
@@ -83,6 +83,7 @@
             <span class="badge" style="background:{{ sc.get(item.status.value,'#6B7280') }}22;color:{{ sc.get(item.status.value,'#6B7280') }}">{{ sl.get(item.status.value, item.status.value) }}</span>
           </td>
           <td class="px-4 py-3 text-gray-400 text-sm">{{ item.branch.name if item.branch else '—' }}</td>
+          <td class="px-4 py-3 text-gray-500 text-xs">{{ item.created_at.strftime('%Y-%m-%d %H:%M') if item.created_at else '—' }}</td>
           <td class="px-4 py-3">
             {% if item.status.value == 'sold' %}
             <form method="post" action="/inventory/{{ item.id }}/return-stock" class="inline">
@@ -96,7 +97,7 @@
           </td>
         </tr>
         {% else %}
-        <tr><td colspan="9" class="px-4 py-8 text-center text-gray-500">لا توجد عناصر</td></tr>
+        <tr><td colspan="10" class="px-4 py-8 text-center text-gray-500">لا توجد عناصر</td></tr>
         {% endfor %}
       </tbody>
     </table>

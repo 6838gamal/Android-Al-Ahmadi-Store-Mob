@@ -337,5 +337,29 @@
     });
   </script>
   {% block scripts %}{% endblock %}
+
+  <!-- Flash toast: reads ?success= or ?error= from URL -->
+  <div id="flash-toast" style="display:none;position:fixed;top:20px;left:50%;transform:translateX(-50%);z-index:9999;min-width:280px;max-width:500px;padding:14px 22px;border-radius:12px;font-weight:700;font-size:14px;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,.5);transition:opacity .4s"></div>
+  <script>
+  (function(){
+    var p = new URLSearchParams(window.location.search);
+    var success = p.get('success'), error = p.get('error');
+    var msg = success || error;
+    if (!msg) return;
+    var el = document.getElementById('flash-toast');
+    if (success) {
+      el.style.cssText += ';background:#14532d;border:1px solid #22C55E;color:#22C55E';
+      el.innerHTML = '<i class="fa-solid fa-circle-check" style="margin-left:8px"></i>' + decodeURIComponent(msg.replace(/\+/g,' '));
+    } else {
+      el.style.cssText += ';background:#450a0a;border:1px solid #EF4444;color:#EF4444';
+      el.innerHTML = '<i class="fa-solid fa-circle-xmark" style="margin-left:8px"></i>' + decodeURIComponent(msg.replace(/\+/g,' '));
+    }
+    el.style.display = 'block';
+    setTimeout(function(){ el.style.opacity='0'; setTimeout(function(){ el.style.display='none'; },400); }, 5000);
+    var url = new URL(window.location);
+    url.searchParams.delete('success'); url.searchParams.delete('error');
+    window.history.replaceState({}, '', url);
+  })();
+  </script>
 </body>
 </html>

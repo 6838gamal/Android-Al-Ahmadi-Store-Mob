@@ -44,6 +44,7 @@
       {{ b.phone }}
     </div>
     {% endif %}
+    {% if b.created_at %}<div class="text-gray-600 text-xs"><i class="fa-solid fa-calendar-plus text-primary/60 me-1"></i>{{ b.created_at.strftime('%Y-%m-%d') }}</div>{% endif %}
     <div class="flex gap-2 pt-2 border-t border-dark-border">
       <button onclick="openEditBranch({{ b.id }}, '{{ b.name }}', '{{ b.city or '' }}', '{{ b.address or '' }}', '{{ b.phone or '' }}', {{ 'true' if b.is_active else 'false' }})"
         class="btn-secondary text-xs flex-1 justify-center">

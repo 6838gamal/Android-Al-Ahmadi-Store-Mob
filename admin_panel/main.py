@@ -10,6 +10,7 @@ from typing import Optional
 from types import SimpleNamespace
 from datetime import datetime
 import httpx
+from urllib.parse import quote as _q
 
 # ── Backend API (Render.com) ──────────────────────────────────────────────────
 API_BASE = "https://android-al-ahmadi-store-api.onrender.com"
@@ -77,6 +78,38 @@ async def api(method: str, path: str, token: str = None, real_ip: str = None, **
     except Exception as e:
         print(f"[admin] API error {method.upper()} {path}: {e}")
     return None
+
+
+async def api_ex(method: str, path: str, token: str = None, **kwargs):
+    """Extended API call — returns (data, error_msg). data=None means failure."""
+    headers = {}
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+    try:
+        async with httpx.AsyncClient(timeout=25.0, follow_redirects=True) as client:
+            resp = await getattr(client, method)(
+                f"{API_BASE}{path}", headers=headers, **kwargs
+            )
+        if resp.status_code in (200, 201):
+            return resp.json(), None
+        try:
+            body = resp.json()
+            if isinstance(body, dict):
+                detail = body.get("detail", str(body))
+                if isinstance(detail, list):
+                    detail = "; ".join(
+                        str(d.get("msg", d)) if isinstance(d, dict) else str(d)
+                        for d in detail
+                    )
+            else:
+                detail = str(body)
+        except Exception:
+            detail = resp.text[:300]
+        print(f"[admin] {method.upper()} {path} → {resp.status_code}: {detail}")
+        return None, f"خطأ {resp.status_code}: {detail}"
+    except Exception as e:
+        print(f"[admin] API error {method.upper()} {path}: {e}")
+        return None, f"خطأ في الاتصال بالخادم: {str(e)[:120]}"
 
 
 def _token(req: Request) -> str:
@@ -260,8 +293,10 @@ async def product_add_post(
         "notes": notes or None, "is_featured": bool(is_featured),
         "image_url": image_url,
     }
-    await api("post", "/api/products/", token=_token(request), json=payload)
-    return RedirectResponse("/products", status_code=302)
+    _, err = await api_ex("post", "/api/products/", token=_token(request), json=payload)
+    if err:
+        return RedirectResponse(f"/products?error={_q(err)}", status_code=302)
+    return RedirectResponse("/products?success=تم+إضافة+المنتج+بنجاح", status_code=302)
 
 
 @app.get("/products/edit/{product_id}", response_class=HTMLResponse)
@@ -308,8 +343,10 @@ async def product_edit_post(
     }
     if image_url:
         payload["image_url"] = image_url
-    await api("put", f"/api/products/{product_id}", token=_token(request), json=payload)
-    return RedirectResponse("/products", status_code=302)
+    _, err = await api_ex("put", f"/api/products/{product_id}", token=_token(request), json=payload)
+    if err:
+        return RedirectResponse(f"/products?error={_q(err)}", status_code=302)
+    return RedirectResponse("/products?success=تم+تحديث+المنتج+بنجاح", status_code=302)
 
 
 @app.post("/products/delete/{product_id}")
@@ -432,8 +469,10 @@ async def maintenance_add(
         "device_type": device_type, "problem_description": problem_description,
         "price": price, "notes": notes or None,
     }
-    await api("post", "/api/maintenance/", token=_token(request), json=payload)
-    return RedirectResponse("/maintenance", status_code=302)
+    _, err = await api_ex("post", "/api/maintenance/", token=_token(request), json=payload)
+    if err:
+        return RedirectResponse(f"/maintenance?error={_q(err)}", status_code=302)
+    return RedirectResponse("/maintenance?success=تم+إضافة+طلب+الصيانة+بنجاح", status_code=302)
 
 
 @app.post("/maintenance/{order_id}/status")
@@ -481,10 +520,12 @@ async def reservation_add(
 ):
     if not _logged(request):
         return _redirect_login()
-    await api("post", "/api/reservations/", token=_token(request),
-              json={"customer_name": customer_name, "customer_phone": customer_phone,
-                    "product_id": product_id, "notes": notes or None, "days": days})
-    return RedirectResponse("/reservations", status_code=302)
+    _, err = await api_ex("post", "/api/reservations/", token=_token(request),
+                          json={"customer_name": customer_name, "customer_phone": customer_phone,
+                                "product_id": product_id, "notes": notes or None, "days": days})
+    if err:
+        return RedirectResponse(f"/reservations?error={_q(err)}", status_code=302)
+    return RedirectResponse("/reservations?success=تم+إضافة+الحجز+بنجاح", status_code=302)
 
 
 @app.post("/reservations/{res_id}/cancel")
@@ -528,10 +569,12 @@ async def customer_add(
 ):
     if not _logged(request):
         return _redirect_login()
-    await api("post", "/api/customers/", token=_token(request),
-              json={"name": name, "phone": phone or None,
-                    "email": email or None, "password": password})
-    return RedirectResponse("/customers", status_code=302)
+    _, err = await api_ex("post", "/api/customers/", token=_token(request),
+                          json={"name": name, "phone": phone or None,
+                                "email": email or None, "password": password})
+    if err:
+        return RedirectResponse(f"/customers?error={_q(err)}", status_code=302)
+    return RedirectResponse("/customers?success=تم+إضافة+العميل+بنجاح", status_code=302)
 
 
 @app.post("/customers/{user_id}/toggle-active")
@@ -591,11 +634,13 @@ async def inventory_add(
 ):
     if not _logged(request):
         return _redirect_login()
-    await api("post", "/api/inventory/", token=_token(request),
-              json={"serial_number": serial_number or None, "category": category,
-                    "brand": brand or None, "model": model or None,
-                    "grade": grade, "price": price, "notes": notes or None})
-    return RedirectResponse("/inventory", status_code=302)
+    _, err = await api_ex("post", "/api/inventory/", token=_token(request),
+                          json={"serial_number": serial_number or None, "category": category,
+                                "brand": brand or None, "model": model or None,
+                                "grade": grade, "price": price, "notes": notes or None})
+    if err:
+        return RedirectResponse(f"/inventory?error={_q(err)}", status_code=302)
+    return RedirectResponse("/inventory?success=تم+إضافة+العنصر+للمخزون+بنجاح", status_code=302)
 
 
 @app.post("/inventory/{item_id}/sell")
@@ -711,12 +756,14 @@ async def warranty_add(
 ):
     if not _logged(request):
         return _redirect_login()
-    await api("post", "/api/warranty/", token=_token(request),
-              json={"product_name": product_name,
-                    "product_serial": product_serial or None,
-                    "order_id": order_id,
-                    "warranty_days": warranty_days})
-    return RedirectResponse("/warranty", status_code=302)
+    _, err = await api_ex("post", "/api/warranty/", token=_token(request),
+                          json={"product_name": product_name,
+                                "product_serial": product_serial or None,
+                                "order_id": order_id,
+                                "warranty_days": warranty_days})
+    if err:
+        return RedirectResponse(f"/warranty?error={_q(err)}", status_code=302)
+    return RedirectResponse("/warranty?success=تم+إضافة+الضمان+بنجاح", status_code=302)
 
 
 @app.post("/warranty/{warranty_id}/resolve")
@@ -754,10 +801,12 @@ async def staff_add(
 ):
     if not _logged(request):
         return _redirect_login()
-    await api("post", "/api/staff/", token=_token(request),
-              json={"name": name, "phone": phone or None,
-                    "email": email or None, "role": role, "password": password})
-    return RedirectResponse("/staff", status_code=302)
+    _, err = await api_ex("post", "/api/staff/", token=_token(request),
+                          json={"name": name, "phone": phone or None,
+                                "email": email or None, "role": role, "password": password})
+    if err:
+        return RedirectResponse(f"/staff?error={_q(err)}", status_code=302)
+    return RedirectResponse("/staff?success=تم+إضافة+الموظف+بنجاح", status_code=302)
 
 
 @app.post("/staff/{user_id}/toggle-active")
@@ -777,11 +826,13 @@ async def staff_edit(
 ):
     if not _logged(request):
         return _redirect_login()
-    await api("put", f"/api/staff/{user_id}", token=_token(request),
-              json={"name": name, "phone": phone or None,
-                    "email": email or None, "role": role,
-                    "password": password or None})
-    return RedirectResponse("/staff", status_code=302)
+    _, err = await api_ex("put", f"/api/staff/{user_id}", token=_token(request),
+                          json={"name": name, "phone": phone or None,
+                                "email": email or None, "role": role,
+                                "password": password or None})
+    if err:
+        return RedirectResponse(f"/staff?error={_q(err)}", status_code=302)
+    return RedirectResponse("/staff?success=تم+تحديث+بيانات+الموظف+بنجاح", status_code=302)
 
 
 @app.post("/staff/{user_id}/delete")
@@ -814,10 +865,12 @@ async def branch_add(
 ):
     if not _logged(request):
         return _redirect_login()
-    await api("post", "/api/branches/", token=_token(request),
-              json={"name": name, "city": city or None,
-                    "address": address or None, "phone": phone or None})
-    return RedirectResponse("/branches", status_code=302)
+    _, err = await api_ex("post", "/api/branches/", token=_token(request),
+                          json={"name": name, "city": city or None,
+                                "address": address or None, "phone": phone or None})
+    if err:
+        return RedirectResponse(f"/branches?error={_q(err)}", status_code=302)
+    return RedirectResponse("/branches?success=تم+إضافة+الفرع+بنجاح", status_code=302)
 
 
 @app.post("/branches/{branch_id}/edit")
@@ -829,11 +882,13 @@ async def branch_edit(
 ):
     if not _logged(request):
         return _redirect_login()
-    await api("put", f"/api/branches/{branch_id}", token=_token(request),
-              json={"name": name, "city": city or None,
-                    "address": address or None, "phone": phone or None,
-                    "is_active": bool(is_active)})
-    return RedirectResponse("/branches", status_code=302)
+    _, err = await api_ex("put", f"/api/branches/{branch_id}", token=_token(request),
+                          json={"name": name, "city": city or None,
+                                "address": address or None, "phone": phone or None,
+                                "is_active": bool(is_active)})
+    if err:
+        return RedirectResponse(f"/branches?error={_q(err)}", status_code=302)
+    return RedirectResponse("/branches?success=تم+تحديث+الفرع+بنجاح", status_code=302)
 
 
 @app.post("/branches/{branch_id}/delete")
@@ -1052,16 +1107,18 @@ async def announcement_add(
 ):
     if not _logged(request):
         return _redirect_login()
-    await api("post", "/api/announcements/", token=_token(request),
-              json={
-                  "title": title, "body": body,
-                  "announcement_type": announcement_type,
-                  "image_url": image_url or None,
-                  "action_url": action_url or None,
-                  "is_pinned": bool(is_pinned),
-                  "is_active": bool(is_active),
-              })
-    return RedirectResponse("/announcements", status_code=302)
+    _, err = await api_ex("post", "/api/announcements/", token=_token(request),
+                          json={
+                              "title": title, "body": body,
+                              "announcement_type": announcement_type,
+                              "image_url": image_url or None,
+                              "action_url": action_url or None,
+                              "is_pinned": bool(is_pinned),
+                              "is_active": bool(is_active),
+                          })
+    if err:
+        return RedirectResponse(f"/announcements?error={_q(err)}", status_code=302)
+    return RedirectResponse("/announcements?success=تم+إضافة+الإعلان+بنجاح", status_code=302)
 
 
 @app.post("/announcements/{ann_id}/toggle")

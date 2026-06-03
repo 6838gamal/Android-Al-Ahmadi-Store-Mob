@@ -17,7 +17,7 @@
     <table class="w-full">
       <thead>
         <tr class="border-b border-dark-border">
-          {% for h in ['#','الاسم','الهاتف','البريد','الدور','الفرع','الحالة','إجراء'] %}
+          {% for h in ['#','الاسم','الهاتف','البريد','الدور','الفرع','الحالة','تاريخ الإضافة','إجراء'] %}
           <th class="px-4 py-3 text-right text-gray-400 text-xs font-bold">{{ h }}</th>
           {% endfor %}
         </tr>
@@ -51,6 +51,7 @@
             <span class="badge" style="background:#EF444422;color:#EF4444">معطّل</span>
             {% endif %}
           </td>
+          <td class="px-4 py-3 text-gray-500 text-xs">{{ s.created_at.strftime('%Y-%m-%d %H:%M') if s.created_at else '—' }}</td>
           <td class="px-4 py-3">
             <div class="flex items-center gap-2">
               <button onclick="openEditStaff({{ s.id }}, '{{ s.name }}', '{{ s.phone or '' }}', '{{ s.email or '' }}', '{{ s.role.value }}')"
@@ -69,7 +70,7 @@
           </td>
         </tr>
         {% else %}
-        <tr><td colspan="8" class="px-4 py-8 text-center text-gray-500">لا يوجد موظفون بعد</td></tr>
+        <tr><td colspan="9" class="px-4 py-8 text-center text-gray-500">لا يوجد موظفون بعد</td></tr>
         {% endfor %}
       </tbody>
     </table>
