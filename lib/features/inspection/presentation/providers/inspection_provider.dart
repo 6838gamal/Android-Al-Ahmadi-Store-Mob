@@ -1,5 +1,7 @@
 import 'dart:convert';
+import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../../core/network/api_client.dart';
 
@@ -60,15 +62,34 @@ class InspectionNotifier extends StateNotifier<InspectionState> {
     required String customerPhone,
     required String deviceModel,
     required String problemDescription,
+    List<XFile>? images,
   }) async {
     state = state.copyWith(isSubmitting: true, error: null);
     try {
+      // Upload images first (best-effort — failures don't block submission)
+      final List<String> imageUrls = [];
+      if (images != null && images.isNotEmpty) {
+        for (final img in images) {
+          try {
+            final bytes = await img.readAsBytes();
+            final formData = FormData.fromMap({
+              'file': MultipartFile.fromBytes(bytes, filename: img.name),
+            });
+            final uploadRes = await _api.postForm('/uploads/', formData);
+            final url = uploadRes.data['url'] as String?;
+            if (url != null) imageUrls.add(url);
+          } catch (_) {
+            // Skip failed image uploads silently
+          }
+        }
+      }
+
       await _api.post('/inspection/', data: {
         'customer_name': customerName,
         'customer_phone': customerPhone,
         'device_model': deviceModel,
         'problem_description': problemDescription,
-        'images': [],
+        'images': imageUrls,
       });
       state = state.copyWith(isSubmitting: false);
       await load();

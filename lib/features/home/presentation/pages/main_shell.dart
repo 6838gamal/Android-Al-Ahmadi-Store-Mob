@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -21,19 +22,24 @@ class MainShell extends ConsumerStatefulWidget {
 
 class _MainShellState extends ConsumerState<MainShell> {
   int _selectedIndex = 0;
-
   bool _wasOffline = false;
+  Timer? _productRefreshTimer;
 
   @override
   void initState() {
     super.initState();
     Future.microtask(
         () => ref.read(notificationsProvider.notifier).startPolling());
+    // Real-time product refresh: poll every 60 seconds for new product data
+    _productRefreshTimer = Timer.periodic(const Duration(seconds: 60), (_) {
+      if (mounted) ref.read(productsProvider.notifier).load();
+    });
   }
 
   @override
   void dispose() {
     ref.read(notificationsProvider.notifier).stopPolling();
+    _productRefreshTimer?.cancel();
     super.dispose();
   }
 

@@ -528,6 +528,14 @@ async def customer_toggle(user_id: int, request: Request):
     return RedirectResponse("/customers", status_code=302)
 
 
+@app.post("/customers/{user_id}/verify")
+async def customer_verify(user_id: int, request: Request):
+    if not _logged(request):
+        return _redirect_login()
+    await api("post", f"/api/customers/{user_id}/verify", token=_token(request))
+    return RedirectResponse("/customers", status_code=302)
+
+
 @app.post("/customers/{user_id}/delete")
 async def customer_delete(user_id: int, request: Request):
     if not _logged(request):
@@ -613,14 +621,27 @@ async def inspection_respond(
     req_id: int, request: Request,
     diagnosis: str = Form(...), estimated_price: str = Form(""),
     response_notes: str = Form(""),
+    response_images: list[UploadFile] = File(default=[]),
 ):
     if not _logged(request):
         return _redirect_login()
+    # Upload any attached images to the uploads folder
+    image_urls: list[str] = []
+    for img in response_images:
+        if img.filename:
+            import uuid, shutil
+            ext = os.path.splitext(img.filename)[-1].lower() or ".jpg"
+            fname = f"insp_{req_id}_{uuid.uuid4().hex[:8]}{ext}"
+            dest = os.path.join(UPLOAD_DIR, fname)
+            with open(dest, "wb") as f:
+                shutil.copyfileobj(img.file, f)
+            image_urls.append(f"/uploads/{fname}")
     await api("post", f"/api/inspection/{req_id}/respond", token=_token(request),
               json={"staff_id": request.session.get("admin_id"),
                     "diagnosis": diagnosis,
                     "estimated_price": estimated_price or None,
-                    "response_notes": response_notes or None})
+                    "response_notes": response_notes or None,
+                    "response_images": image_urls})
     return RedirectResponse("/inspection", status_code=302)
 
 

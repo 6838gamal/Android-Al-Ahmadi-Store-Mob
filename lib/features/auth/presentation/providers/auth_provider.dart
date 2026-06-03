@@ -14,6 +14,7 @@ class UserModel {
   final String? walletCurrency;
   final String? referralCode;
   final int? branchId;
+  final bool isVerified;
 
   const UserModel({
     required this.id,
@@ -26,6 +27,7 @@ class UserModel {
     this.walletCurrency,
     this.referralCode,
     this.branchId,
+    this.isVerified = false,
   });
 
   bool get isCustomer => role == 'customer';
@@ -45,6 +47,7 @@ class UserModel {
         walletCurrency: json['wallet_currency'],
         referralCode: json['referral_code'],
         branchId: json['branch_id'],
+        isVerified: json['is_verified'] as bool? ?? false,
       );
 
   Map<String, dynamic> toJson() => {
@@ -58,6 +61,7 @@ class UserModel {
         'wallet_currency': walletCurrency,
         'referral_code': referralCode,
         'branch_id': branchId,
+        'is_verified': isVerified,
       };
 }
 

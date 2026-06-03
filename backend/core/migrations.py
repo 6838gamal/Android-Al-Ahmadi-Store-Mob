@@ -56,6 +56,7 @@ def run_migrations():
                 ("wallet_currency",          "VARCHAR(3) DEFAULT 'YER'"),
                 ("referral_level",           "INTEGER DEFAULT 1 NOT NULL"),
                 ("level1_locked",            "BOOLEAN DEFAULT FALSE NOT NULL"),
+                ("is_verified",             "BOOLEAN DEFAULT FALSE NOT NULL"),
                 ("tokens_invalidated_at",    ts_type),
             ]
             for col_name, col_def in new_user_cols:

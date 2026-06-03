@@ -37,6 +37,22 @@ def get_customers(
     return q.order_by(User.created_at.desc()).offset(skip).limit(limit).all()
 
 
+@router.post("/{user_id}/verify")
+def toggle_verify_customer(
+    user_id: int,
+    db: Session = Depends(get_db),
+    admin: User = Depends(get_admin_user),
+):
+    user = db.query(User).filter(
+        User.id == user_id, User.role == UserRole.customer
+    ).first()
+    if not user:
+        raise HTTPException(404, "العميل غير موجود")
+    user.is_verified = not getattr(user, "is_verified", False)
+    db.commit()
+    return {"is_verified": user.is_verified}
+
+
 @router.post("/", response_model=UserResponse)
 def add_customer(
     data: CustomerCreate,

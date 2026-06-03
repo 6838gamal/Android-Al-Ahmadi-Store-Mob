@@ -46,7 +46,7 @@
     {% endif %}
 
     {% if req.status.value in ['pending','under_review'] %}
-    <form method="post" action="/inspection/{{ req.id }}/respond">
+    <form method="post" action="/inspection/{{ req.id }}/respond" enctype="multipart/form-data">
       <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
         <div>
           <label class="block text-gray-400 text-xs mb-1">التشخيص *</label>
@@ -57,6 +57,9 @@
           <input name="estimated_price" class="input-field" placeholder="مثال: 150 ر.س">
           <label class="block text-gray-400 text-xs mb-1 mt-2">ملاحظات إضافية</label>
           <input name="response_notes" class="input-field" placeholder="اختياري">
+          <label class="block text-gray-400 text-xs mb-1 mt-2">صور الرد (اختياري)</label>
+          <input type="file" name="response_images" multiple accept="image/*"
+            class="block w-full text-xs text-gray-400 file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-primary/20 file:text-primary hover:file:bg-primary/30 cursor-pointer mt-1">
         </div>
       </div>
       <button type="submit" class="btn-primary text-sm">إرسال الرد</button>

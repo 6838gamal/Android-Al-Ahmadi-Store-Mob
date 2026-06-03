@@ -1,7 +1,8 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
+from typing import List as _WsList
 import os
 
 from backend.core.database import engine, Base, SessionLocal
@@ -160,3 +161,40 @@ app.include_router(announcement_routes.router, prefix="/api/announcements", tags
 @app.get("/api/health")
 def health_check():
     return {"status": "ok", "app": "اندرويد الاحمدي", "version": "2.0.0"}
+
+
+# ── WebSocket real-time hub ────────────────────────────────────────────────────
+class _WsManager:
+    def __init__(self):
+        self._connections: _WsList[WebSocket] = []
+
+    async def connect(self, ws: WebSocket):
+        await ws.accept()
+        self._connections.append(ws)
+
+    def disconnect(self, ws: WebSocket):
+        if ws in self._connections:
+            self._connections.remove(ws)
+
+    async def broadcast(self, data: dict):
+        dead = []
+        for ws in self._connections:
+            try:
+                await ws.send_json(data)
+            except Exception:
+                dead.append(ws)
+        for ws in dead:
+            self.disconnect(ws)
+
+
+ws_manager = _WsManager()
+
+
+@app.websocket("/api/ws")
+async def ws_endpoint(ws: WebSocket):
+    await ws_manager.connect(ws)
+    try:
+        while True:
+            await ws.receive_text()
+    except WebSocketDisconnect:
+        ws_manager.disconnect(ws)

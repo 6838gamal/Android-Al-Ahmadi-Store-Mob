@@ -64,11 +64,17 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
           ],
           flexibleSpace: FlexibleSpaceBar(
             background: p['image_url'] != null
-                ? CachedNetworkImage(
-                    imageUrl: '${AppConstants.baseUrl}${p['image_url']}',
-                    fit: BoxFit.cover,
-                    placeholder: (_, __) => _imagePlaceholder(),
-                    errorWidget: (_, __, ___) => _imagePlaceholder())
+                ? GestureDetector(
+                    onTap: () => _showImageZoom(context, '${AppConstants.baseUrl}${p['image_url']}'),
+                    child: Hero(
+                      tag: 'product_img_${widget.productId}',
+                      child: CachedNetworkImage(
+                          imageUrl: '${AppConstants.baseUrl}${p['image_url']}',
+                          fit: BoxFit.cover,
+                          placeholder: (_, __) => _imagePlaceholder(),
+                          errorWidget: (_, __, ___) => _imagePlaceholder()),
+                    ),
+                  )
                 : _imagePlaceholder(),
           ),
         ),
@@ -149,6 +155,66 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
     color: AppColors.darkCardAlt,
     child: const Center(child: Icon(Icons.phone_android, size: 80, color: AppColors.textMuted)),
   );
+
+  void _showImageZoom(BuildContext context, String imageUrl) {
+    showDialog(
+      context: context,
+      useSafeArea: false,
+      builder: (_) => Dialog(
+        backgroundColor: Colors.black,
+        insetPadding: EdgeInsets.zero,
+        child: Stack(
+          children: [
+            SizedBox(
+              width: double.infinity,
+              height: double.infinity,
+              child: InteractiveViewer(
+                minScale: 0.5,
+                maxScale: 5.0,
+                child: Hero(
+                  tag: 'product_img_${widget.productId}',
+                  child: CachedNetworkImage(
+                    imageUrl: imageUrl,
+                    fit: BoxFit.contain,
+                    placeholder: (_, __) => _imagePlaceholder(),
+                    errorWidget: (_, __, ___) => _imagePlaceholder(),
+                  ),
+                ),
+              ),
+            ),
+            Positioned(
+              top: 44, right: 16,
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.black54,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: IconButton(
+                  icon: const Icon(Icons.close, color: Colors.white, size: 24),
+                  onPressed: () => Navigator.pop(context),
+                ),
+              ),
+            ),
+            Positioned(
+              bottom: 24,
+              left: 0, right: 0,
+              child: Center(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.black54,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: const Text('اسحب للتكبير/التصغير',
+                    style: TextStyle(fontFamily: 'Cairo', color: Colors.white70, fontSize: 12)),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
   void _reserve(BuildContext context) {
     ScaffoldMessenger.of(context).showSnackBar(

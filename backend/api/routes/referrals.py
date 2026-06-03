@@ -188,6 +188,31 @@ def all_referrals(current_user=Depends(require_admin), db: Session = Depends(get
     return db.query(Referral).order_by(Referral.created_at.desc()).all()
 
 
+@router.get("/my-list")
+def my_referrals_list(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    referrals = (
+        db.query(Referral)
+        .filter(Referral.referrer_id == current_user.id)
+        .order_by(Referral.created_at.desc())
+        .all()
+    )
+    result = []
+    for r in referrals:
+        referred = db.query(User).filter(User.id == r.referred_id).first()
+        result.append({
+            "id": r.id,
+            "name": referred.name if referred else "مجهول",
+            "phone": referred.phone if referred else None,
+            "level": r.level,
+            "is_verified": r.is_verified,
+            "created_at": r.created_at.isoformat() if r.created_at else None,
+        })
+    return result
+
+
 @router.get("/user/{user_id}", response_model=List[ReferralResponse])
 def user_referrals(
     user_id: int,

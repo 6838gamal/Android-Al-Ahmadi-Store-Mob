@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/app_utils.dart';
 import '../../../../shared/widgets/loading_widget.dart';
@@ -75,99 +76,146 @@ class _InspectionPageState extends ConsumerState<InspectionPage> {
   void _showSubmitDialog(BuildContext context) {
     final auth = ref.read(authProvider);
     final user = auth.user;
-    final nameCtrl =
-        TextEditingController(text: user?.name ?? '');
-    final phoneCtrl =
-        TextEditingController(text: user?.phone ?? '');
+    final nameCtrl = TextEditingController(text: user?.name ?? '');
+    final phoneCtrl = TextEditingController(text: user?.phone ?? '');
     final modelCtrl = TextEditingController();
     final probCtrl = TextEditingController();
+    final List<XFile> selectedImages = [];
 
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: AppColors.darkCard,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-        title: const Text('طلب فحص جهاز',
-            style: TextStyle(
-                fontFamily: 'Cairo',
-                fontWeight: FontWeight.w700,
-                color: Colors.white)),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _field(nameCtrl, 'اسمك', Icons.person_outline),
-              const SizedBox(height: 10),
-              _field(phoneCtrl, 'رقم جوالك', Icons.phone_outlined,
-                  keyboard: TextInputType.phone),
-              const SizedBox(height: 10),
-              _field(modelCtrl, 'موديل الجهاز (مثال: Samsung A55)',
-                  Icons.phone_android_outlined),
-              const SizedBox(height: 10),
-              _field(probCtrl, 'وصف المشكلة بالتفصيل',
-                  Icons.report_problem_outlined,
-                  maxLines: 3),
-            ],
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          backgroundColor: AppColors.darkCard,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+          title: const Text('طلب فحص جهاز',
+              style: TextStyle(
+                  fontFamily: 'Cairo',
+                  fontWeight: FontWeight.w700,
+                  color: Colors.white)),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _field(nameCtrl, 'اسمك', Icons.person_outline),
+                const SizedBox(height: 10),
+                _field(phoneCtrl, 'رقم جوالك', Icons.phone_outlined,
+                    keyboard: TextInputType.phone),
+                const SizedBox(height: 10),
+                _field(modelCtrl, 'موديل الجهاز (مثال: Samsung A55)',
+                    Icons.phone_android_outlined),
+                const SizedBox(height: 10),
+                _field(probCtrl, 'وصف المشكلة بالتفصيل',
+                    Icons.report_problem_outlined,
+                    maxLines: 3),
+                const SizedBox(height: 14),
+                // Image picker section
+                GestureDetector(
+                  onTap: () async {
+                    final picker = ImagePicker();
+                    final picked = await picker.pickMultiImage(imageQuality: 70);
+                    if (picked.isNotEmpty) {
+                      setDialogState(() {
+                        selectedImages.clear();
+                        selectedImages.addAll(picked.take(4));
+                      });
+                    }
+                  },
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 14),
+                    decoration: BoxDecoration(
+                      color: AppColors.darkSurface,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: selectedImages.isEmpty
+                            ? AppColors.darkBorder
+                            : AppColors.primary.withOpacity(0.5),
+                        style: BorderStyle.solid,
+                      ),
+                    ),
+                    child: Row(children: [
+                      Icon(
+                        selectedImages.isEmpty ? Icons.add_photo_alternate_outlined : Icons.check_circle_outline,
+                        color: selectedImages.isEmpty ? AppColors.textMuted : AppColors.primary,
+                        size: 20,
+                      ),
+                      const SizedBox(width: 10),
+                      Text(
+                        selectedImages.isEmpty
+                            ? 'إضافة صور للجهاز (اختياري)'
+                            : 'تم اختيار ${selectedImages.length} صورة ✓',
+                        style: TextStyle(
+                            fontFamily: 'Cairo',
+                            color: selectedImages.isEmpty ? AppColors.textMuted : AppColors.primary,
+                            fontSize: 13),
+                      ),
+                    ]),
+                  ),
+                ),
+              ],
+            ),
           ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('إلغاء',
-                style: TextStyle(
-                    fontFamily: 'Cairo', color: AppColors.textMuted)),
-          ),
-          Consumer(builder: (_, ref2, __) {
-            final isSubmitting =
-                ref2.watch(inspectionProvider).isSubmitting;
-            return ElevatedButton(
-              onPressed: isSubmitting
-                  ? null
-                  : () async {
-                      if (nameCtrl.text.trim().isEmpty ||
-                          phoneCtrl.text.trim().isEmpty ||
-                          modelCtrl.text.trim().isEmpty ||
-                          probCtrl.text.trim().isEmpty) {
-                        AppUtils.showSnackBar(
-                            ctx, 'يرجى ملء جميع الحقول',
-                            isError: true);
-                        return;
-                      }
-                      final ok = await ref2
-                          .read(inspectionProvider.notifier)
-                          .submit(
-                            customerName: nameCtrl.text.trim(),
-                            customerPhone: phoneCtrl.text.trim(),
-                            deviceModel: modelCtrl.text.trim(),
-                            problemDescription: probCtrl.text.trim(),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('إلغاء',
+                  style: TextStyle(
+                      fontFamily: 'Cairo', color: AppColors.textMuted)),
+            ),
+            Consumer(builder: (_, ref2, __) {
+              final isSubmitting =
+                  ref2.watch(inspectionProvider).isSubmitting;
+              return ElevatedButton(
+                onPressed: isSubmitting
+                    ? null
+                    : () async {
+                        if (nameCtrl.text.trim().isEmpty ||
+                            phoneCtrl.text.trim().isEmpty ||
+                            modelCtrl.text.trim().isEmpty ||
+                            probCtrl.text.trim().isEmpty) {
+                          AppUtils.showSnackBar(
+                              ctx, 'يرجى ملء جميع الحقول',
+                              isError: true);
+                          return;
+                        }
+                        final ok = await ref2
+                            .read(inspectionProvider.notifier)
+                            .submit(
+                              customerName: nameCtrl.text.trim(),
+                              customerPhone: phoneCtrl.text.trim(),
+                              deviceModel: modelCtrl.text.trim(),
+                              problemDescription: probCtrl.text.trim(),
+                              images: selectedImages,
+                            );
+                        if (ctx.mounted) Navigator.pop(ctx);
+                        if (context.mounted) {
+                          AppUtils.showSnackBar(
+                            context,
+                            ok
+                                ? 'تم إرسال طلب الفحص بنجاح ✓'
+                                : 'فشل إرسال الطلب',
+                            isError: !ok,
                           );
-                      if (ctx.mounted) Navigator.pop(ctx);
-                      if (context.mounted) {
-                        AppUtils.showSnackBar(
-                          context,
-                          ok
-                              ? 'تم إرسال طلب الفحص بنجاح ✓'
-                              : 'فشل إرسال الطلب',
-                          isError: !ok,
-                        );
-                      }
-                    },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10)),
-              ),
-              child: isSubmitting
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(
-                          strokeWidth: 2, color: Colors.white))
-                  : const Text('إرسال الطلب',
-                      style: TextStyle(fontFamily: 'Cairo')),
-            );
-          }),
-        ],
+                        }
+                      },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10)),
+                ),
+                child: isSubmitting
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2, color: Colors.white))
+                    : const Text('إرسال الطلب',
+                        style: TextStyle(fontFamily: 'Cairo')),
+              );
+            }),
+          ],
+        ),
       ),
     );
   }
@@ -332,8 +380,7 @@ class _InspectionCard extends StatelessWidget {
                     color: statusColor.withOpacity(0.15),
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child:
-                      Icon(statusIcon, color: statusColor, size: 22),
+                  child: Icon(statusIcon, color: statusColor, size: 22),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -356,8 +403,7 @@ class _InspectionCard extends StatelessWidget {
                   ),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 10, vertical: 4),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
                     color: statusColor.withOpacity(0.15),
                     borderRadius: BorderRadius.circular(20),
@@ -387,8 +433,7 @@ class _InspectionCard extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: AppColors.success.withOpacity(0.08),
                   borderRadius: BorderRadius.circular(10),
-                  border:
-                      Border.all(color: AppColors.success.withOpacity(0.3)),
+                  border: Border.all(color: AppColors.success.withOpacity(0.3)),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,

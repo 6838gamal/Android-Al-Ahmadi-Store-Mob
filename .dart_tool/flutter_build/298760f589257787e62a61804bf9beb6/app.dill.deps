@@ -792,6 +792,7 @@ file:///home/runner/.pub-cache/hosted/pub.dev/image-4.5.4/lib/src/util/point.dar
 file:///home/runner/.pub-cache/hosted/pub.dev/image-4.5.4/lib/src/util/quantizer.dart
 file:///home/runner/.pub-cache/hosted/pub.dev/image-4.5.4/lib/src/util/random.dart
 file:///home/runner/.pub-cache/hosted/pub.dev/image-4.5.4/lib/src/util/rational.dart
+file:///home/runner/.pub-cache/hosted/pub.dev/image_picker-1.2.1/lib/image_picker.dart
 file:///home/runner/.pub-cache/hosted/pub.dev/image_picker_for_web-3.1.1/lib/image_picker_for_web.dart
 file:///home/runner/.pub-cache/hosted/pub.dev/image_picker_for_web-3.1.1/lib/src/image_resizer.dart
 file:///home/runner/.pub-cache/hosted/pub.dev/image_picker_for_web-3.1.1/lib/src/image_resizer_utils.dart
@@ -1419,6 +1420,13 @@ file:///home/runner/.pub-cache/hosted/pub.dev/typed_data-1.4.0/lib/src/typed_buf
 file:///home/runner/.pub-cache/hosted/pub.dev/typed_data-1.4.0/lib/src/typed_queue.dart
 file:///home/runner/.pub-cache/hosted/pub.dev/typed_data-1.4.0/lib/typed_buffers.dart
 file:///home/runner/.pub-cache/hosted/pub.dev/typed_data-1.4.0/lib/typed_data.dart
+file:///home/runner/.pub-cache/hosted/pub.dev/url_launcher-6.3.2/lib/src/legacy_api.dart
+file:///home/runner/.pub-cache/hosted/pub.dev/url_launcher-6.3.2/lib/src/type_conversion.dart
+file:///home/runner/.pub-cache/hosted/pub.dev/url_launcher-6.3.2/lib/src/types.dart
+file:///home/runner/.pub-cache/hosted/pub.dev/url_launcher-6.3.2/lib/src/url_launcher_string.dart
+file:///home/runner/.pub-cache/hosted/pub.dev/url_launcher-6.3.2/lib/src/url_launcher_uri.dart
+file:///home/runner/.pub-cache/hosted/pub.dev/url_launcher-6.3.2/lib/url_launcher.dart
+file:///home/runner/.pub-cache/hosted/pub.dev/url_launcher-6.3.2/lib/url_launcher_string.dart
 file:///home/runner/.pub-cache/hosted/pub.dev/url_launcher_platform_interface-2.3.2/lib/link.dart
 file:///home/runner/.pub-cache/hosted/pub.dev/url_launcher_platform_interface-2.3.2/lib/method_channel_url_launcher.dart
 file:///home/runner/.pub-cache/hosted/pub.dev/url_launcher_platform_interface-2.3.2/lib/src/types.dart

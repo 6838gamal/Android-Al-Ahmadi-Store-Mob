@@ -4,26 +4,34 @@ import '../../../../core/utils/device_service.dart';
 
 class ReferralsState {
   final Map<String, dynamic>? stats;
+  final List<Map<String, dynamic>> referredList;
   final bool isLoading;
+  final bool isLoadingList;
   final String? error;
   final bool claimed;
 
   const ReferralsState({
     this.stats,
+    this.referredList = const [],
     this.isLoading = false,
+    this.isLoadingList = false,
     this.error,
     this.claimed = false,
   });
 
   ReferralsState copyWith({
     Map<String, dynamic>? stats,
+    List<Map<String, dynamic>>? referredList,
     bool? isLoading,
+    bool? isLoadingList,
     String? error,
     bool? claimed,
   }) =>
       ReferralsState(
         stats: stats ?? this.stats,
+        referredList: referredList ?? this.referredList,
         isLoading: isLoading ?? this.isLoading,
+        isLoadingList: isLoadingList ?? this.isLoadingList,
         error: error,
         claimed: claimed ?? this.claimed,
       );
@@ -41,8 +49,22 @@ class ReferralsNotifier extends StateNotifier<ReferralsState> {
         stats: Map<String, dynamic>.from(res.data),
         isLoading: false,
       );
+      // Also load the referred users list
+      loadList();
     } catch (e) {
       state = state.copyWith(isLoading: false, error: 'فشل تحميل بيانات الإحالة');
+    }
+  }
+
+  Future<void> loadList() async {
+    state = state.copyWith(isLoadingList: true);
+    try {
+      final res = await _api.get('/referrals/my-list');
+      final list = List<Map<String, dynamic>>.from(
+          (res.data as List).map((e) => Map<String, dynamic>.from(e)));
+      state = state.copyWith(referredList: list, isLoadingList: false);
+    } catch (_) {
+      state = state.copyWith(isLoadingList: false);
     }
   }
 

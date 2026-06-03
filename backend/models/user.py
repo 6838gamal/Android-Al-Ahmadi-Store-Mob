@@ -40,6 +40,9 @@ class User(Base):
     wallet_balance = Column(Float, default=0.0)
     wallet_currency = Column(String(3), default="YER")
 
+    # Account verification badge (set manually by admin)
+    is_verified = Column(Boolean, default=False, nullable=False)
+
     # Token revocation — tokens issued before this timestamp are invalid
     tokens_invalidated_at = Column(DateTime(timezone=True), nullable=True)
 

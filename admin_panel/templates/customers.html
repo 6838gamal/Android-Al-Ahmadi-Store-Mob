@@ -35,6 +35,7 @@
           <th class="px-5 py-3 text-right font-semibold">البريد الإلكتروني</th>
           <th class="px-5 py-3 text-right font-semibold">المحفظة</th>
           <th class="px-5 py-3 text-right font-semibold">الحالة</th>
+          <th class="px-5 py-3 text-right font-semibold">التوثيق</th>
           <th class="px-5 py-3 text-right font-semibold">تاريخ التسجيل</th>
           <th class="px-5 py-3 text-right font-semibold">إجراء</th>
         </tr>
@@ -61,12 +62,25 @@
             <span class="badge bg-red-500/15 text-red-400">موقوف</span>
             {% endif %}
           </td>
+          <td class="px-5 py-3">
+            {% if c.is_verified %}
+            <span class="badge bg-blue-500/15 text-blue-400"><i class="fa-solid fa-circle-check mr-1"></i>موثّق</span>
+            {% else %}
+            <span class="badge bg-gray-500/15 text-gray-500">غير موثّق</span>
+            {% endif %}
+          </td>
           <td class="px-5 py-3 text-gray-500 text-xs">{{ c.created_at.strftime('%Y-%m-%d') if c.created_at else '—' }}</td>
           <td class="px-5 py-3">
-            <div class="flex items-center gap-2">
+            <div class="flex items-center gap-2 flex-wrap">
               <form method="post" action="/customers/{{ c.id }}/toggle-active" class="inline">
                 <button class="text-xs {{ 'text-red-400 hover:text-red-300' if c.is_active else 'text-green-400 hover:text-green-300' }} font-bold">
                   {{ 'تعطيل' if c.is_active else 'تفعيل' }}
+                </button>
+              </form>
+              <span class="text-gray-600">|</span>
+              <form method="post" action="/customers/{{ c.id }}/verify" class="inline">
+                <button class="text-xs {{ 'text-yellow-400 hover:text-yellow-300' if c.is_verified else 'text-blue-400 hover:text-blue-300' }} font-bold">
+                  {{ 'إلغاء التوثيق' if c.is_verified else 'توثيق' }}
                 </button>
               </form>
               <span class="text-gray-600">|</span>

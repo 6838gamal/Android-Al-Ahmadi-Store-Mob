@@ -147,9 +147,16 @@ class ProfilePage extends ConsumerWidget {
                         decoration: BoxDecoration(
                           color: AppColors.darkSurface,
                           shape: BoxShape.circle,
-                          border: Border.all(color: AppColors.darkBorder),
+                          border: Border.all(
+                            color: user.isVerified ? AppColors.success : AppColors.darkBorder,
+                            width: user.isVerified ? 2 : 1,
+                          ),
                         ),
-                        child: Icon(Icons.verified, size: 16, color: roleColor),
+                        child: Icon(
+                          user.isVerified ? Icons.verified : Icons.verified_outlined,
+                          size: 16,
+                          color: user.isVerified ? AppColors.success : AppColors.textMuted,
+                        ),
                       ),
                     ],
                   ),
@@ -163,22 +170,45 @@ class ProfilePage extends ConsumerWidget {
                         color: Colors.white),
                   ),
                   const SizedBox(height: 6),
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: roleColor.withOpacity(0.12),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: roleColor.withOpacity(0.35)),
-                    ),
-                    child: Text(
-                      roleLabel,
-                      style: TextStyle(
-                          fontFamily: 'Cairo',
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
-                          color: roleColor),
-                    ),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: roleColor.withOpacity(0.12),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: roleColor.withOpacity(0.35)),
+                        ),
+                        child: Text(
+                          roleLabel,
+                          style: TextStyle(
+                              fontFamily: 'Cairo',
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              color: roleColor),
+                        ),
+                      ),
+                      if (user.isVerified) ...[
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: AppColors.success.withOpacity(0.12),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: AppColors.success.withOpacity(0.35)),
+                          ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.verified, size: 13, color: AppColors.success),
+                              SizedBox(width: 4),
+                              Text('موثّق', style: TextStyle(fontFamily: 'Cairo', fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.success)),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
                 ],
               ),
