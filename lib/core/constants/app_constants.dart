@@ -6,7 +6,7 @@ class AppConstants {
   static const String shopPhone = '770887247';
   static const String shopWhatsApp = '770887247';
   static const String shopAddress = 'صنعاء، جولة مأرب، جوار مدرسة حسان بن ثابت';
-  static const String shopEmail = 'info@alahmadi.com';
+  static const String shopEmail = 'akrm6214@mail.com';
   static const String shopBio = 'متخصصون في بيع وصيانة الجوالات وقطع الغيار بأعلى جودة وأفضل سعر';
   static const Map<String, String> workingHours = {
     'السبت - الأربعاء': '10:00 ص - 10:00 م',
