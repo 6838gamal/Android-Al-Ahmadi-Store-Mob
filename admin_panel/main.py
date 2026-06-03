@@ -1135,3 +1135,164 @@ async def announcement_delete(ann_id: int, request: Request):
         return _redirect_login()
     await api("delete", f"/api/announcements/{ann_id}", token=_token(request))
     return RedirectResponse("/announcements", status_code=302)
+
+
+# ── Export to Excel ───────────────────────────────────────────────────────────
+import io
+from openpyxl import Workbook
+from openpyxl.styles import Font, PatternFill, Alignment
+from openpyxl.utils import get_column_letter
+from fastapi.responses import StreamingResponse
+from datetime import date as _date
+
+
+def _make_wb(title: str):
+    wb = Workbook()
+    ws = wb.active
+    ws.title = title
+    ws.sheet_view.rightToLeft = True
+    return wb, ws
+
+
+def _style_header(ws, headers: list):
+    fill = PatternFill("solid", fgColor="1A73E8")
+    font = Font(bold=True, color="FFFFFF", size=12, name="Cairo")
+    for col, h in enumerate(headers, 1):
+        cell = ws.cell(row=1, column=col, value=h)
+        cell.fill = fill
+        cell.font = font
+        cell.alignment = Alignment(horizontal="center", vertical="center")
+    ws.row_dimensions[1].height = 22
+
+
+def _set_widths(ws, widths: list):
+    for i, w in enumerate(widths, 1):
+        ws.column_dimensions[get_column_letter(i)].width = w
+
+
+def _wb_response(wb, filename: str):
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    return StreamingResponse(
+        buf,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@app.get("/export/customers")
+async def export_customers(request: Request):
+    if not _logged(request):
+        return _redirect_login()
+    raw = await api("get", "/api/customers/", token=_token(request), params={"limit": 5000}) or []
+    wb, ws = _make_wb("العملاء")
+    _style_header(ws, ["#", "الاسم", "رقم الجوال", "البريد الإلكتروني", "رصيد المحفظة", "الحالة", "التوثيق", "تاريخ التسجيل"])
+    _set_widths(ws, [6, 25, 18, 30, 15, 12, 12, 20])
+    for i, c in enumerate(raw, 1):
+        created = (c.get("created_at") or "")[:16].replace("T", " ")
+        ws.append([i, c.get("name",""), c.get("phone",""), c.get("email",""),
+                   c.get("wallet_balance", 0),
+                   "نشط" if c.get("is_active") else "موقوف",
+                   "موثّق" if c.get("is_verified") else "غير موثّق", created])
+    return _wb_response(wb, f"customers_{_date.today()}.xlsx")
+
+
+@app.get("/export/staff")
+async def export_staff_excel(request: Request):
+    if not _logged(request):
+        return _redirect_login()
+    raw = await api("get", "/api/staff/", token=_token(request)) or []
+    wb, ws = _make_wb("الموظفون")
+    _style_header(ws, ["#", "الاسم", "رقم الجوال", "البريد الإلكتروني", "الدور", "الحالة", "تاريخ الإضافة"])
+    _set_widths(ws, [6, 25, 18, 30, 15, 12, 20])
+    roles = {"staff": "موظف", "branch_manager": "مدير فرع", "admin": "مدير عام"}
+    for i, s in enumerate(raw, 1):
+        created = (s.get("created_at") or "")[:16].replace("T", " ")
+        ws.append([i, s.get("name",""), s.get("phone",""), s.get("email",""),
+                   roles.get(s.get("role",""), s.get("role","")),
+                   "نشط" if s.get("is_active") else "معطّل", created])
+    return _wb_response(wb, f"staff_{_date.today()}.xlsx")
+
+
+@app.get("/export/products")
+async def export_products_excel(request: Request):
+    if not _logged(request):
+        return _redirect_login()
+    raw = await api("get", "/api/products/", token=_token(request), params={"limit": 5000}) or []
+    wb, ws = _make_wb("المنتجات")
+    _style_header(ws, ["#", "الاسم", "الاسم بالعربي", "الماركة", "الموديل", "الفئة", "السعر", "الكمية", "الحالة", "تاريخ الإضافة"])
+    _set_widths(ws, [6, 25, 25, 15, 18, 15, 12, 10, 12, 20])
+    status_labels = {"available":"متوفر","reserved":"محجوز","sold":"مباع","unavailable":"غير متوفر"}
+    for i, p in enumerate(raw, 1):
+        created = (p.get("created_at") or "")[:16].replace("T", " ")
+        ws.append([i, p.get("name",""), p.get("name_ar",""), p.get("brand",""), p.get("model",""),
+                   p.get("category",""), p.get("price",0), p.get("quantity",0),
+                   status_labels.get(p.get("status",""), p.get("status","")), created])
+    return _wb_response(wb, f"products_{_date.today()}.xlsx")
+
+
+@app.get("/export/orders")
+async def export_orders_excel(request: Request):
+    if not _logged(request):
+        return _redirect_login()
+    raw = await api("get", "/api/orders/", token=_token(request), params={"limit": 5000}) or []
+    wb, ws = _make_wb("الطلبات")
+    _style_header(ws, ["#", "رقم الطلب", "اسم العميل", "الجوال", "المنتج", "السعر", "الحالة", "ملاحظات", "تاريخ الطلب"])
+    _set_widths(ws, [6, 10, 25, 18, 25, 12, 15, 30, 20])
+    status_labels = {"received":"مستلم","reviewing":"قيد المراجعة","confirmed":"مؤكد",
+                     "preparing":"جاري التحضير","shipped":"تم الشحن","on_the_way":"في الطريق",
+                     "delivered":"تم التسليم","cancelled":"ملغي"}
+    for i, o in enumerate(raw, 1):
+        created = (o.get("created_at") or "")[:16].replace("T", " ")
+        product = o.get("product") or {}
+        user = o.get("user") or {}
+        ws.append([i, o.get("id",""),
+                   o.get("customer_name") or user.get("name",""),
+                   o.get("customer_phone") or user.get("phone",""),
+                   product.get("name","") if isinstance(product, dict) else "",
+                   o.get("total_price", o.get("price", 0)),
+                   status_labels.get(o.get("status",""), o.get("status","")),
+                   o.get("admin_notes",""), created])
+    return _wb_response(wb, f"orders_{_date.today()}.xlsx")
+
+
+@app.get("/export/maintenance")
+async def export_maintenance_excel(request: Request):
+    if not _logged(request):
+        return _redirect_login()
+    raw = await api("get", "/api/maintenance/", token=_token(request), params={"limit": 5000}) or []
+    wb, ws = _make_wb("الصيانة")
+    _style_header(ws, ["#", "رقم الطلب", "اسم العميل", "الجوال", "نوع الجهاز", "المشكلة", "السعر", "الحالة", "تاريخ الاستلام"])
+    _set_widths(ws, [6, 10, 25, 18, 20, 35, 12, 18, 20])
+    maint_labels = {"received":"مستلم","inspecting":"قيد الفحص","repairing":"جاري الإصلاح",
+                    "waiting_part":"انتظار قطعة","repaired":"تم الإصلاح",
+                    "ready":"جاهز للاستلام","delivered":"تم التسليم"}
+    for i, o in enumerate(raw, 1):
+        created = (o.get("created_at") or "")[:16].replace("T", " ")
+        status = o.get("maintenance_status", o.get("status",""))
+        ws.append([i, o.get("id",""), o.get("customer_name",""), o.get("customer_phone",""),
+                   o.get("device_type",""), o.get("problem_description",""),
+                   o.get("price",0), maint_labels.get(status, status), created])
+    return _wb_response(wb, f"maintenance_{_date.today()}.xlsx")
+
+
+@app.get("/export/inventory")
+async def export_inventory_excel(request: Request):
+    if not _logged(request):
+        return _redirect_login()
+    raw = await api("get", "/api/inventory/", token=_token(request), params={"limit": 5000}) or []
+    wb, ws = _make_wb("المخزون")
+    _style_header(ws, ["#", "الرقم التسلسلي", "الفئة", "الماركة", "الموديل", "الدرجة", "السعر", "الحالة", "الفرع", "تاريخ الإضافة"])
+    _set_widths(ws, [6, 22, 15, 15, 18, 10, 12, 12, 18, 20])
+    status_labels = {"available":"متوفر","reserved":"محجوز","sold":"مباع"}
+    for i, item in enumerate(raw, 1):
+        created = (item.get("created_at") or "")[:16].replace("T", " ")
+        branch = item.get("branch") or {}
+        ws.append([i, item.get("serial_number",""), item.get("category",""),
+                   item.get("brand",""), item.get("model",""), item.get("grade",""),
+                   item.get("price",0),
+                   status_labels.get(item.get("status",""), item.get("status","")),
+                   branch.get("name","") if isinstance(branch, dict) else "",
+                   created])
+    return _wb_response(wb, f"inventory_{_date.today()}.xlsx")

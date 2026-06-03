@@ -9,9 +9,12 @@
     <h1 class="text-white text-2xl font-extrabold">إدارة الصيانة</h1>
     <p class="text-white/70 text-sm mt-1">{{ orders|length }} طلب صيانة</p>
   </div>
-  <button onclick="document.getElementById('addModal').classList.remove('hidden')" class="btn-primary">
-    <i class="fa-solid fa-plus"></i> إضافة صيانة
-  </button>
+  <div class="flex gap-2">
+    <a href="/export/maintenance" class="btn-secondary"><i class="fa-solid fa-file-excel"></i> تصدير Excel</a>
+    <button onclick="document.getElementById('addModal').classList.remove('hidden')" class="btn-primary">
+      <i class="fa-solid fa-plus"></i> إضافة صيانة
+    </button>
+  </div>
 </div>
 
 <!-- Search -->

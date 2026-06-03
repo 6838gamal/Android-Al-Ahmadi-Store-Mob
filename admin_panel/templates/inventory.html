@@ -7,9 +7,12 @@
     <h1 class="text-white text-2xl font-extrabold">مخزون العناصر الفردية</h1>
     <p class="text-white/70 text-sm mt-1">كل عنصر برقم تسلسلي ودرجة جودة مستقلة</p>
   </div>
-  <button onclick="document.getElementById('addModal').classList.remove('hidden')" class="btn-primary">
-    <i class="fa-solid fa-plus"></i> إضافة عنصر
-  </button>
+  <div class="flex gap-2">
+    <a href="/export/inventory" class="btn-secondary"><i class="fa-solid fa-file-excel"></i> تصدير Excel</a>
+    <button onclick="document.getElementById('addModal').classList.remove('hidden')" class="btn-primary">
+      <i class="fa-solid fa-plus"></i> إضافة عنصر
+    </button>
+  </div>
 </div>
 
 <!-- Stats Row -->

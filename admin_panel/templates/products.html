@@ -9,9 +9,10 @@
     <h1 class="text-white text-2xl font-extrabold">إدارة المنتجات</h1>
     <p class="text-white/70 text-sm mt-1">{{ products|length }} منتج</p>
   </div>
-  <a href="/products/add" class="btn-primary">
-    <i class="fa-solid fa-plus"></i> إضافة منتج
-  </a>
+  <div class="flex gap-2">
+    <a href="/export/products" class="btn-secondary"><i class="fa-solid fa-file-excel"></i> تصدير Excel</a>
+    <a href="/products/add" class="btn-primary"><i class="fa-solid fa-plus"></i> إضافة منتج</a>
+  </div>
 </div>
 
 <!-- Search -->

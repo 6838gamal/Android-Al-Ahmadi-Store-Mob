@@ -9,9 +9,12 @@
     <h1 class="text-white text-2xl font-extrabold">قائمة العملاء</h1>
     <p class="text-white/70 text-sm mt-1">{{ customers|length }} عميل مسجل</p>
   </div>
-  <button onclick="document.getElementById('addCustomerModal').classList.remove('hidden')" class="btn-primary">
-    <i class="fa-solid fa-plus"></i> إضافة عميل
-  </button>
+  <div class="flex gap-2">
+    <a href="/export/customers" class="btn-secondary"><i class="fa-solid fa-file-excel"></i> تصدير Excel</a>
+    <button onclick="document.getElementById('addCustomerModal').classList.remove('hidden')" class="btn-primary">
+      <i class="fa-solid fa-plus"></i> إضافة عميل
+    </button>
+  </div>
 </div>
 
 <!-- Search -->

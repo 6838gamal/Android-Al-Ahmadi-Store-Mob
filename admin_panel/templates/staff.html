@@ -7,9 +7,12 @@
     <h1 class="text-white text-2xl font-extrabold">إدارة الموظفين</h1>
     <p class="text-white/70 text-sm mt-1">موظفو المتجر ومديرو الفروع</p>
   </div>
-  <button onclick="document.getElementById('addStaffModal').classList.remove('hidden')" class="btn-primary">
-    <i class="fa-solid fa-plus"></i> إضافة موظف
-  </button>
+  <div class="flex gap-2">
+    <a href="/export/staff" class="btn-secondary"><i class="fa-solid fa-file-excel"></i> تصدير Excel</a>
+    <button onclick="document.getElementById('addStaffModal').classList.remove('hidden')" class="btn-primary">
+      <i class="fa-solid fa-plus"></i> إضافة موظف
+    </button>
+  </div>
 </div>
 
 <div class="card overflow-hidden">
