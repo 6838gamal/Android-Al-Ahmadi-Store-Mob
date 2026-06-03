@@ -12,3 +12,4 @@
 - [Migrations for new columns](migrations-new-cols.md) — Always add new DB columns via migrations.py (not just create_all); new tables get create_all; existing tables need ALTER TABLE in run_migrations()
 - [Flutter web build flags](flutter-build-flags.md) — Flutter 3.32+: use `flutter build web` with NO --web-renderer or --no-sound-null-safety flags (removed); PUB_CACHE=realpath(../.pub-cache) still required
 - [Token revocation pattern](token-revocation.md) — Add iat claim to JWT on creation; check iat vs user.tokens_invalidated_at in get_current_user; POST /auth/logout sets tokens_invalidated_at=now(); password change also revokes
+- [Referral link frontend URL](referral-link-url.md) — FRONTEND_BASE hardcoded to https://android-alahmadi-mob.netlify.app in backend/api/routes/referrals.py; referral link = FRONTEND_BASE + /register?ref=CODE

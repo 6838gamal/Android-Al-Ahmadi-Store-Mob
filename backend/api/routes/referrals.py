@@ -13,14 +13,12 @@ from typing import List
 router = APIRouter()
 
 
+FRONTEND_BASE = "https://android-alahmadi-mob.netlify.app"
+
+
 def _frontend_base_url(request: Request) -> str:
-    """Return the public-facing frontend URL (Flutter app on port 5000 / Replit domain)."""
-    replit_domain = os.getenv("REPLIT_DEV_DOMAIN")
-    if replit_domain:
-        return f"https://{replit_domain}"
-    # Fallback: swap backend port 8000 → frontend port 5000
-    base = str(request.base_url).rstrip("/")
-    return base.replace(":8000", ":5000")
+    """Return the public-facing frontend URL."""
+    return FRONTEND_BASE
 
 LEVEL1_TARGET = 50
 
