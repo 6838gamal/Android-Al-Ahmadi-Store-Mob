@@ -80,6 +80,7 @@ function proxyAdminRequest(req, res) {
   };
 
   const proxyReq = http.request(options, (proxyRes) => {
+    proxyReq.setTimeout(0); // Clear timeout once connection is established
     // For 302/303 redirects: use client-side JS redirect so the browser
     // navigates with GET instead of relying on the proxy chain which
     // incorrectly re-POSTs the redirect.
@@ -128,10 +129,20 @@ function proxyAdminRequest(req, res) {
     proxyRes.pipe(res, { end: true });
   });
 
+  proxyReq.setTimeout(25000, () => {
+    proxyReq.destroy();
+    if (!res.headersSent) {
+      res.writeHead(504, { 'Content-Type': 'text/html; charset=utf-8' });
+      res.end('<h3>الخادم يستغرق وقتاً أطول من المعتاد — أعد المحاولة خلال لحظات</h3>');
+    }
+  });
+
   proxyReq.on('error', (err) => {
     console.error('Admin proxy error:', err.message);
-    res.writeHead(502);
-    res.end('Admin panel unavailable');
+    if (!res.headersSent) {
+      res.writeHead(502, { 'Content-Type': 'text/html; charset=utf-8' });
+      res.end('<h3>لوحة الإدارة غير متاحة مؤقتاً — أعد المحاولة</h3>');
+    }
   });
 
   req.pipe(proxyReq, { end: true });

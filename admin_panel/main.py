@@ -75,6 +75,9 @@ def to_obj(data):
     return data
 
 
+_API_TIMEOUT = 10.0  # Keep well below Replit proxy timeout (~30s)
+
+
 async def api(method: str, path: str, token: str = None, real_ip: str = None, **kwargs):
     """Call the backend API; returns parsed JSON on success, None on error."""
     headers = {}
@@ -84,7 +87,7 @@ async def api(method: str, path: str, token: str = None, real_ip: str = None, **
         headers["X-Real-IP"] = real_ip
         headers["X-Forwarded-For"] = real_ip
     try:
-        async with httpx.AsyncClient(timeout=25.0, follow_redirects=True) as client:
+        async with httpx.AsyncClient(timeout=_API_TIMEOUT, follow_redirects=True) as client:
             resp = await getattr(client, method)(
                 f"{API_BASE}{path}", headers=headers, **kwargs
             )
@@ -101,7 +104,7 @@ async def api_ex(method: str, path: str, token: str = None, **kwargs):
     if token:
         headers["Authorization"] = f"Bearer {token}"
     try:
-        async with httpx.AsyncClient(timeout=25.0, follow_redirects=True) as client:
+        async with httpx.AsyncClient(timeout=_API_TIMEOUT, follow_redirects=True) as client:
             resp = await getattr(client, method)(
                 f"{API_BASE}{path}", headers=headers, **kwargs
             )
@@ -161,7 +164,7 @@ async def login_post(request: Request, identifier: str = Form(...), password: st
         or request.headers.get("x-forwarded-for", "").split(",")[0].strip()
         or (request.client.host if request.client else "unknown")
     )
-    async with httpx.AsyncClient(timeout=25.0, follow_redirects=True) as client:
+    async with httpx.AsyncClient(timeout=_API_TIMEOUT, follow_redirects=True) as client:
         try:
             headers_req = {"X-Real-IP": client_ip, "X-Forwarded-For": client_ip}
             resp = await client.post(
@@ -181,10 +184,14 @@ async def login_post(request: Request, identifier: str = Form(...), password: st
                     request.session["admin_name"] = user_data.get("name", "المدير")
                     request.session["token"]      = data.get("access_token")
                     return RedirectResponse("/dashboard", status_code=303)
+        except httpx.TimeoutException:
+            print(f"[login] TIMEOUT connecting to Render.com API")
+            return templates.TemplateResponse(request, "login.html",
+                {"error": "⏳ الخادم في وضع الاستعداد ويستيقظ الآن — أعد المحاولة خلال 30 ثانية."})
         except Exception as e:
             print(f"[login] exception type={type(e).__name__} msg={e!r}")
             return templates.TemplateResponse(request, "login.html",
-                {"error": "الخادم غير متاح حالياً. يرجى المحاولة لاحقاً."})
+                {"error": "تعذّر الاتصال بالخادم. تحقق من اتصالك وأعد المحاولة."})
     return templates.TemplateResponse(request, "login.html",
                                       {"error": "بيانات الدخول غير صحيحة. تحقق من البريد وكلمة المرور."})
 
