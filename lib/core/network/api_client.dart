@@ -11,12 +11,8 @@ class ApiClient {
   bool _isRefreshing = false;
 
   ApiClient() {
-    // On Replit dev (host contains 'replit'), use the page origin so requests
-    // go through the Node.js proxy (/api/* → backend:8000).
-    // On Netlify or mobile, call the backend URL directly.
-    final String base = kIsWeb && Uri.base.host.contains('replit')
-        ? Uri.base.origin
-        : AppConstants.baseUrl;
+    // Always use the Render.com backend regardless of environment
+    final String base = AppConstants.baseUrl;
 
     _dio = Dio(BaseOptions(
       baseUrl: '$base${AppConstants.apiVersion}',
