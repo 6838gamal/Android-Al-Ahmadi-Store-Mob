@@ -11,8 +11,8 @@ from types import SimpleNamespace
 from datetime import datetime
 import httpx
 
-# ── Backend API (local) ──────────────────────────────────────────────────────
-API_BASE = os.getenv("API_BASE_URL", "http://127.0.0.1:8000")
+# ── Backend API (Render.com) ──────────────────────────────────────────────────
+API_BASE = "https://android-al-ahmadi-store-api.onrender.com"
 
 app = FastAPI(title="لوحة إدارة اندرويد الاحمدي", docs_url=None, redoc_url=None)
 app.add_middleware(
