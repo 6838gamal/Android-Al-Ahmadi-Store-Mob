@@ -32,7 +32,7 @@
           <td class="px-4 py-3">
             <div class="flex items-center gap-2">
               <div class="w-8 h-8 rounded-full bg-primary-light flex items-center justify-center text-primary font-bold text-xs">
-                {{ s.name[0] }}
+                {{ (s.name or '؟')[0] }}
               </div>
               <span class="text-white font-bold text-sm">{{ s.name }}</span>
             </div>

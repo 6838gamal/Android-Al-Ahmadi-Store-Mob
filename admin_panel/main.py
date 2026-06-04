@@ -20,11 +20,13 @@ app = FastAPI(title="لوحة إدارة اندرويد الاحمدي", docs_ur
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
     import traceback
-    tb = traceback.format_exc()
+    tb = "".join(traceback.format_exception(type(exc), exc, exc.__traceback__))
     print(f"[UNHANDLED 500] {request.method} {request.url}\n{tb}")
     from fastapi.responses import HTMLResponse
     return HTMLResponse(
-        f"<pre style='color:red;padding:20px'><b>500 Internal Server Error</b>\n\n{tb}</pre>",
+        f"<pre style='color:red;padding:20px;font-size:13px'>"
+        f"<b>500 Internal Server Error</b>\n"
+        f"<b>{request.method} {request.url}</b>\n\n{tb}</pre>",
         status_code=500,
     )
 
