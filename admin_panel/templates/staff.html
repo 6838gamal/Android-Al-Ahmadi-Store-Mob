@@ -139,7 +139,7 @@
 {% block scripts %}
 <script>
 function openEditStaff(id, name, phone, email, role) {
-  document.getElementById('editStaffForm').action = '/staff/' + id + '/edit';
+  document.getElementById('editStaffForm').action = '/admin-panel/staff/' + id + '/edit';
   document.getElementById('editName').value = name;
   document.getElementById('editPhone').value = phone;
   document.getElementById('editEmail').value = email;
