@@ -7,6 +7,7 @@ import '../../features/auth/presentation/pages/onboarding_page.dart';
 import '../../features/auth/presentation/pages/login_page.dart';
 import '../../features/auth/presentation/pages/register_page.dart';
 import '../../features/auth/presentation/pages/forgot_password_page.dart';
+import '../../features/auth/presentation/pages/phone_otp_page.dart';
 import '../../features/home/presentation/pages/main_shell.dart';
 import '../../features/products/presentation/pages/products_page.dart';
 import '../../features/products/presentation/pages/product_detail_page.dart';
@@ -97,6 +98,14 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/login',      builder: (ctx, state) => const LoginPage()),
       GoRoute(path: '/register',   builder: (ctx, state) => const RegisterPage()),
       GoRoute(path: '/forgot-password', builder: (ctx, state) => const ForgotPasswordPage()),
+      GoRoute(
+        path: '/phone-login',
+        builder: (ctx, state) => const PhoneOtpPage(mode: 'login'),
+      ),
+      GoRoute(
+        path: '/verify-phone',
+        builder: (ctx, state) => const PhoneOtpPage(mode: 'verify'),
+      ),
 
       // ── Customer Shell (عميل فقط) ─────────────────────────────────────
       ShellRoute(

@@ -15,3 +15,4 @@
 - [Referral link frontend URL](referral-link-url.md) — FRONTEND_BASE hardcoded to https://android-alahmadi-mob.netlify.app in backend/api/routes/referrals.py; referral link = FRONTEND_BASE + /register?ref=CODE
 - [Admin panel json= param](admin-panel-json.md) — admin_panel/main.py api() uses `json=` kwarg (httpx), NOT `json_data=`; always use json= for POST/PUT bodies in admin routes
 - [New features batch](new-features-batch.md) — 7 new models+routes added (loyalty, shortage_request, auction, secret_deal, eng_support, complaint, purchase_invoice); reservation enhanced with deposit/penalty/extension; all in backend/main.py + migrations.py
+- [Firebase phone OTP architecture](firebase-otp-arch.md) — JS bridge in index.html + conditional dart import; keys served via /firebase-config from server.js env vars; backend verifies ID token via Firebase REST API

@@ -5,6 +5,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../home/presentation/pages/main_shell.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
+import '../../../auth/presentation/pages/phone_otp_page.dart';
 import '../../../../shared/widgets/app_button.dart';
 
 class ProfilePage extends ConsumerWidget {
@@ -223,6 +224,35 @@ class ProfilePage extends ConsumerWidget {
                   icon: Icons.phone_outlined,
                   label: 'رقم الجوال',
                   value: user.phone!),
+            if (user.phone != null && !user.isVerified)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(4, 6, 4, 0),
+                child: OutlinedButton.icon(
+                  onPressed: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => PhoneOtpPage(
+                        mode: 'verify',
+                        prefilledPhone: user.phone,
+                      ),
+                    ),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    side: const BorderSide(color: AppColors.warning, width: 1.2),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                  ),
+                  icon: const Icon(Icons.verified_user_outlined,
+                      color: AppColors.warning, size: 17),
+                  label: const Text('تحقق من رقم جوالك',
+                      style: TextStyle(
+                          fontFamily: 'Cairo',
+                          color: AppColors.warning,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 13)),
+                ),
+              ),
             if (user.email != null)
               _InfoRow(
                   icon: Icons.email_outlined,
