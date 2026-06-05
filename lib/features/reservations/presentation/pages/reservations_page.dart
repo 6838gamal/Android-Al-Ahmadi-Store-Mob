@@ -9,12 +9,11 @@ import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../../shared/widgets/loading_widget.dart';
 
 final _customerReservationsProvider =
-    FutureProvider.family<List<Map<String, dynamic>>, int>((ref, userId) async {
+    FutureProvider<List<Map<String, dynamic>>>((ref) async {
   final api = ref.read(apiClientProvider);
   try {
-    final res = await api.get('/reservations/', queryParameters: {'limit': '50'});
-    final all = List<Map<String, dynamic>>.from(res.data);
-    return all.where((r) => r['user_id'] == userId).toList();
+    final res = await api.get('/reservations/my');
+    return List<Map<String, dynamic>>.from(res.data);
   } catch (_) {
     return [];
   }
@@ -40,7 +39,7 @@ class ReservationsPage extends ConsumerWidget {
       ),
       body: user == null
           ? _GuestView()
-          : _ReservationsList(userId: user.id),
+          : _ReservationsList(),
     );
   }
 }
@@ -106,12 +105,11 @@ class _GuestView extends StatelessWidget {
 }
 
 class _ReservationsList extends ConsumerWidget {
-  final int userId;
-  const _ReservationsList({required this.userId});
+  const _ReservationsList();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final state = ref.watch(_customerReservationsProvider(userId));
+    final state = ref.watch(_customerReservationsProvider);
     return state.when(
       loading: () => const LoadingWidget(message: 'جاري تحميل الحجوزات...'),
       error: (_, __) => const EmptyState(

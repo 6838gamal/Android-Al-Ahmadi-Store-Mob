@@ -1822,9 +1822,11 @@ file:///home/runner/workspace/lib/features/referrals/presentation/providers/refe
 file:///home/runner/workspace/lib/features/reservations/presentation/pages/reservations_page.dart
 file:///home/runner/workspace/lib/features/settings/presentation/pages/settings_page.dart
 file:///home/runner/workspace/lib/features/staff/presentation/pages/staff_home_page.dart
+file:///home/runner/workspace/lib/features/staff/presentation/pages/staff_inspection_page.dart
 file:///home/runner/workspace/lib/features/staff/presentation/pages/staff_inventory_page.dart
 file:///home/runner/workspace/lib/features/staff/presentation/pages/staff_maintenance_page.dart
 file:///home/runner/workspace/lib/features/staff/presentation/pages/staff_orders_page.dart
+file:///home/runner/workspace/lib/features/staff/presentation/pages/staff_reservations_page.dart
 file:///home/runner/workspace/lib/features/staff/presentation/pages/staff_shell.dart
 file:///home/runner/workspace/lib/features/wallet/presentation/pages/wallet_page.dart
 file:///home/runner/workspace/lib/features/wallet/presentation/providers/wallet_provider.dart

@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from backend.core.database import get_db
 from backend.models.reservation import Reservation, ReservationStatus, CancellationType
 from backend.models.product import Product, ProductStatus
-from backend.api.dependencies import get_admin_user, require_staff_or_above
+from backend.api.dependencies import get_admin_user, require_staff_or_above, get_current_user
 from backend.models.user import User
 from backend.models.wallet import WalletTransaction, TransactionType, WalletCurrency
 from pydantic import BaseModel
@@ -57,6 +57,28 @@ class CancelRequest(BaseModel):
 def gen_res_number(db):
     count = db.query(Reservation).count() + 1
     return f"RES-{datetime.now().year}-{count:04d}"
+
+
+@router.get("/my", response_model=List[ReservationResponse])
+def my_reservations(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Return the authenticated customer's own reservations."""
+    reservations = (
+        db.query(Reservation)
+        .filter(Reservation.customer_id == current_user.id)
+        .order_by(Reservation.created_at.desc())
+        .all()
+    )
+    if not reservations and current_user.phone:
+        reservations = (
+            db.query(Reservation)
+            .filter(Reservation.customer_phone == current_user.phone)
+            .order_by(Reservation.created_at.desc())
+            .all()
+        )
+    return reservations
 
 
 @router.post("/", response_model=ReservationResponse)

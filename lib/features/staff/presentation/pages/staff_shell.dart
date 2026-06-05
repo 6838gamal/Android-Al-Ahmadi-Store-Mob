@@ -167,6 +167,8 @@ class _StaffShellState extends ConsumerState<StaffShell> {
           _item(Icons.receipt_long_outlined, 'إدارة الطلبات', () { Navigator.pop(context); context.go('/staff/orders'); }),
           _item(Icons.build_outlined, 'طلبات الصيانة', () { Navigator.pop(context); context.go('/staff/maintenance'); }),
           _item(Icons.inventory_2_outlined, 'المخزون', () { Navigator.pop(context); context.go('/staff/inventory'); }),
+          _item(Icons.bookmark_outlined, 'إدارة الحجوزات', () { Navigator.pop(context); context.go('/staff/reservations'); }),
+          _item(Icons.search_outlined, 'طلبات الفحص', () { Navigator.pop(context); context.go('/staff/inspection'); }),
           const Divider(color: AppColors.darkDivider, indent: 16, endIndent: 16),
           if (user != null)
             _item(Icons.logout, 'تسجيل الخروج', () async {

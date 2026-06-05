@@ -277,6 +277,8 @@ class _MaintenanceCard extends StatelessWidget {
                         style: const TextStyle(fontFamily: 'Cairo', fontSize: 12, color: AppColors.textSecondary)),
                   ),
                 ],
+                // Customer-uploaded media (photos/video)
+                _buildMediaStrip(order['images']),
                 if (order['total'] != null && order['total'] != 0) ...[
                   const SizedBox(height: 8),
                   Text('التكلفة: ${order['total']} ريال',
@@ -318,6 +320,104 @@ class _MaintenanceCard extends StatelessWidget {
           ),
         );
       }).toList(),
+    );
+  }
+
+  Widget _buildMediaStrip(dynamic images) {
+    if (images == null) return const SizedBox.shrink();
+    final list = images is List ? images.cast<String>() : <String>[];
+    if (list.isEmpty) return const SizedBox.shrink();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 10),
+        Row(
+          children: [
+            const Icon(Icons.photo_library_outlined, size: 13, color: AppColors.textMuted),
+            const SizedBox(width: 5),
+            Text('وسائط العميل (${list.length})',
+                style: const TextStyle(fontFamily: 'Cairo', fontSize: 11, color: AppColors.textMuted)),
+          ],
+        ),
+        const SizedBox(height: 6),
+        SizedBox(
+          height: 70,
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            itemCount: list.length,
+            itemBuilder: (ctx, i) {
+              final url = list[i];
+              final isVideo = url.contains('.mp4') || url.contains('.mov') || url.contains('.webm') || url.contains('.avi');
+              return GestureDetector(
+                onTap: () => _showMediaDialog(ctx, list, i),
+                child: Container(
+                  width: 70,
+                  height: 70,
+                  margin: const EdgeInsets.only(right: 6),
+                  decoration: BoxDecoration(
+                    color: AppColors.darkBg,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: AppColors.darkBorder),
+                  ),
+                  child: isVideo
+                      ? const Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.play_circle_outline, color: AppColors.primary, size: 28),
+                            Text('فيديو', style: TextStyle(fontFamily: 'Cairo', fontSize: 9, color: AppColors.textMuted)),
+                          ],
+                        )
+                      : ClipRRect(
+                          borderRadius: BorderRadius.circular(10),
+                          child: Image.network(url, fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) => const Icon(Icons.broken_image, color: AppColors.textMuted)),
+                        ),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _showMediaDialog(BuildContext context, List<String> urls, int initial) {
+    showDialog(
+      context: context,
+      builder: (_) => Dialog(
+        backgroundColor: Colors.black,
+        insetPadding: const EdgeInsets.all(12),
+        child: SizedBox(
+          height: 400,
+          child: PageView.builder(
+            controller: PageController(initialPage: initial),
+            itemCount: urls.length,
+            itemBuilder: (ctx, i) {
+              final url = urls[i];
+              final isVideo = url.contains('.mp4') || url.contains('.mov') || url.contains('.webm');
+              return isVideo
+                  ? Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.videocam, color: Colors.white, size: 60),
+                          const SizedBox(height: 12),
+                          const Text('فيديو — افتح الرابط للمشاهدة',
+                              style: TextStyle(fontFamily: 'Cairo', color: Colors.white70, fontSize: 13)),
+                          const SizedBox(height: 12),
+                          SelectableText(url,
+                              style: const TextStyle(color: Colors.blueAccent, fontSize: 11)),
+                        ],
+                      ),
+                    )
+                  : InteractiveViewer(
+                      child: Image.network(url, fit: BoxFit.contain,
+                          errorBuilder: (_, __, ___) => const Icon(Icons.broken_image, color: Colors.white)),
+                    );
+            },
+          ),
+        ),
+      ),
     );
   }
 

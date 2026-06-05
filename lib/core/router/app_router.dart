@@ -30,6 +30,8 @@ import '../../features/staff/presentation/pages/staff_home_page.dart';
 import '../../features/staff/presentation/pages/staff_orders_page.dart';
 import '../../features/staff/presentation/pages/staff_maintenance_page.dart';
 import '../../features/staff/presentation/pages/staff_inventory_page.dart';
+import '../../features/staff/presentation/pages/staff_inspection_page.dart';
+import '../../features/staff/presentation/pages/staff_reservations_page.dart';
 import '../../features/auth/presentation/providers/auth_provider.dart';
 
 final _customerRoutes = {
@@ -42,6 +44,7 @@ final _customerRoutes = {
 final _staffRoutes = {
   '/staff', '/staff/home', '/staff/orders',
   '/staff/maintenance', '/staff/inventory',
+  '/staff/inspection', '/staff/reservations',
 };
 
 /// A ChangeNotifier that listens to [authProvider] and notifies GoRouter
@@ -134,11 +137,13 @@ final routerProvider = Provider<GoRouter>((ref) {
       ShellRoute(
         builder: (ctx, state, child) => StaffShell(child: child),
         routes: [
-          GoRoute(path: '/staff',            builder: (ctx, state) => const StaffHomePage()),
-          GoRoute(path: '/staff/home',       builder: (ctx, state) => const StaffHomePage()),
-          GoRoute(path: '/staff/orders',     builder: (ctx, state) => const StaffOrdersPage()),
-          GoRoute(path: '/staff/maintenance',builder: (ctx, state) => const StaffMaintenancePage()),
-          GoRoute(path: '/staff/inventory',  builder: (ctx, state) => const StaffInventoryPage()),
+          GoRoute(path: '/staff',               builder: (ctx, state) => const StaffHomePage()),
+          GoRoute(path: '/staff/home',          builder: (ctx, state) => const StaffHomePage()),
+          GoRoute(path: '/staff/orders',        builder: (ctx, state) => const StaffOrdersPage()),
+          GoRoute(path: '/staff/maintenance',   builder: (ctx, state) => const StaffMaintenancePage()),
+          GoRoute(path: '/staff/inventory',     builder: (ctx, state) => const StaffInventoryPage()),
+          GoRoute(path: '/staff/inspection',    builder: (ctx, state) => const StaffInspectionPage()),
+          GoRoute(path: '/staff/reservations',  builder: (ctx, state) => const StaffReservationsPage()),
         ],
       ),
     ],
