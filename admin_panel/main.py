@@ -12,8 +12,8 @@ from datetime import datetime
 import httpx
 from urllib.parse import quote as _q
 
-# ── Backend API (local) ───────────────────────────────────────────────────────
-API_BASE = os.getenv("API_BASE", "http://127.0.0.1:8000")
+# ── Backend API (Render.com) ──────────────────────────────────────────────────
+API_BASE = "https://android-al-ahmadi-store-api.onrender.com"
 
 app = FastAPI(title="لوحة إدارة اندرويد الاحمدي", docs_url=None, redoc_url=None)
 

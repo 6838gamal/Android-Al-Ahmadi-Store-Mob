@@ -11,9 +11,8 @@ class ApiClient {
   bool _isRefreshing = false;
 
   ApiClient() {
-    // On Flutter Web, use relative path so requests go through the same origin
-    // (the Node.js proxy on port 5000 forwards /api/* to the FastAPI backend)
-    final String base = kIsWeb ? '' : AppConstants.baseUrl;
+    // Always use the Render.com backend regardless of environment
+    final String base = AppConstants.baseUrl;
 
     _dio = Dio(BaseOptions(
       baseUrl: '$base${AppConstants.apiVersion}',
