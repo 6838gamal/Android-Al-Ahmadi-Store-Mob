@@ -12,8 +12,10 @@ from datetime import datetime
 import httpx
 from urllib.parse import quote as _q
 
-# ── Backend API (local) ──────────────────────────────────────────────────────
+# ── Backend API — رابط الـ API يُقرأ من متغير البيئة API_BASE ──────────────
 API_BASE = os.getenv("API_BASE", "http://127.0.0.1:8000")
+if not API_BASE:
+    raise RuntimeError("يجب ضبط متغير البيئة API_BASE")
 
 app = FastAPI(title="لوحة إدارة اندرويد الاحمدي", docs_url=None, redoc_url=None)
 

@@ -14,9 +14,12 @@ class AppConstants {
     'الجمعة': '4:00 م - 11:00 م',
   };
 
-  // API base URL — for mobile builds use the Render.com deployment
+  // API base URL — injected at build time via --dart-define=API_BASE_URL=...
   // For Flutter Web the ApiClient overrides this with Uri.base.origin
-  static const String baseUrl = 'https://android-al-ahmadi-store-api.onrender.com';
+  static const String baseUrl = String.fromEnvironment(
+    'API_BASE_URL',
+    defaultValue: 'https://android-al-ahmadi-store-api.onrender.com',
+  );
 
   static const String apiVersion = '/api';
 
