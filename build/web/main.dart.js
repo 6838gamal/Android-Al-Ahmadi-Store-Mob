@@ -47889,7 +47889,7 @@ A.aTw.prototype={
 $1(a){return A.bbO()},
 $S:294}
 A.pf.prototype={
-aat(){var s=A.b0I(A.b_U("https://android-al-ahmadi-store-api.onrender.com/api",B.tj,A.aw(["Content-Type","application/json"],t.N,t.z),B.tj))
+aat(){var s=A.b0I(A.b_U("/api",B.tj,A.aw(["Content-Type","application/json"],t.N,t.z),B.tj))
 this.a!==$&&A.bN()
 this.a=s
 s=s.mC$
