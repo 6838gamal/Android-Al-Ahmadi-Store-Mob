@@ -11,8 +11,11 @@ class ApiClient {
   bool _isRefreshing = false;
 
   ApiClient() {
-    // Always use the Render.com backend regardless of environment
-    final String base = AppConstants.baseUrl;
+    // On web, use relative origin so the proxied Replit server routes correctly.
+    // On native (mobile), fall back to the configured base URL.
+    final String base = kIsWeb
+        ? Uri.base.origin
+        : AppConstants.baseUrl;
 
     _dio = Dio(BaseOptions(
       baseUrl: '$base${AppConstants.apiVersion}',
