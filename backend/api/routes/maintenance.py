@@ -5,7 +5,7 @@ from datetime import datetime
 from backend.core.database import get_db
 from backend.models.order import Order, OrderUpdate, OrderType, MaintenanceStatus, OrderStatus, PaymentMethod
 from backend.models.notification import Notification, NotificationType
-from backend.api.dependencies import get_admin_user, require_staff_or_above
+from backend.api.dependencies import get_admin_user, require_staff_or_above, get_current_user
 from backend.models.user import User
 from pydantic import BaseModel
 
@@ -19,6 +19,13 @@ class MaintenanceCreate(BaseModel):
     device_type: str
     problem_description: str
     price: Optional[float] = 0
+    notes: Optional[str] = None
+
+
+class CustomerMaintenanceCreate(BaseModel):
+    device_type: str
+    problem_description: str
+    media_urls: Optional[List[str]] = []
     notes: Optional[str] = None
 
 
@@ -61,7 +68,6 @@ MAINT_STATUS_NOTIFICATIONS = {
 
 
 def _create_maintenance_notification(db: Session, order: Order, status_value: str):
-    """Push a notification to the customer on maintenance status change."""
     if status_value not in MAINT_STATUS_NOTIFICATIONS:
         return
     title, body = MAINT_STATUS_NOTIFICATIONS[status_value]
@@ -93,7 +99,11 @@ def gen_maint_number(db):
 
 
 @router.post("/", response_model=MaintenanceResponse)
-def create_maintenance(data: MaintenanceCreate, db: Session = Depends(get_db), current_user: User = Depends(require_staff_or_above)):
+def create_maintenance(
+    data: MaintenanceCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_staff_or_above)
+):
     order = Order(
         order_number=gen_maint_number(db),
         customer_name=data.customer_name,
@@ -117,6 +127,74 @@ def create_maintenance(data: MaintenanceCreate, db: Session = Depends(get_db), c
     return order
 
 
+@router.post("/customer-request", response_model=MaintenanceResponse)
+def customer_submit_maintenance(
+    data: CustomerMaintenanceCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Any authenticated customer can submit a maintenance request directly.
+    Staff will be notified and follow up.
+    """
+    order = Order(
+        order_number=gen_maint_number(db),
+        customer_id=current_user.id,
+        customer_name=current_user.name,
+        customer_phone=current_user.phone or "",
+        customer_email=current_user.email,
+        order_type=OrderType.maintenance,
+        status=OrderStatus.received,
+        maintenance_status=MaintenanceStatus.received,
+        items=[{"device": data.device_type, "problem": data.problem_description}],
+        images=data.media_urls or [],
+        total=0,
+        subtotal=0,
+        notes=data.notes,
+        payment_method=PaymentMethod.cash,
+    )
+    db.add(order)
+    db.flush()
+    db.add(OrderUpdate(
+        order_id=order.id,
+        status="received",
+        note="تم إرسال طلب الصيانة من التطبيق"
+    ))
+    _create_maintenance_notification(db, order, "received")
+    db.commit()
+    db.refresh(order)
+    return order
+
+
+@router.get("/my", response_model=List[MaintenanceResponse])
+def get_my_maintenance(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Return the authenticated customer's own maintenance orders."""
+    orders = (
+        db.query(Order)
+        .filter(
+            Order.order_type == OrderType.maintenance,
+            Order.customer_id == current_user.id,
+        )
+        .order_by(Order.created_at.desc())
+        .all()
+    )
+    # Fallback: also match by phone if no customer_id orders found
+    if not orders and current_user.phone:
+        orders = (
+            db.query(Order)
+            .filter(
+                Order.order_type == OrderType.maintenance,
+                Order.customer_phone == current_user.phone,
+            )
+            .order_by(Order.created_at.desc())
+            .all()
+        )
+    return orders
+
+
 @router.get("/", response_model=List[MaintenanceResponse])
 def get_maintenance_orders(
     skip: int = 0,
@@ -136,7 +214,9 @@ def update_maintenance_status(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_staff_or_above)
 ):
-    order = db.query(Order).filter(Order.id == order_id, Order.order_type == OrderType.maintenance).first()
+    order = db.query(Order).filter(
+        Order.id == order_id, Order.order_type == OrderType.maintenance
+    ).first()
     if not order:
         raise HTTPException(status_code=404, detail="Maintenance order not found")
 

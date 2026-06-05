@@ -1802,6 +1802,7 @@ file:///home/runner/workspace/lib/features/auth/presentation/pages/splash_page.d
 file:///home/runner/workspace/lib/features/auth/presentation/pages/welcome_page.dart
 file:///home/runner/workspace/lib/features/auth/presentation/providers/auth_provider.dart
 file:///home/runner/workspace/lib/features/contact/presentation/pages/contact_page.dart
+file:///home/runner/workspace/lib/features/gallery/presentation/pages/gallery_page.dart
 file:///home/runner/workspace/lib/features/home/presentation/pages/main_shell.dart
 file:///home/runner/workspace/lib/features/inspection/presentation/pages/inspection_page.dart
 file:///home/runner/workspace/lib/features/inspection/presentation/providers/inspection_provider.dart

@@ -267,6 +267,7 @@ class _MainShellState extends ConsumerState<MainShell> {
           _DrawerItem(icon: Icons.account_balance_wallet_outlined, label: 'محفظتي', onTap: () { Navigator.pop(context); context.go('/wallet'); }),
           _DrawerItem(icon: Icons.people_outline, label: 'الإحالات', onTap: () { Navigator.pop(context); context.go('/referrals'); }),
           _DrawerItem(icon: Icons.medical_services_outlined, label: 'عيادة الفحص', onTap: () { Navigator.pop(context); context.go('/inspection'); }),
+          _DrawerItem(icon: Icons.photo_library_outlined, label: 'معرض الصور', onTap: () { Navigator.pop(context); context.go('/gallery'); }),
           _DrawerItem(icon: Icons.campaign_outlined, label: 'الإعلانات والعروض', onTap: () { Navigator.pop(context); context.go('/announcements'); }),
           _DrawerItem(icon: Icons.notifications_outlined, label: 'الإشعارات', onTap: () { Navigator.pop(context); context.go('/notifications'); }),
           const Divider(color: AppColors.darkDivider, indent: 16, endIndent: 16),
