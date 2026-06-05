@@ -13,3 +13,5 @@
 - [Flutter web build flags](flutter-build-flags.md) — Flutter 3.32+: use `flutter build web` with NO --web-renderer or --no-sound-null-safety flags (removed); PUB_CACHE=realpath(../.pub-cache) still required
 - [Token revocation pattern](token-revocation.md) — Add iat claim to JWT on creation; check iat vs user.tokens_invalidated_at in get_current_user; POST /auth/logout sets tokens_invalidated_at=now(); password change also revokes
 - [Referral link frontend URL](referral-link-url.md) — FRONTEND_BASE hardcoded to https://android-alahmadi-mob.netlify.app in backend/api/routes/referrals.py; referral link = FRONTEND_BASE + /register?ref=CODE
+- [Admin panel json= param](admin-panel-json.md) — admin_panel/main.py api() uses `json=` kwarg (httpx), NOT `json_data=`; always use json= for POST/PUT bodies in admin routes
+- [New features batch](new-features-batch.md) — 7 new models+routes added (loyalty, shortage_request, auction, secret_deal, eng_support, complaint, purchase_invoice); reservation enhanced with deposit/penalty/extension; all in backend/main.py + migrations.py

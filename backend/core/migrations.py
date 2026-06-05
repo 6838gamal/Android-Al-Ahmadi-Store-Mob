@@ -137,6 +137,27 @@ def run_migrations():
                         f"ALTER TABLE inventory_items ADD COLUMN {col_name} {col_def}"
                     ))
 
+        # ── reservations table (deposit + penalty fields) ──────────────────
+        if "reservations" in existing_tables:
+            res_cols = [c["name"] for c in inspector.get_columns("reservations")]
+            new_res_cols = [
+                ("deposit_amount",        "FLOAT DEFAULT 0.0 NOT NULL"),
+                ("deposit_paid",          "BOOLEAN DEFAULT FALSE NOT NULL"),
+                ("remaining_amount",      "FLOAT DEFAULT 0.0 NOT NULL"),
+                ("penalty_amount",        "FLOAT DEFAULT 2000.0 NOT NULL"),
+                ("cancellation_type",     "VARCHAR(20)"),
+                ("customer_credit_amount","FLOAT DEFAULT 0.0"),
+                ("cancelled_at",          ts_type),
+                ("cancel_reason",         "TEXT"),
+                ("extended_at",           ts_type),
+                ("extended_until",        ts_type),
+                ("extension_days",        "INTEGER DEFAULT 0"),
+                ("extension_count",       "INTEGER DEFAULT 0"),
+            ]
+            for col_name, col_def in new_res_cols:
+                if col_name not in res_cols:
+                    conn.execute(text(f"ALTER TABLE reservations ADD COLUMN {col_name} {col_def}"))
+
         conn.commit()
 
     # ── Indexes for performance ──────────────────────────────────────────────

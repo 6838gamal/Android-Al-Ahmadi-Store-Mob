@@ -1,0 +1,62 @@
+{% extends "layout.html" %}
+{% block title %}عيادة الدعم الهندسي{% endblock %}
+{% block page_title %}عيادة الدعم الهندسي{% endblock %}
+{% block page_title_mobile %}الدعم الهندسي{% endblock %}
+
+{% block content %}
+<div class="page-header" style="background:linear-gradient(135deg,#064e3b,#065f46)">
+  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
+    <div>
+      <h1 style="font-size:22px;font-weight:800;color:white;margin:0">🔧 عيادة الدعم الهندسي</h1>
+      <p style="color:rgba(255,255,255,.75);font-size:13px;margin:4px 0 0">منتدى هندسي مغلق لحل مشاكل الأعطال المعقدة</p>
+    </div>
+  </div>
+</div>
+
+<!-- Status Tabs -->
+<div style="display:flex;gap:8px;margin-bottom:18px;flex-wrap:wrap">
+  {% for s, label in [('', 'الكل'), ('open', 'مفتوح'), ('answered', 'تم الإجابة'), ('closed', 'مغلق')] %}
+  <a href="/eng-support?status={{ s }}" style="padding:7px 16px;border-radius:20px;font-size:13px;font-weight:700;border:1px solid {% if status_filter == s %}#22C55E{% else %}#2D3748{% endif %};color:{% if status_filter == s %}#22C55E{% else %}#9CA3AF{% endif %}">{{ label }}</a>
+  {% endfor %}
+</div>
+
+<div style="display:flex;flex-direction:column;gap:10px">
+  {% for post in posts %}
+  <div class="card" style="padding:18px">
+    <div style="display:flex;align-items:flex-start;gap:14px">
+      <div style="width:42px;height:42px;border-radius:50%;background:rgba(34,197,94,.15);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:18px">🔧</div>
+      <div style="flex:1;min-width:0">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px">
+          {% if post.is_pinned %}<span style="background:rgba(245,158,11,.15);color:#F59E0B;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700">📌 مثبت</span>{% endif %}
+          {% if post.status|v == 'open' %}<span class="badge" style="background:rgba(34,197,94,.15);color:#22C55E">مفتوح</span>
+          {% elif post.status|v == 'answered' %}<span class="badge" style="background:rgba(26,115,232,.15);color:#1A73E8">تم الإجابة</span>
+          {% else %}<span class="badge" style="background:rgba(107,114,128,.15);color:#6B7280">مغلق</span>{% endif %}
+          {% if post.is_subscription_required %}<span class="badge" style="background:rgba(239,68,68,.15);color:#EF4444">مدفوع</span>{% endif %}
+        </div>
+        <a href="/eng-support/{{ post.id }}" style="color:white;font-weight:800;font-size:15px;text-decoration:none">{{ post.title }}</a>
+        <div style="display:flex;gap:14px;margin-top:6px;font-size:12px;color:#6B7280;flex-wrap:wrap">
+          {% if post.device_type %}<span><i class="fa-solid fa-mobile"></i> {{ post.device_type }}</span>{% endif %}
+          {% if post.fault_type %}<span><i class="fa-solid fa-bug"></i> {{ post.fault_type }}</span>{% endif %}
+          <span><i class="fa-solid fa-user"></i> {{ post.author_name }}</span>
+          <span><i class="fa-solid fa-eye"></i> {{ post.views }} مشاهدة</span>
+          <span><i class="fa-solid fa-comment"></i> {{ post.response_count }} رد</span>
+        </div>
+        {% if post.tags %}
+        <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">
+          {% for tag in post.tags.split(',') %}
+          <span style="background:#161B22;color:#9CA3AF;padding:2px 8px;border-radius:20px;font-size:11px">#{{ tag.strip() }}</span>
+          {% endfor %}
+        </div>
+        {% endif %}
+      </div>
+      <div style="font-size:11px;color:#6B7280;text-align:left;flex-shrink:0">{{ post.created_at.strftime('%Y-%m-%d') if post.created_at else '' }}</div>
+    </div>
+  </div>
+  {% else %}
+  <div style="text-align:center;padding:60px 20px;color:#6B7280">
+    <i class="fa-solid fa-wrench" style="font-size:48px;margin-bottom:16px;opacity:.3"></i>
+    <p style="font-size:16px;font-weight:600">لا توجد استفسارات هندسية بعد</p>
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}

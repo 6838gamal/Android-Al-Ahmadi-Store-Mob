@@ -1,0 +1,82 @@
+{% extends "layout.html" %}
+{% block title %}صندوق الشكاوى السري{% endblock %}
+{% block page_title %}صندوق الشكاوى والمقترحات{% endblock %}
+{% block page_title_mobile %}الشكاوى</br>{% endblock %}
+
+{% block content %}
+<div class="page-header" style="background:linear-gradient(135deg,#450a0a,#7f1d1d)">
+  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
+    <div>
+      <h1 style="font-size:22px;font-weight:800;color:white;margin:0">📮 صندوق الشكاوى السري</h1>
+      <p style="color:rgba(255,255,255,.75);font-size:13px;margin:4px 0 0">محصور للمدير العام فقط — محجوب كلياً عن العمال والموظفين</p>
+    </div>
+    {% if unread_count > 0 %}
+    <div style="background:rgba(239,68,68,.2);border:1px solid #EF4444;border-radius:12px;padding:10px 18px;text-align:center">
+      <div style="color:#EF4444;font-weight:800;font-size:22px">{{ unread_count }}</div>
+      <div style="color:#EF4444;font-size:12px">غير مقروء</div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Filters -->
+<div style="display:flex;gap:8px;margin-bottom:18px;flex-wrap:wrap">
+  {% for s, label in [('', 'الكل'), ('pending', 'جديد'), ('reviewed', 'تمت المراجعة'), ('resolved', 'محلول'), ('archived', 'مؤرشف')] %}
+  <a href="/complaints?status={{ s }}" style="padding:7px 16px;border-radius:20px;font-size:13px;font-weight:700;border:1px solid {% if status_filter == s %}#EF4444{% else %}#2D3748{% endif %};color:{% if status_filter == s %}#EF4444{% else %}#9CA3AF{% endif %}">{{ label }}</a>
+  {% endfor %}
+  <a href="/complaints?type=complaint" style="padding:7px 16px;border-radius:20px;font-size:13px;font-weight:700;border:1px solid {% if type_filter == 'complaint' %}#F59E0B{% else %}#2D3748{% endif %};color:{% if type_filter == 'complaint' %}#F59E0B{% else %}#9CA3AF{% endif %}">شكاوى</a>
+  <a href="/complaints?type=suggestion" style="padding:7px 16px;border-radius:20px;font-size:13px;font-weight:700;border:1px solid {% if type_filter == 'suggestion' %}#22C55E{% else %}#2D3748{% endif %};color:{% if type_filter == 'suggestion' %}#22C55E{% else %}#9CA3AF{% endif %}">مقترحات</a>
+</div>
+
+<div style="display:flex;flex-direction:column;gap:10px">
+  {% for c in complaints %}
+  <div class="card" style="padding:18px;{% if not c.is_read %}border-right:3px solid #EF4444{% endif %}">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:10px">
+      <div>
+        <div style="display:flex;gap:8px;align-items:center;margin-bottom:6px;flex-wrap:wrap">
+          {% if not c.is_read %}<span style="width:8px;height:8px;border-radius:50%;background:#EF4444;display:inline-block"></span>{% endif %}
+          {% if c.complaint_type|v == 'complaint' %}<span class="badge" style="background:rgba(239,68,68,.15);color:#EF4444">شكوى</span>
+          {% elif c.complaint_type|v == 'suggestion' %}<span class="badge" style="background:rgba(34,197,94,.15);color:#22C55E">مقترح</span>
+          {% else %}<span class="badge" style="background:rgba(245,158,11,.15);color:#F59E0B">بلاغ</span>{% endif %}
+          {% if c.status|v == 'pending' %}<span class="badge" style="background:rgba(245,158,11,.15);color:#F59E0B">جديد</span>
+          {% elif c.status|v == 'reviewed' %}<span class="badge" style="background:rgba(26,115,232,.15);color:#1A73E8">تمت المراجعة</span>
+          {% elif c.status|v == 'resolved' %}<span class="badge" style="background:rgba(34,197,94,.15);color:#22C55E">محلول</span>
+          {% else %}<span class="badge" style="background:rgba(107,114,128,.15);color:#6B7280">مؤرشف</span>{% endif %}
+        </div>
+        <div style="font-weight:800;color:white;font-size:15px">{{ c.subject }}</div>
+        <div style="color:#9CA3AF;font-size:13px;margin-top:2px">{{ c.customer_name }}{% if c.customer_phone %} — {{ c.customer_phone }}{% endif %}</div>
+      </div>
+      <div style="font-size:11px;color:#6B7280">{{ c.created_at.strftime('%Y-%m-%d %H:%M') if c.created_at else '' }}</div>
+    </div>
+
+    <div style="background:#161B22;border-radius:10px;padding:12px;margin-bottom:12px">
+      <p style="color:#D1D5DB;font-size:13px;margin:0;line-height:1.6">{{ c.content }}</p>
+    </div>
+
+    {% if c.admin_reply %}
+    <div style="background:rgba(26,115,232,.08);border:1px solid rgba(26,115,232,.2);border-radius:10px;padding:12px;margin-bottom:12px">
+      <div style="color:#1A73E8;font-size:11px;font-weight:700;margin-bottom:4px">رد المدير:</div>
+      <p style="color:#93C5FD;font-size:13px;margin:0;line-height:1.6">{{ c.admin_reply }}</p>
+    </div>
+    {% endif %}
+
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <a href="/complaints/{{ c.id }}" class="btn-secondary" style="font-size:12px"><i class="fa-solid fa-reply"></i> رد وتفاصيل</a>
+      {% if c.status|v != 'resolved' %}
+      <form method="POST" action="/complaints/{{ c.id }}/resolve" style="display:inline">
+        <button type="submit" style="background:rgba(34,197,94,.15);color:#22C55E;border:none;cursor:pointer;padding:6px 12px;border-radius:8px;font-size:12px;font-weight:700">✓ حُلّت</button>
+      </form>
+      {% endif %}
+      <form method="POST" action="/complaints/{{ c.id }}/archive" style="display:inline">
+        <button type="submit" style="background:rgba(107,114,128,.1);color:#6B7280;border:none;cursor:pointer;padding:6px 12px;border-radius:8px;font-size:12px;font-weight:700">أرشفة</button>
+      </form>
+    </div>
+  </div>
+  {% else %}
+  <div style="text-align:center;padding:60px 20px;color:#6B7280">
+    <i class="fa-solid fa-inbox" style="font-size:48px;margin-bottom:16px;opacity:.3"></i>
+    <p style="font-size:16px;font-weight:600">لا توجد شكاوى أو مقترحات</p>
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}

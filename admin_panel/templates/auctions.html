@@ -1,0 +1,81 @@
+{% extends "layout.html" %}
+{% block title %}المزاد العلني العكسي{% endblock %}
+{% block page_title %}المزاد العلني العكسي{% endblock %}
+{% block page_title_mobile %}المزاد{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1 style="font-size:22px;font-weight:800;color:white;margin:0">🔨 المزاد العلني العكسي</h1>
+  <p style="color:rgba(255,255,255,.75);font-size:13px;margin:4px 0 0">مزاد الأجهزة التالفة للبيع كقطع غيار بين محلات الصيانة</p>
+</div>
+
+<!-- Status Tabs -->
+<div style="display:flex;gap:8px;margin-bottom:18px;flex-wrap:wrap">
+  {% for s, label in [('', 'الكل'), ('pending', 'قيد المراجعة'), ('active', 'نشط'), ('ended', 'منتهي'), ('sold', 'مباع'), ('rejected', 'مرفوض')] %}
+  <a href="/auctions?status={{ s }}" style="padding:7px 16px;border-radius:20px;font-size:13px;font-weight:700;border:1px solid {% if status_filter == s %}#1A73E8{% else %}#2D3748{% endif %};color:{% if status_filter == s %}#1A73E8{% else %}#9CA3AF{% endif %}">{{ label }}</a>
+  {% endfor %}
+</div>
+
+<div style="display:grid;gap:14px;grid-template-columns:repeat(auto-fill,minmax(320px,1fr))">
+  {% for a in auctions %}
+  <div class="card" style="padding:18px">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:12px">
+      <div>
+        <div style="font-size:11px;color:#6B7280;font-weight:700">{{ a.auction_number }}</div>
+        <div style="font-weight:800;color:white;font-size:15px">{{ a.device_type }}</div>
+        <div style="color:#9CA3AF;font-size:12px">{{ a.seller_name }} — {{ a.seller_phone }}</div>
+      </div>
+      {% if a.status|v == 'pending' %}<span class="badge" style="background:rgba(245,158,11,.15);color:#F59E0B;white-space:nowrap">قيد المراجعة</span>
+      {% elif a.status|v == 'active' %}<span class="badge" style="background:rgba(34,197,94,.15);color:#22C55E;white-space:nowrap">نشط 🔥</span>
+      {% elif a.status|v == 'sold' %}<span class="badge" style="background:rgba(26,115,232,.15);color:#1A73E8;white-space:nowrap">مباع</span>
+      {% elif a.status|v == 'rejected' %}<span class="badge" style="background:rgba(239,68,68,.15);color:#EF4444;white-space:nowrap">مرفوض</span>
+      {% else %}<span class="badge" style="background:rgba(107,114,128,.15);color:#6B7280;white-space:nowrap">منتهي</span>{% endif %}
+    </div>
+
+    <p style="color:#9CA3AF;font-size:13px;margin:0 0 12px;line-height:1.5">{{ a.problem_description[:120] }}{% if a.problem_description|length > 120 %}...{% endif %}</p>
+
+    {% if a.images %}
+    <div style="display:flex;gap:6px;margin-bottom:12px;overflow-x:auto">
+      {% for img in a.images[:3] %}
+      <img src="{{ img }}" style="width:70px;height:70px;object-fit:cover;border-radius:8px;border:1px solid #2D3748;flex-shrink:0">
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    <div style="background:#161B22;border-radius:10px;padding:12px;margin-bottom:14px;display:grid;grid-template-columns:1fr 1fr;gap:8px">
+      <div>
+        <div style="color:#6B7280;font-size:11px">السعر الابتدائي</div>
+        <div style="color:#1A73E8;font-weight:800">{{ a.starting_bid|int }} ريال</div>
+      </div>
+      <div>
+        <div style="color:#6B7280;font-size:11px">أعلى عرض</div>
+        <div style="color:#22C55E;font-weight:800">{{ a.current_bid|int }} ريال</div>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      {% if a.status|v == 'pending' %}
+      <form method="POST" action="/auctions/{{ a.id }}/activate" style="flex:1">
+        <button type="submit" class="btn-primary" style="width:100%;justify-content:center;font-size:13px"><i class="fa-solid fa-play"></i> تفعيل</button>
+      </form>
+      <form method="POST" action="/auctions/{{ a.id }}/reject" onsubmit="return confirm('رفض المزاد؟')">
+        <button type="submit" class="btn-danger"><i class="fa-solid fa-xmark"></i></button>
+      </form>
+      {% elif a.status|v == 'active' %}
+      <a href="/auctions/{{ a.id }}" class="btn-secondary" style="flex:1;justify-content:center;font-size:13px"><i class="fa-solid fa-eye"></i> عرض العروض</a>
+      <form method="POST" action="/auctions/{{ a.id }}/close">
+        <button type="submit" class="btn-danger" style="font-size:13px">إغلاق</button>
+      </form>
+      {% else %}
+      <a href="/auctions/{{ a.id }}" class="btn-secondary" style="font-size:13px"><i class="fa-solid fa-eye"></i> التفاصيل</a>
+      {% endif %}
+    </div>
+  </div>
+  {% else %}
+  <div style="grid-column:1/-1;text-align:center;padding:60px 20px;color:#6B7280">
+    <i class="fa-solid fa-gavel" style="font-size:48px;margin-bottom:16px;opacity:.3"></i>
+    <p style="font-size:16px;font-weight:600">لا توجد مزادات في هذه الفئة</p>
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}

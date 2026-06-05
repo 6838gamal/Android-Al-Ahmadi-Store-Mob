@@ -1,0 +1,111 @@
+{% extends "layout.html" %}
+{% block title %}نقاط الولاء — أندرويد الأحمدي{% endblock %}
+{% block page_title %}نظام نقاط الولاء{% endblock %}
+{% block page_title_mobile %}نقاط الولاء{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
+    <div>
+      <h1 style="font-size:22px;font-weight:800;color:white;margin:0">⭐ نظام نقاط الولاء</h1>
+      <p style="color:rgba(255,255,255,.75);font-size:13px;margin:4px 0 0">نقطة واحدة لكل شاشة مباعة — عند 25 نقطة شاشة مجانية</p>
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <a href="/loyalty/add" class="btn-primary"><i class="fa-solid fa-plus"></i> إضافة نقاط</a>
+    </div>
+  </div>
+</div>
+
+{% if accounts %}
+<div class="card" style="overflow:hidden">
+  <div class="table-scroll">
+    <table style="width:100%;border-collapse:collapse;font-size:14px">
+      <thead>
+        <tr style="border-bottom:1px solid #2D3748;background:#161B22">
+          <th style="padding:12px 16px;text-align:right;color:#9CA3AF;font-weight:700">#</th>
+          <th style="padding:12px 16px;text-align:right;color:#9CA3AF;font-weight:700">العميل</th>
+          <th style="padding:12px 16px;text-align:right;color:#9CA3AF;font-weight:700">الهاتف</th>
+          <th style="padding:12px 16px;text-align:center;color:#9CA3AF;font-weight:700">النقاط الحالية</th>
+          <th style="padding:12px 16px;text-align:center;color:#9CA3AF;font-weight:700">إجمالي المكتسبة</th>
+          <th style="padding:12px 16px;text-align:center;color:#9CA3AF;font-weight:700">الشاشات المجانية</th>
+          <th style="padding:12px 16px;text-align:center;color:#9CA3AF;font-weight:700">الحالة</th>
+          <th style="padding:12px 16px;text-align:center;color:#9CA3AF;font-weight:700">إجراء</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for acc in accounts %}
+        <tr class="table-row">
+          <td style="padding:12px 16px;color:#6B7280">{{ loop.index }}</td>
+          <td style="padding:12px 16px;font-weight:700;color:white">{{ acc.user_name }}</td>
+          <td style="padding:12px 16px;color:#9CA3AF;direction:ltr">{{ acc.user_phone }}</td>
+          <td style="padding:12px 16px;text-align:center">
+            <div style="display:inline-flex;align-items:center;gap:6px;font-weight:800;font-size:18px;{% if acc.total_points >= 25 %}color:#F59E0B{% elif acc.total_points >= 15 %}color:#1A73E8{% else %}color:#22C55E{% endif %}">
+              {{ acc.total_points }}<span style="font-size:13px;color:#6B7280">/ 25</span>
+            </div>
+          </td>
+          <td style="padding:12px 16px;text-align:center;color:#9CA3AF">{{ acc.lifetime_points }}</td>
+          <td style="padding:12px 16px;text-align:center">
+            <span style="background:rgba(34,197,94,0.15);color:#22C55E;padding:3px 10px;border-radius:20px;font-weight:700">{{ acc.free_screens_earned }}</span>
+          </td>
+          <td style="padding:12px 16px;text-align:center">
+            {% if acc.is_locked %}
+              <span class="badge" style="background:rgba(245,158,11,0.15);color:#F59E0B">🔒 مقفل — شاشة مجانية!</span>
+            {% else %}
+              <span class="badge" style="background:rgba(34,197,94,0.1);color:#22C55E">نشط</span>
+            {% endif %}
+          </td>
+          <td style="padding:12px 16px;text-align:center">
+            <div style="display:flex;gap:6px;justify-content:center;flex-wrap:wrap">
+              {% if acc.is_locked %}
+              <form method="POST" action="/loyalty/reset/{{ acc.user_id }}" style="display:inline" onsubmit="return confirm('تسليم الشاشة المجانية وتصفير نقاط {{ acc.user_name }}؟')">
+                <button type="submit" style="background:rgba(245,158,11,0.15);color:#F59E0B;border:none;cursor:pointer;padding:6px 12px;border-radius:8px;font-weight:700;font-size:12px">
+                  <i class="fa-solid fa-gift"></i> تسليم وتصفير
+                </button>
+              </form>
+              {% endif %}
+              <a href="/loyalty/user/{{ acc.user_id }}" style="background:rgba(26,115,232,0.15);color:#1A73E8;padding:6px 12px;border-radius:8px;font-weight:700;font-size:12px">
+                <i class="fa-solid fa-list"></i> السجل
+              </a>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% else %}
+<div style="text-align:center;padding:60px 20px;color:#6B7280">
+  <i class="fa-solid fa-star" style="font-size:48px;margin-bottom:16px;opacity:.3"></i>
+  <p style="font-size:16px;font-weight:600">لا توجد حسابات نقاط بعد</p>
+  <p style="font-size:13px">ستظهر هنا تلقائياً عند إضافة أول نقطة لأي عميل</p>
+</div>
+{% endif %}
+
+<!-- Add Points Modal -->
+{% if show_add_form %}
+<div style="position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:100;display:flex;align-items:center;justify-content:center;padding:20px">
+  <div style="background:#1C2230;border:1px solid #2D3748;border-radius:16px;padding:28px;max-width:440px;width:100%">
+    <h3 style="color:white;font-weight:800;margin:0 0 20px;font-size:18px">➕ إضافة نقاط للعميل</h3>
+    <form method="POST" action="/loyalty/add">
+      <div style="margin-bottom:14px">
+        <label style="color:#9CA3AF;font-size:13px;font-weight:600;display:block;margin-bottom:6px">رقم هاتف العميل</label>
+        <input name="phone" type="text" placeholder="07xxxxxxxx" class="input-field" required>
+      </div>
+      <div style="margin-bottom:14px">
+        <label style="color:#9CA3AF;font-size:13px;font-weight:600;display:block;margin-bottom:6px">عدد النقاط</label>
+        <input name="points" type="number" min="1" max="25" value="1" class="input-field" required>
+      </div>
+      <div style="margin-bottom:20px">
+        <label style="color:#9CA3AF;font-size:13px;font-weight:600;display:block;margin-bottom:6px">السبب</label>
+        <input name="reason" type="text" value="بيع شاشة" class="input-field">
+      </div>
+      <div style="display:flex;gap:10px">
+        <button type="submit" class="btn-primary" style="flex:1;justify-content:center">إضافة النقاط</button>
+        <a href="/loyalty" class="btn-secondary">إلغاء</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

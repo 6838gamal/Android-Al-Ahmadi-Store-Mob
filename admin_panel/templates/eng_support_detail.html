@@ -1,0 +1,68 @@
+{% extends "layout.html" %}
+{% block title %}تفاصيل استفسار هندسي{% endblock %}
+{% block page_title %}الاستفسار الهندسي{% endblock %}
+{% block page_title_mobile %}الاستفسار{% endblock %}
+
+{% block content %}
+<div style="margin-bottom:16px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+  <a href="/eng-support" style="color:#9CA3AF;font-size:13px;font-weight:600;text-decoration:none"><i class="fa-solid fa-arrow-right"></i> العودة</a>
+  {% if post %}
+  <form method="POST" action="/eng-support/{{ post.id }}/pin" style="display:inline">
+    <input type="hidden" name="is_pinned" value="{{ 'false' if post.is_pinned else 'true' }}">
+    <button type="submit" style="background:rgba(245,158,11,.15);color:#F59E0B;border:none;cursor:pointer;padding:6px 12px;border-radius:8px;font-size:12px;font-weight:700">
+      📌 {% if post.is_pinned %}إلغاء التثبيت{% else %}تثبيت{% endif %}
+    </button>
+  </form>
+  <form method="POST" action="/eng-support/{{ post.id }}/delete" onsubmit="return confirm('حذف هذا الاستفسار نهائياً؟')" style="display:inline">
+    <button type="submit" class="btn-danger" style="font-size:12px"><i class="fa-solid fa-trash"></i> حذف</button>
+  </form>
+  {% endif %}
+</div>
+
+{% if post %}
+<div class="card" style="padding:24px;margin-bottom:16px">
+  <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px">
+    {% if post.is_pinned %}<span style="background:rgba(245,158,11,.15);color:#F59E0B;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700">📌 مثبت</span>{% endif %}
+    {% if post.status|v == 'open' %}<span class="badge" style="background:rgba(34,197,94,.15);color:#22C55E">مفتوح</span>
+    {% elif post.status|v == 'answered' %}<span class="badge" style="background:rgba(26,115,232,.15);color:#1A73E8">تم الإجابة</span>
+    {% else %}<span class="badge" style="background:rgba(107,114,128,.15);color:#6B7280">مغلق</span>{% endif %}
+    {% if post.is_subscription_required %}<span class="badge" style="background:rgba(239,68,68,.15);color:#EF4444">مدفوع — {{ post.price_per_consult|int }} ريال</span>{% endif %}
+  </div>
+  <h2 style="color:white;font-weight:800;font-size:18px;margin:0 0 10px">{{ post.title }}</h2>
+  <div style="display:flex;gap:14px;font-size:12px;color:#6B7280;flex-wrap:wrap;margin-bottom:16px">
+    {% if post.device_type %}<span><i class="fa-solid fa-mobile"></i> {{ post.device_type }}</span>{% endif %}
+    {% if post.fault_type %}<span><i class="fa-solid fa-bug"></i> {{ post.fault_type }}</span>{% endif %}
+    <span><i class="fa-solid fa-user"></i> {{ post.author_name }}{% if post.author_phone %} — {{ post.author_phone }}{% endif %}</span>
+    <span><i class="fa-solid fa-eye"></i> {{ post.views }}</span>
+  </div>
+  <div style="background:#161B22;border-radius:10px;padding:16px;margin-bottom:14px">
+    <p style="color:#D1D5DB;font-size:14px;margin:0;line-height:1.7;white-space:pre-wrap">{{ post.content }}</p>
+  </div>
+  {% if post.images %}
+  <div style="display:flex;flex-wrap:wrap;gap:8px">
+    {% for img in post.images %}
+    <a href="{{ img }}" target="_blank"><img src="{{ img }}" style="width:100px;height:100px;object-fit:cover;border-radius:8px;border:1px solid #2D3748"></a>
+    {% endfor %}
+  </div>
+  {% endif %}
+</div>
+
+<div style="color:#9CA3AF;font-weight:700;font-size:14px;margin-bottom:12px">الردود ({{ post.responses|length }})</div>
+
+{% for resp in post.responses %}
+<div class="card" style="padding:18px;margin-bottom:10px;{% if resp.is_accepted %}border:1px solid rgba(34,197,94,.3){% endif %}">
+  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:10px">
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <span style="color:white;font-weight:700">{{ resp.author_name }}</span>
+      {% if resp.is_accepted %}<span class="badge" style="background:rgba(34,197,94,.15);color:#22C55E">✓ مقبول</span>{% endif %}
+      {% if resp.is_paid %}<span class="badge" style="background:rgba(245,158,11,.15);color:#F59E0B">مدفوع — {{ resp.payment_amount|int }} ريال</span>{% endif %}
+    </div>
+    <span style="font-size:11px;color:#6B7280">{{ resp.created_at[:16].replace('T',' ') if resp.created_at else '' }}</span>
+  </div>
+  <p style="color:#D1D5DB;font-size:13px;margin:0;line-height:1.6;white-space:pre-wrap">{{ resp.content }}</p>
+</div>
+{% else %}
+<div style="text-align:center;padding:30px;color:#6B7280">لا توجد ردود بعد</div>
+{% endfor %}
+{% endif %}
+{% endblock %}

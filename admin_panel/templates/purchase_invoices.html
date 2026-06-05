@@ -1,0 +1,164 @@
+{% extends "layout.html" %}
+{% block title %}فواتير المشتريات{% endblock %}
+{% block page_title %}فواتير المشتريات المختلطة{% endblock %}
+{% block page_title_mobile %}المشتريات{% endblock %}
+
+{% block content %}
+<div class="page-header" style="background:linear-gradient(135deg,#1e3a5f,#1A73E8)">
+  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
+    <div>
+      <h1 style="font-size:22px;font-weight:800;color:white;margin:0">🧾 فواتير المشتريات</h1>
+      <p style="color:rgba(255,255,255,.75);font-size:13px;margin:4px 0 0">تسجيل مشتريات الشاشات مع تقسيم مصادر التمويل</p>
+    </div>
+    <a href="/purchase-invoices/add" class="btn-primary"><i class="fa-solid fa-plus"></i> فاتورة جديدة</a>
+  </div>
+</div>
+
+<!-- Summary Stats -->
+<div class="stats-grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:20px">
+  <div class="stat-card">
+    <div style="color:#9CA3AF;font-size:12px;margin-bottom:6px">إجمالي المشتريات</div>
+    <div style="color:white;font-weight:800;font-size:20px">{{ total_amount|int|default(0) }} ريال</div>
+  </div>
+  <div class="stat-card">
+    <div style="color:#9CA3AF;font-size:12px;margin-bottom:6px">مدفوع من الدرج</div>
+    <div style="color:#F59E0B;font-weight:800;font-size:20px">{{ total_drawer|int|default(0) }} ريال</div>
+  </div>
+  <div class="stat-card">
+    <div style="color:#9CA3AF;font-size:12px;margin-bottom:6px">رأس مال المالك</div>
+    <div style="color:#1A73E8;font-weight:800;font-size:20px">{{ total_owner|int|default(0) }} ريال</div>
+  </div>
+</div>
+
+<div class="card" style="overflow:hidden">
+  <div class="table-scroll">
+    <table style="width:100%;border-collapse:collapse;font-size:14px">
+      <thead>
+        <tr style="border-bottom:1px solid #2D3748;background:#161B22">
+          <th style="padding:12px 16px;text-align:right;color:#9CA3AF">رقم الفاتورة</th>
+          <th style="padding:12px 16px;text-align:right;color:#9CA3AF">المورد</th>
+          <th style="padding:12px 16px;text-align:center;color:#9CA3AF">الإجمالي</th>
+          <th style="padding:12px 16px;text-align:center;color:#9CA3AF">من الدرج</th>
+          <th style="padding:12px 16px;text-align:center;color:#9CA3AF">رأس مال المالك</th>
+          <th style="padding:12px 16px;text-align:center;color:#9CA3AF">التاريخ</th>
+          <th style="padding:12px 16px;text-align:center;color:#9CA3AF">إجراء</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for inv in invoices %}
+        <tr class="table-row">
+          <td style="padding:12px 16px">
+            <div style="font-weight:700;color:#1A73E8">{{ inv.invoice_number }}</div>
+          </td>
+          <td style="padding:12px 16px">
+            <div style="font-weight:700;color:white">{{ inv.supplier_name }}</div>
+            {% if inv.supplier_phone %}<div style="color:#9CA3AF;font-size:12px;direction:ltr">{{ inv.supplier_phone }}</div>{% endif %}
+          </td>
+          <td style="padding:12px 16px;text-align:center;font-weight:800;color:white">{{ inv.total_amount|int }} ريال</td>
+          <td style="padding:12px 16px;text-align:center;color:#F59E0B;font-weight:700">{{ inv.cash_from_drawer|int }} ريال</td>
+          <td style="padding:12px 16px;text-align:center;color:#1A73E8;font-weight:700">{{ inv.capital_from_owner|int }} ريال</td>
+          <td style="padding:12px 16px;text-align:center;color:#6B7280;font-size:12px">{{ inv.created_at.strftime('%Y-%m-%d') if inv.created_at else '' }}</td>
+          <td style="padding:12px 16px;text-align:center">
+            <a href="/purchase-invoices/{{ inv.id }}" style="background:rgba(26,115,232,.15);color:#1A73E8;padding:5px 12px;border-radius:8px;font-size:12px;font-weight:700">
+              <i class="fa-solid fa-eye"></i> تفاصيل
+            </a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% if not invoices %}
+  <div style="text-align:center;padding:60px 20px;color:#6B7280">
+    <i class="fa-solid fa-file-invoice" style="font-size:48px;margin-bottom:16px;opacity:.3"></i>
+    <p style="font-size:16px;font-weight:600">لا توجد فواتير مشتريات بعد</p>
+    <a href="/purchase-invoices/add" class="btn-primary" style="margin-top:16px;display:inline-flex"><i class="fa-solid fa-plus"></i> فاتورة جديدة</a>
+  </div>
+  {% endif %}
+</div>
+
+<!-- Add Invoice Form -->
+{% if show_add_form %}
+<div style="position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:100;display:flex;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto">
+  <div style="background:#1C2230;border:1px solid #2D3748;border-radius:16px;padding:28px;max-width:680px;width:100%;margin:auto">
+    <h3 style="color:white;font-weight:800;margin:0 0 20px;font-size:18px">🧾 فاتورة مشتريات جديدة</h3>
+    <form method="POST" action="/purchase-invoices/add">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
+        <div>
+          <label style="color:#9CA3AF;font-size:13px;font-weight:600;display:block;margin-bottom:6px">اسم المورد *</label>
+          <input name="supplier_name" type="text" class="input-field" required placeholder="اسم المورد">
+        </div>
+        <div>
+          <label style="color:#9CA3AF;font-size:13px;font-weight:600;display:block;margin-bottom:6px">هاتف المورد</label>
+          <input name="supplier_phone" type="text" class="input-field" placeholder="07xxxxxxxx">
+        </div>
+        <div>
+          <label style="color:#9CA3AF;font-size:13px;font-weight:600;display:block;margin-bottom:6px">مدفوع من كاش الدرج (ريال)</label>
+          <input name="cash_from_drawer" type="number" step="0.01" min="0" value="0" class="input-field" id="drawer-input" oninput="updateTotal()">
+        </div>
+        <div>
+          <label style="color:#9CA3AF;font-size:13px;font-weight:600;display:block;margin-bottom:6px">مدفوع من المالك / رأس المال (ريال)</label>
+          <input name="capital_from_owner" type="number" step="0.01" min="0" value="0" class="input-field" id="owner-input" oninput="updateTotal()">
+        </div>
+      </div>
+      <div style="margin-bottom:14px">
+        <label style="color:#9CA3AF;font-size:13px;font-weight:600;display:block;margin-bottom:6px">ملاحظات</label>
+        <textarea name="notes" class="input-field" rows="2" placeholder="ملاحظات اختيارية..."></textarea>
+      </div>
+
+      <div style="background:#161B22;border-radius:12px;padding:16px;margin-bottom:14px">
+        <div style="color:white;font-weight:700;margin-bottom:12px">📦 أصناف الفاتورة</div>
+        <div id="items-container">
+          <div class="item-row" style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr auto;gap:8px;margin-bottom:8px;align-items:center">
+            <input name="item_name[]" type="text" class="input-field" placeholder="اسم الشاشة / المنتج" style="font-size:13px" required>
+            <input name="item_model[]" type="text" class="input-field" placeholder="الموديل" style="font-size:13px">
+            <input name="item_qty[]" type="number" min="1" value="1" class="input-field" placeholder="كمية" style="font-size:13px" oninput="updateTotal()">
+            <input name="item_price[]" type="number" step="0.01" min="0" class="input-field" placeholder="سعر الوحدة" style="font-size:13px" oninput="updateTotal()">
+            <button type="button" onclick="this.closest('.item-row').remove();updateTotal()" style="background:rgba(239,68,68,.1);color:#EF4444;border:none;cursor:pointer;width:32px;height:32px;border-radius:8px;font-size:16px">×</button>
+          </div>
+        </div>
+        <button type="button" onclick="addItem()" style="background:rgba(26,115,232,.1);color:#1A73E8;border:1px dashed #1A73E8;cursor:pointer;padding:8px 16px;border-radius:10px;font-size:13px;font-weight:700;width:100%;margin-top:4px">+ إضافة صنف</button>
+      </div>
+
+      <div style="background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.2);border-radius:10px;padding:12px;margin-bottom:20px;text-align:center">
+        <div style="color:#9CA3AF;font-size:12px">إجمالي الفاتورة (محسوب تلقائياً)</div>
+        <div id="total-display" style="color:#22C55E;font-weight:800;font-size:22px">0 ريال</div>
+      </div>
+
+      <div style="display:flex;gap:10px">
+        <button type="submit" class="btn-primary" style="flex:1;justify-content:center">💾 حفظ الفاتورة</button>
+        <a href="/purchase-invoices" class="btn-secondary">إلغاء</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endif %}
+
+{% block scripts %}
+<script>
+function addItem() {
+  var c = document.getElementById('items-container');
+  var d = document.createElement('div');
+  d.className = 'item-row';
+  d.style = 'display:grid;grid-template-columns:2fr 1fr 1fr 1fr auto;gap:8px;margin-bottom:8px;align-items:center';
+  d.innerHTML = '<input name="item_name[]" type="text" class="input-field" placeholder="اسم الشاشة / المنتج" style="font-size:13px" required>' +
+    '<input name="item_model[]" type="text" class="input-field" placeholder="الموديل" style="font-size:13px">' +
+    '<input name="item_qty[]" type="number" min="1" value="1" class="input-field" placeholder="كمية" style="font-size:13px" oninput="updateTotal()">' +
+    '<input name="item_price[]" type="number" step="0.01" min="0" class="input-field" placeholder="سعر الوحدة" style="font-size:13px" oninput="updateTotal()">' +
+    '<button type="button" onclick="this.closest(\'.item-row\').remove();updateTotal()" style="background:rgba(239,68,68,.1);color:#EF4444;border:none;cursor:pointer;width:32px;height:32px;border-radius:8px;font-size:16px">×</button>';
+  c.appendChild(d);
+}
+
+function updateTotal() {
+  var rows = document.querySelectorAll('.item-row');
+  var total = 0;
+  rows.forEach(function(row) {
+    var qty = parseFloat(row.querySelector('[name="item_qty[]"]')?.value) || 0;
+    var price = parseFloat(row.querySelector('[name="item_price[]"]')?.value) || 0;
+    total += qty * price;
+  });
+  document.getElementById('total-display').textContent = total.toLocaleString('ar') + ' ريال';
+}
+</script>
+{% endblock %}
+{% endblock %}

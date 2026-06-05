@@ -1,0 +1,129 @@
+{% extends "layout.html" %}
+{% block title %}طلبات النواقص{% endblock %}
+{% block page_title %}طلبات النواقص{% endblock %}
+{% block page_title_mobile %}النواقص{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
+    <div>
+      <h1 style="font-size:22px;font-weight:800;color:white;margin:0">📋 طلبات النواقص</h1>
+      <p style="color:rgba(255,255,255,.75);font-size:13px;margin:4px 0 0">إدارة طلبات الشاشات غير المتوفرة وإشعار العملاء</p>
+    </div>
+    <div style="display:flex;gap:10px">
+      <a href="/shortage-requests?view=grouped" class="btn-secondary"><i class="fa-solid fa-layer-group"></i> تجميع حسب الموديل</a>
+    </div>
+  </div>
+</div>
+
+<!-- Status Tabs -->
+<div style="display:flex;gap:8px;margin-bottom:18px;flex-wrap:wrap">
+  {% for s, label, color in [('', 'الكل', '#9CA3AF'), ('pending', 'قيد الانتظار', '#F59E0B'), ('notified', 'تم الإشعار', '#1A73E8'), ('purchased', 'تم الشراء', '#22C55E'), ('closed', 'مغلق', '#6B7280')] %}
+  <a href="/shortage-requests?status={{ s }}" style="padding:7px 16px;border-radius:20px;font-size:13px;font-weight:700;border:1px solid {% if status_filter == s %}{{ color }}{% else %}#2D3748{% endif %};color:{% if status_filter == s %}{{ color }}{% else %}#9CA3AF{% endif %};background:{% if status_filter == s %}rgba(255,255,255,.05){% else %}transparent{% endif %}">{{ label }}</a>
+  {% endfor %}
+</div>
+
+{% if view == 'grouped' %}
+<!-- Grouped View -->
+<div style="display:grid;gap:14px">
+  {% for group in groups %}
+  <div class="card" style="padding:18px">
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:14px">
+      <div>
+        <div style="font-weight:800;color:white;font-size:16px">{{ group.brand }} {{ group.model }}</div>
+        <div style="color:#9CA3AF;font-size:13px">{{ group.requests|length }} طلب مُجمَّع</div>
+      </div>
+      <form method="POST" action="/shortage-requests/batch-notify" style="display:inline">
+        {% for r in group.requests %}
+        <input type="hidden" name="ids" value="{{ r.id }}">
+        {% endfor %}
+        <button type="submit" class="btn-primary" style="font-size:13px">
+          <i class="fa-solid fa-bell"></i> إشعار الكل عبر واتساب
+        </button>
+      </form>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      {% for r in group.requests %}
+      <div style="background:#161B22;border-radius:10px;padding:12px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+        <div>
+          <span style="color:white;font-weight:700">{{ r.customer_name }}</span>
+          <span style="color:#9CA3AF;font-size:13px;margin-right:8px;direction:ltr">{{ r.customer_phone }}</span>
+          {% if r.notes %}<span style="color:#6B7280;font-size:12px">— {{ r.notes }}</span>{% endif %}
+        </div>
+        <a href="https://wa.me/{{ r.customer_phone|replace('+', '')|replace(' ', '') }}?text={{ ('متوفرة الآن: ' ~ group.brand ~ ' ' ~ group.model)|urlencode }}" target="_blank"
+           style="background:rgba(37,211,102,0.15);color:#25d366;padding:5px 12px;border-radius:8px;font-size:12px;font-weight:700">
+          <i class="fa-brands fa-whatsapp"></i> إشعار
+        </a>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% else %}
+  <div style="text-align:center;padding:40px;color:#6B7280">لا توجد طلبات معلقة للتجميع</div>
+  {% endfor %}
+</div>
+
+{% else %}
+<!-- List View -->
+<div class="card" style="overflow:hidden">
+  <div class="table-scroll">
+    <table style="width:100%;border-collapse:collapse;font-size:14px">
+      <thead>
+        <tr style="border-bottom:1px solid #2D3748;background:#161B22">
+          <th style="padding:12px 16px;text-align:right;color:#9CA3AF">#</th>
+          <th style="padding:12px 16px;text-align:right;color:#9CA3AF">العميل</th>
+          <th style="padding:12px 16px;text-align:right;color:#9CA3AF">الشاشة المطلوبة</th>
+          <th style="padding:12px 16px;text-align:center;color:#9CA3AF">الحالة</th>
+          <th style="padding:12px 16px;text-align:center;color:#9CA3AF">التاريخ</th>
+          <th style="padding:12px 16px;text-align:center;color:#9CA3AF">إجراء</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for req in requests %}
+        <tr class="table-row">
+          <td style="padding:12px 16px;color:#6B7280">{{ loop.index }}</td>
+          <td style="padding:12px 16px">
+            <div style="font-weight:700;color:white">{{ req.customer_name }}</div>
+            <div style="color:#9CA3AF;font-size:12px;direction:ltr">{{ req.customer_phone }}</div>
+          </td>
+          <td style="padding:12px 16px">
+            <div style="font-weight:700;color:white">{{ req.brand }} {{ req.model }}</div>
+            {% if req.series %}<div style="color:#9CA3AF;font-size:12px">{{ req.series }}</div>{% endif %}
+            {% if req.notes %}<div style="color:#6B7280;font-size:12px">{{ req.notes }}</div>{% endif %}
+          </td>
+          <td style="padding:12px 16px;text-align:center">
+            {% if req.status|v == 'pending' %}<span class="badge" style="background:rgba(245,158,11,.15);color:#F59E0B">قيد الانتظار</span>
+            {% elif req.status|v == 'notified' %}<span class="badge" style="background:rgba(26,115,232,.15);color:#1A73E8">تم الإشعار</span>
+            {% elif req.status|v == 'purchased' %}<span class="badge" style="background:rgba(34,197,94,.15);color:#22C55E">تم الشراء</span>
+            {% else %}<span class="badge" style="background:rgba(107,114,128,.15);color:#6B7280">مغلق</span>{% endif %}
+          </td>
+          <td style="padding:12px 16px;text-align:center;color:#9CA3AF;font-size:12px">{{ req.created_at.strftime('%Y-%m-%d') if req.created_at else '' }}</td>
+          <td style="padding:12px 16px;text-align:center">
+            <div style="display:flex;gap:6px;justify-content:center;flex-wrap:wrap">
+              {% if req.status|v == 'pending' %}
+              <a href="https://wa.me/{{ req.customer_phone|replace('+','')|replace(' ','') }}?text={{ ('متوفرة الآن: ' ~ req.brand ~ ' ' ~ req.model)|urlencode }}" target="_blank"
+                 style="background:rgba(37,211,102,.15);color:#25d366;padding:5px 10px;border-radius:8px;font-size:12px;font-weight:700">
+                <i class="fa-brands fa-whatsapp"></i>
+              </a>
+              <form method="POST" action="/shortage-requests/{{ req.id }}/notify" style="display:inline">
+                <button type="submit" style="background:rgba(26,115,232,.15);color:#1A73E8;border:none;cursor:pointer;padding:5px 10px;border-radius:8px;font-size:12px;font-weight:700">✓ إشعار</button>
+              </form>
+              {% endif %}
+              {% if req.status|v == 'notified' %}
+              <form method="POST" action="/shortage-requests/{{ req.id }}/purchased" style="display:inline">
+                <button type="submit" style="background:rgba(34,197,94,.15);color:#22C55E;border:none;cursor:pointer;padding:5px 10px;border-radius:8px;font-size:12px;font-weight:700">تم الشراء</button>
+              </form>
+              {% endif %}
+              <form method="POST" action="/shortage-requests/{{ req.id }}/close" style="display:inline" onsubmit="return confirm('إغلاق الطلب؟')">
+                <button type="submit" style="background:rgba(239,68,68,.1);color:#EF4444;border:none;cursor:pointer;padding:5px 10px;border-radius:8px;font-size:12px;font-weight:700">إغلاق</button>
+              </form>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

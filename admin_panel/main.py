@@ -1301,6 +1301,520 @@ async def export_maintenance_excel(request: Request):
     return _wb_response(wb, f"maintenance_{_date.today()}.xlsx")
 
 
+# ══════════════════════════════════════════════════════════════════════════════
+#  LOYALTY POINTS
+# ══════════════════════════════════════════════════════════════════════════════
+@app.get("/loyalty")
+async def loyalty_list(request: Request):
+    if not _logged(request):
+        return _redirect_login()
+    accounts = await api("get", "/api/loyalty/all", token=_token(request)) or []
+    for a in accounts:
+        a["status_v"] = a.get("status", "")
+    return templates.TemplateResponse("loyalty.html", {
+        "request": request,
+        "admin_name": _admin_name(request),
+        "active": "loyalty",
+        "accounts": accounts,
+        "show_add_form": False,
+    })
+
+
+@app.get("/loyalty/add")
+async def loyalty_add_form(request: Request):
+    if not _logged(request):
+        return _redirect_login()
+    accounts = await api("get", "/api/loyalty/all", token=_token(request)) or []
+    return templates.TemplateResponse("loyalty.html", {
+        "request": request,
+        "admin_name": _admin_name(request),
+        "active": "loyalty",
+        "accounts": accounts,
+        "show_add_form": True,
+    })
+
+
+@app.post("/loyalty/add")
+async def loyalty_add_points(request: Request, phone: str = Form(...), points: int = Form(1), reason: str = Form("بيع شاشة")):
+    if not _logged(request):
+        return _redirect_login()
+    # Find user by phone
+    users = await api("get", "/api/customers/", token=_token(request), params={"phone": phone, "limit": 5}) or []
+    if not users:
+        return RedirectResponse(f"/loyalty?error={_q('لم يتم العثور على عميل بهذا الرقم')}", status_code=302)
+    user_id = users[0].get("id") if isinstance(users[0], dict) else getattr(users[0], "id", None)
+    result = await api("post", "/api/loyalty/add-points", token=_token(request), json={
+        "user_id": user_id, "points": points, "reason": reason
+    })
+    msg = result.get("message", "تم") if isinstance(result, dict) else "تم"
+    return RedirectResponse(f"/loyalty?success={_q(msg)}", status_code=302)
+
+
+@app.post("/loyalty/reset/{user_id}")
+async def loyalty_reset(request: Request, user_id: int, reason: str = Form("تسليم شاشة مجانية")):
+    if not _logged(request):
+        return _redirect_login()
+    result = await api("post", "/api/loyalty/reset", token=_token(request), json={"user_id": user_id, "reason": reason})
+    msg = result.get("message", "تم التصفير") if isinstance(result, dict) else "تم التصفير"
+    return RedirectResponse(f"/loyalty?success={_q(msg)}", status_code=302)
+
+
+@app.get("/loyalty/user/{user_id}")
+async def loyalty_user_transactions(request: Request, user_id: int):
+    if not _logged(request):
+        return _redirect_login()
+    txs = await api("get", f"/api/loyalty/transactions/{user_id}", token=_token(request)) or []
+    acc = await api("get", f"/api/loyalty/account/{user_id}", token=_token(request)) or {}
+    return templates.TemplateResponse("loyalty_user.html", {
+        "request": request,
+        "admin_name": _admin_name(request),
+        "active": "loyalty",
+        "transactions": txs,
+        "account": acc,
+        "user_id": user_id,
+    })
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  SHORTAGE REQUESTS
+# ══════════════════════════════════════════════════════════════════════════════
+@app.get("/shortage-requests")
+async def shortage_list(request: Request, status: str = "", view: str = "list"):
+    if not _logged(request):
+        return _redirect_login()
+    params = {"limit": 500}
+    if status:
+        params["status"] = status
+    requests_data = await api("get", "/api/shortage-requests/", token=_token(request), params=params) or []
+    groups = await api("get", "/api/shortage-requests/grouped", token=_token(request)) or []
+    return templates.TemplateResponse("shortage_requests.html", {
+        "request": request,
+        "admin_name": _admin_name(request),
+        "active": "shortage-requests",
+        "requests": requests_data,
+        "groups": groups,
+        "status_filter": status,
+        "view": view,
+    })
+
+
+@app.post("/shortage-requests/{req_id}/notify")
+async def shortage_notify(request: Request, req_id: int):
+    if not _logged(request):
+        return _redirect_login()
+    await api("put", f"/api/shortage-requests/{req_id}/notify", token=_token(request))
+    return RedirectResponse(f"/shortage-requests?success={_q('تم تحديث الحالة')}", status_code=302)
+
+
+@app.post("/shortage-requests/{req_id}/purchased")
+async def shortage_purchased(request: Request, req_id: int):
+    if not _logged(request):
+        return _redirect_login()
+    await api("put", f"/api/shortage-requests/{req_id}/purchased", token=_token(request))
+    return RedirectResponse(f"/shortage-requests?success={_q('تم تحديث الحالة')}", status_code=302)
+
+
+@app.post("/shortage-requests/{req_id}/close")
+async def shortage_close(request: Request, req_id: int):
+    if not _logged(request):
+        return _redirect_login()
+    await api("put", f"/api/shortage-requests/{req_id}/close", token=_token(request))
+    return RedirectResponse(f"/shortage-requests?success={_q('تم الإغلاق')}", status_code=302)
+
+
+@app.post("/shortage-requests/batch-notify")
+async def shortage_batch_notify(request: Request):
+    if not _logged(request):
+        return _redirect_login()
+    form = await request.form()
+    ids = [int(x) for x in form.getlist("ids") if x]
+    await api("put", "/api/shortage-requests/batch-notify", token=_token(request), json={"request_ids": ids})
+    return RedirectResponse(f"/shortage-requests?success={_q(f'تم إشعار {len(ids)} طلب')}", status_code=302)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  AUCTIONS
+# ══════════════════════════════════════════════════════════════════════════════
+@app.get("/auctions")
+async def auctions_list(request: Request, status: str = ""):
+    if not _logged(request):
+        return _redirect_login()
+    params = {"limit": 200}
+    if status:
+        params["status"] = status
+    auctions = await api("get", "/api/auctions/admin/all", token=_token(request), params=params) or []
+    return templates.TemplateResponse("auctions.html", {
+        "request": request,
+        "admin_name": _admin_name(request),
+        "active": "auctions",
+        "auctions": auctions,
+        "status_filter": status,
+    })
+
+
+@app.get("/auctions/{auction_id}")
+async def auction_detail(request: Request, auction_id: int):
+    if not _logged(request):
+        return _redirect_login()
+    auction = await api("get", f"/api/auctions/{auction_id}", token=_token(request)) or {}
+    return templates.TemplateResponse("auction_detail.html", {
+        "request": request,
+        "admin_name": _admin_name(request),
+        "active": "auctions",
+        "auction": auction,
+    })
+
+
+@app.post("/auctions/{auction_id}/activate")
+async def auction_activate(request: Request, auction_id: int):
+    if not _logged(request):
+        return _redirect_login()
+    await api("put", f"/api/auctions/{auction_id}/activate", token=_token(request), params={"days": 7})
+    return RedirectResponse(f"/auctions?success={_q('تم تفعيل المزاد')}", status_code=302)
+
+
+@app.post("/auctions/{auction_id}/reject")
+async def auction_reject(request: Request, auction_id: int):
+    if not _logged(request):
+        return _redirect_login()
+    await api("delete", f"/api/auctions/{auction_id}", token=_token(request))
+    return RedirectResponse(f"/auctions?success={_q('تم رفض المزاد')}", status_code=302)
+
+
+@app.post("/auctions/{auction_id}/close")
+async def auction_close(request: Request, auction_id: int):
+    if not _logged(request):
+        return _redirect_login()
+    await api("put", f"/api/auctions/{auction_id}/close", token=_token(request))
+    return RedirectResponse(f"/auctions?success={_q('تم إغلاق المزاد')}", status_code=302)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  SECRET DEALS
+# ══════════════════════════════════════════════════════════════════════════════
+@app.get("/secret-deals")
+async def secret_deals_list(request: Request, status: str = ""):
+    if not _logged(request):
+        return _redirect_login()
+    params = {"limit": 100}
+    if status:
+        params["status"] = status
+    deals = await api("get", "/api/secret-deals/", token=_token(request), params=params) or []
+    return templates.TemplateResponse("secret_deals.html", {
+        "request": request,
+        "admin_name": _admin_name(request),
+        "active": "secret-deals",
+        "deals": deals,
+        "status_filter": status,
+    })
+
+
+@app.get("/secret-deals/add")
+async def secret_deal_add_form(request: Request):
+    if not _logged(request):
+        return _redirect_login()
+    return templates.TemplateResponse("secret_deal_add.html", {
+        "request": request,
+        "admin_name": _admin_name(request),
+        "active": "secret-deals",
+    })
+
+
+@app.post("/secret-deals/add")
+async def secret_deal_create(
+    request: Request,
+    title: str = Form(...),
+    supplier_name: Optional[str] = Form(None),
+    supplier_phone: Optional[str] = Form(None),
+    total_quantity: Optional[int] = Form(0),
+    price_per_unit: Optional[float] = Form(None),
+    total_price: Optional[float] = Form(None),
+    admin_notes: Optional[str] = Form(None),
+):
+    if not _logged(request):
+        return _redirect_login()
+    result = await api("post", "/api/secret-deals/", token=_token(request), json={
+        "title": title, "supplier_name": supplier_name, "supplier_phone": supplier_phone,
+        "total_quantity": total_quantity, "price_per_unit": price_per_unit,
+        "total_price": total_price, "admin_notes": admin_notes,
+    })
+    deal_id = result.get("id") if isinstance(result, dict) else None
+    return RedirectResponse(f"/secret-deals/{deal_id}" if deal_id else f"/secret-deals?success={_q('تم الإنشاء')}", status_code=302)
+
+
+@app.get("/secret-deals/{deal_id}")
+async def secret_deal_detail(request: Request, deal_id: int):
+    if not _logged(request):
+        return _redirect_login()
+    deal = await api("get", f"/api/secret-deals/{deal_id}", token=_token(request)) or {}
+    return templates.TemplateResponse("secret_deal_detail.html", {
+        "request": request,
+        "admin_name": _admin_name(request),
+        "active": "secret-deals",
+        "deal": deal,
+    })
+
+
+@app.get("/secret-deals/{deal_id}/upload")
+async def secret_deal_upload_form(request: Request, deal_id: int):
+    if not _logged(request):
+        return _redirect_login()
+    deal = await api("get", f"/api/secret-deals/{deal_id}", token=_token(request)) or {}
+    return templates.TemplateResponse("secret_deal_upload.html", {
+        "request": request,
+        "admin_name": _admin_name(request),
+        "active": "secret-deals",
+        "deal": deal,
+    })
+
+
+@app.post("/secret-deals/{deal_id}/upload")
+async def secret_deal_upload(request: Request, deal_id: int, image_urls: str = Form("")):
+    if not _logged(request):
+        return _redirect_login()
+    urls = [u.strip() for u in image_urls.split("\n") if u.strip()]
+    result = await api("post", f"/api/secret-deals/{deal_id}/images", token=_token(request), json={"image_urls": urls})
+    msg = result.get("message", "تمت الإضافة") if isinstance(result, dict) else "تمت الإضافة"
+    return RedirectResponse(f"/secret-deals/{deal_id}?success={_q(msg)}", status_code=302)
+
+
+@app.post("/secret-deals/{deal_id}/status")
+async def secret_deal_update_status(request: Request, deal_id: int, status: str = Form(...)):
+    if not _logged(request):
+        return _redirect_login()
+    await api("put", f"/api/secret-deals/{deal_id}/status", token=_token(request), params={"status": status})
+    return RedirectResponse(f"/secret-deals?success={_q('تم تحديث الحالة')}", status_code=302)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  ENGINEERING SUPPORT
+# ══════════════════════════════════════════════════════════════════════════════
+@app.get("/eng-support")
+async def eng_support_list(request: Request, status: str = ""):
+    if not _logged(request):
+        return _redirect_login()
+    params = {"limit": 100}
+    if status:
+        params["status"] = status
+    posts = await api("get", "/api/eng-support/", token=_token(request), params=params) or []
+    return templates.TemplateResponse("eng_support.html", {
+        "request": request,
+        "admin_name": _admin_name(request),
+        "active": "eng-support",
+        "posts": posts,
+        "status_filter": status,
+    })
+
+
+@app.get("/eng-support/{post_id}")
+async def eng_support_detail(request: Request, post_id: int):
+    if not _logged(request):
+        return _redirect_login()
+    post = await api("get", f"/api/eng-support/{post_id}", token=_token(request)) or {}
+    return templates.TemplateResponse("eng_support_detail.html", {
+        "request": request,
+        "admin_name": _admin_name(request),
+        "active": "eng-support",
+        "post": post,
+    })
+
+
+@app.post("/eng-support/{post_id}/pin")
+async def eng_support_pin(request: Request, post_id: int, is_pinned: bool = Form(True)):
+    if not _logged(request):
+        return _redirect_login()
+    await api("put", f"/api/eng-support/{post_id}", token=_token(request), json={"is_pinned": is_pinned})
+    return RedirectResponse(f"/eng-support?success={_q('تم التثبيت')}", status_code=302)
+
+
+@app.post("/eng-support/{post_id}/delete")
+async def eng_support_delete(request: Request, post_id: int):
+    if not _logged(request):
+        return _redirect_login()
+    await api("delete", f"/api/eng-support/{post_id}", token=_token(request))
+    return RedirectResponse(f"/eng-support?success={_q('تم الحذف')}", status_code=302)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  COMPLAINTS
+# ══════════════════════════════════════════════════════════════════════════════
+@app.get("/complaints")
+async def complaints_list(request: Request, status: str = "", type: str = ""):
+    if not _logged(request):
+        return _redirect_login()
+    params = {"limit": 200}
+    if status:
+        params["status"] = status
+    if type:
+        params["complaint_type"] = type
+    complaints = await api("get", "/api/complaints/", token=_token(request), params=params) or []
+    unread = await api("get", "/api/complaints/unread-count", token=_token(request)) or {}
+    unread_count = unread.get("unread_count", 0) if isinstance(unread, dict) else 0
+    return templates.TemplateResponse("complaints.html", {
+        "request": request,
+        "admin_name": _admin_name(request),
+        "active": "complaints",
+        "complaints": complaints,
+        "status_filter": status,
+        "type_filter": type,
+        "unread_count": unread_count,
+    })
+
+
+@app.get("/complaints/{complaint_id}")
+async def complaint_detail(request: Request, complaint_id: int):
+    if not _logged(request):
+        return _redirect_login()
+    complaint = await api("get", f"/api/complaints/{complaint_id}", token=_token(request)) or {}
+    return templates.TemplateResponse("complaint_detail.html", {
+        "request": request,
+        "admin_name": _admin_name(request),
+        "active": "complaints",
+        "complaint": complaint,
+    })
+
+
+@app.post("/complaints/{complaint_id}/reply")
+async def complaint_reply(request: Request, complaint_id: int, reply: str = Form(...)):
+    if not _logged(request):
+        return _redirect_login()
+    await api("put", f"/api/complaints/{complaint_id}/reply", token=_token(request), json={"reply": reply})
+    return RedirectResponse(f"/complaints/{complaint_id}?success={_q('تم الرد')}", status_code=302)
+
+
+@app.post("/complaints/{complaint_id}/resolve")
+async def complaint_resolve(request: Request, complaint_id: int):
+    if not _logged(request):
+        return _redirect_login()
+    await api("put", f"/api/complaints/{complaint_id}/resolve", token=_token(request))
+    return RedirectResponse(f"/complaints?success={_q('تم الحل')}", status_code=302)
+
+
+@app.post("/complaints/{complaint_id}/archive")
+async def complaint_archive(request: Request, complaint_id: int):
+    if not _logged(request):
+        return _redirect_login()
+    await api("put", f"/api/complaints/{complaint_id}/archive", token=_token(request))
+    return RedirectResponse(f"/complaints?success={_q('تمت الأرشفة')}", status_code=302)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  PURCHASE INVOICES
+# ══════════════════════════════════════════════════════════════════════════════
+@app.get("/purchase-invoices")
+async def purchase_invoices_list(request: Request):
+    if not _logged(request):
+        return _redirect_login()
+    invoices = await api("get", "/api/purchase-invoices/", token=_token(request), params={"limit": 300}) or []
+    summary = await api("get", "/api/purchase-invoices/summary", token=_token(request)) or {}
+    total_amount = summary.get("total_purchased", 0) if isinstance(summary, dict) else 0
+    total_drawer = summary.get("total_from_drawer", 0) if isinstance(summary, dict) else 0
+    total_owner = summary.get("total_from_owner", 0) if isinstance(summary, dict) else 0
+    return templates.TemplateResponse("purchase_invoices.html", {
+        "request": request,
+        "admin_name": _admin_name(request),
+        "active": "purchase-invoices",
+        "invoices": invoices,
+        "total_amount": total_amount,
+        "total_drawer": total_drawer,
+        "total_owner": total_owner,
+        "show_add_form": False,
+    })
+
+
+@app.get("/purchase-invoices/add")
+async def purchase_invoice_add_form(request: Request):
+    if not _logged(request):
+        return _redirect_login()
+    invoices = await api("get", "/api/purchase-invoices/", token=_token(request), params={"limit": 300}) or []
+    summary = await api("get", "/api/purchase-invoices/summary", token=_token(request)) or {}
+    return templates.TemplateResponse("purchase_invoices.html", {
+        "request": request,
+        "admin_name": _admin_name(request),
+        "active": "purchase-invoices",
+        "invoices": invoices,
+        "total_amount": summary.get("total_purchased", 0) if isinstance(summary, dict) else 0,
+        "total_drawer": summary.get("total_from_drawer", 0) if isinstance(summary, dict) else 0,
+        "total_owner": summary.get("total_from_owner", 0) if isinstance(summary, dict) else 0,
+        "show_add_form": True,
+    })
+
+
+@app.post("/purchase-invoices/add")
+async def purchase_invoice_create(request: Request):
+    if not _logged(request):
+        return _redirect_login()
+    form = await request.form()
+    supplier_name = form.get("supplier_name", "")
+    supplier_phone = form.get("supplier_phone") or None
+    cash_from_drawer = float(form.get("cash_from_drawer", 0) or 0)
+    capital_from_owner = float(form.get("capital_from_owner", 0) or 0)
+    notes = form.get("notes") or None
+
+    names = form.getlist("item_name[]")
+    models = form.getlist("item_model[]")
+    qtys = form.getlist("item_qty[]")
+    prices = form.getlist("item_price[]")
+
+    items = []
+    for i, name in enumerate(names):
+        if name.strip():
+            qty = int(qtys[i]) if i < len(qtys) and qtys[i] else 1
+            price = float(prices[i]) if i < len(prices) and prices[i] else 0.0
+            items.append({
+                "product_name": name.strip(),
+                "model": models[i] if i < len(models) else None,
+                "quantity": qty,
+                "unit_price": price,
+            })
+
+    if not items:
+        return RedirectResponse(f"/purchase-invoices/add?error={_q('أضف صنفاً واحداً على الأقل')}", status_code=302)
+
+    total = sum(i["unit_price"] * i["quantity"] for i in items)
+    if cash_from_drawer + capital_from_owner == 0:
+        cash_from_drawer = total
+
+    result = await api("post", "/api/purchase-invoices/", token=_token(request), json={
+        "supplier_name": supplier_name,
+        "supplier_phone": supplier_phone,
+        "cash_from_drawer": cash_from_drawer,
+        "capital_from_owner": capital_from_owner,
+        "notes": notes,
+        "items": items,
+    })
+    if isinstance(result, dict) and result.get("invoice_number"):
+        inv_id = result.get("id")
+        return RedirectResponse(f"/purchase-invoices/{inv_id}?success={_q(result.get('message','تم الحفظ'))}", status_code=302)
+    err = result.get("detail", "فشل الحفظ") if isinstance(result, dict) else "فشل الحفظ"
+    return RedirectResponse(f"/purchase-invoices/add?error={_q(err)}", status_code=302)
+
+
+@app.get("/purchase-invoices/{invoice_id}")
+async def purchase_invoice_detail(request: Request, invoice_id: int):
+    if not _logged(request):
+        return _redirect_login()
+    inv = await api("get", f"/api/purchase-invoices/{invoice_id}", token=_token(request)) or {}
+    return templates.TemplateResponse("purchase_invoice_detail.html", {
+        "request": request,
+        "admin_name": _admin_name(request),
+        "active": "purchase-invoices",
+        "invoice": inv,
+    })
+
+
+@app.post("/purchase-invoices/{invoice_id}/print")
+async def purchase_invoice_mark_print(request: Request, invoice_id: int):
+    if not _logged(request):
+        return _redirect_login()
+    await api("put", f"/api/purchase-invoices/{invoice_id}/mark-printed", token=_token(request))
+    return RedirectResponse(f"/purchase-invoices/{invoice_id}?success={_q('تم تسجيل الطباعة')}", status_code=302)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  EXPORT / INVENTORY  (original, keep below)
+# ══════════════════════════════════════════════════════════════════════════════
+
 @app.get("/export/inventory")
 async def export_inventory_excel(request: Request):
     if not _logged(request):

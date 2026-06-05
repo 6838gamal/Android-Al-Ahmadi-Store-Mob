@@ -1,0 +1,101 @@
+{% extends "layout.html" %}
+{% block title %}تفاصيل الفاتورة{% endblock %}
+{% block page_title %}تفاصيل فاتورة المشتريات{% endblock %}
+{% block page_title_mobile %}الفاتورة{% endblock %}
+
+{% block content %}
+<div style="margin-bottom:16px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+  <a href="/purchase-invoices" style="color:#9CA3AF;font-size:13px;font-weight:600;text-decoration:none"><i class="fa-solid fa-arrow-right"></i> العودة</a>
+  {% if invoice %}
+  <button onclick="window.print()" class="btn-primary" style="font-size:13px"><i class="fa-solid fa-print"></i> طباعة</button>
+  <form method="POST" action="/purchase-invoices/{{ invoice.id }}/print" style="display:inline">
+    <button type="submit" class="btn-secondary" style="font-size:13px"><i class="fa-solid fa-check"></i> تسجيل طباعة</button>
+  </form>
+  {% endif %}
+</div>
+
+{% if invoice %}
+<!-- Invoice Header -->
+<div class="card" style="padding:24px;margin-bottom:16px" id="invoice-print">
+  <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:20px">
+    <div>
+      <div style="font-size:11px;color:#6B7280;font-weight:700">رقم الفاتورة</div>
+      <div style="font-size:22px;font-weight:800;color:#1A73E8">{{ invoice.invoice_number }}</div>
+    </div>
+    <div style="text-align:left">
+      <div style="font-size:11px;color:#6B7280">التاريخ</div>
+      <div style="color:white;font-weight:700">{{ invoice.created_at[:10] if invoice.created_at else '' }}</div>
+    </div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px">
+    <div style="background:#161B22;border-radius:10px;padding:14px">
+      <div style="color:#6B7280;font-size:11px;margin-bottom:4px">المورد</div>
+      <div style="color:white;font-weight:700">{{ invoice.supplier_name }}</div>
+      {% if invoice.supplier_phone %}<div style="color:#9CA3AF;font-size:12px;direction:ltr">{{ invoice.supplier_phone }}</div>{% endif %}
+    </div>
+    <div style="background:#161B22;border-radius:10px;padding:14px">
+      <div style="color:#6B7280;font-size:11px;margin-bottom:8px">مصادر التمويل</div>
+      <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+        <span style="color:#9CA3AF;font-size:13px">كاش الدرج:</span>
+        <span style="color:#F59E0B;font-weight:700">{{ invoice.cash_from_drawer|int }} ريال</span>
+      </div>
+      <div style="display:flex;justify-content:space-between">
+        <span style="color:#9CA3AF;font-size:13px">رأس مال المالك:</span>
+        <span style="color:#1A73E8;font-weight:700">{{ invoice.capital_from_owner|int }} ريال</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Items Table -->
+  <div style="border:1px solid #2D3748;border-radius:12px;overflow:hidden;margin-bottom:16px">
+    <div style="padding:12px 16px;background:#161B22;border-bottom:1px solid #2D3748;font-weight:700;color:white">أصناف الفاتورة</div>
+    <table style="width:100%;border-collapse:collapse;font-size:13px">
+      <thead>
+        <tr style="background:#161B22;border-bottom:1px solid #2D3748">
+          <th style="padding:10px 14px;text-align:right;color:#9CA3AF">#</th>
+          <th style="padding:10px 14px;text-align:right;color:#9CA3AF">الصنف</th>
+          <th style="padding:10px 14px;text-align:center;color:#9CA3AF">الكمية</th>
+          <th style="padding:10px 14px;text-align:center;color:#9CA3AF">سعر الوحدة</th>
+          <th style="padding:10px 14px;text-align:center;color:#9CA3AF">الإجمالي</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in invoice.items %}
+        <tr class="table-row">
+          <td style="padding:10px 14px;color:#6B7280">{{ loop.index }}</td>
+          <td style="padding:10px 14px">
+            <div style="font-weight:700;color:white">{{ item.product_name }}</div>
+            {% if item.model %}<div style="color:#9CA3AF;font-size:11px">{{ item.model }}</div>{% endif %}
+          </td>
+          <td style="padding:10px 14px;text-align:center;color:#9CA3AF">{{ item.quantity }}</td>
+          <td style="padding:10px 14px;text-align:center;color:#9CA3AF">{{ item.unit_price|int }} ريال</td>
+          <td style="padding:10px 14px;text-align:center;font-weight:700;color:white">{{ item.total_price|int }} ريال</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Total -->
+  <div style="display:flex;justify-content:space-between;align-items:center;background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.2);border-radius:12px;padding:16px 20px">
+    <span style="color:#9CA3AF;font-weight:700">الإجمالي الكلي</span>
+    <span style="color:#22C55E;font-weight:800;font-size:22px">{{ invoice.total_amount|int }} ريال</span>
+  </div>
+
+  {% if invoice.notes %}
+  <div style="margin-top:14px;padding:12px;background:#161B22;border-radius:10px;color:#9CA3AF;font-size:13px">{{ invoice.notes }}</div>
+  {% endif %}
+</div>
+{% endif %}
+
+{% block scripts %}
+<style>
+  @media print {
+    #sidebar, #mobile-topbar, #desktop-topbar, #bottom-nav, .btn-primary, .btn-secondary, .btn-danger { display: none !important; }
+    body, #main-content { background: white !important; color: black !important; }
+    .card { border: 1px solid #ccc !important; background: white !important; }
+  }
+</style>
+{% endblock %}
+{% endblock %}

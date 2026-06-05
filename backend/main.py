@@ -14,6 +14,8 @@ from backend.models import (  # noqa
     user, product, order, reservation,
     inventory_item, referral, warranty,
     inspection, wallet, notification, audit_log,
+    loyalty, shortage_request, auction, secret_deal,
+    eng_support, complaint, purchase_invoice,
 )
 from backend.models.announcement import Announcement  # noqa
 
@@ -24,6 +26,13 @@ from backend.api.routes import (
     inspection as inspection_routes, wallet as wallet_routes,
     notifications, search, reports, audit, staff,
     announcements as announcement_routes,
+    loyalty as loyalty_routes,
+    shortage_requests as shortage_requests_routes,
+    auctions as auctions_routes,
+    secret_deals as secret_deals_routes,
+    eng_support as eng_support_routes,
+    complaints as complaints_routes,
+    purchase_invoices as purchase_invoices_routes,
 )
 
 
@@ -155,7 +164,14 @@ app.include_router(search.router,             prefix="/api/search",        tags=
 app.include_router(reports.router,            prefix="/api/reports",       tags=["Reports"])
 app.include_router(audit.router,              prefix="/api/audit",         tags=["Audit"])
 app.include_router(staff.router,              prefix="/api/staff",         tags=["Staff"])
-app.include_router(announcement_routes.router, prefix="/api/announcements", tags=["Announcements"])
+app.include_router(announcement_routes.router,       prefix="/api/announcements",      tags=["Announcements"])
+app.include_router(loyalty_routes.router,            prefix="/api/loyalty",            tags=["Loyalty"])
+app.include_router(shortage_requests_routes.router,  prefix="/api/shortage-requests",  tags=["ShortageRequests"])
+app.include_router(auctions_routes.router,           prefix="/api/auctions",           tags=["Auctions"])
+app.include_router(secret_deals_routes.router,       prefix="/api/secret-deals",       tags=["SecretDeals"])
+app.include_router(eng_support_routes.router,        prefix="/api/eng-support",        tags=["EngSupport"])
+app.include_router(complaints_routes.router,         prefix="/api/complaints",         tags=["Complaints"])
+app.include_router(purchase_invoices_routes.router,  prefix="/api/purchase-invoices",  tags=["PurchaseInvoices"])
 
 
 @app.get("/api/health")
