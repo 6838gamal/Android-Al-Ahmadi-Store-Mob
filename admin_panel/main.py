@@ -102,6 +102,28 @@ async def api(method: str, path: str, token: str = None, real_ip: str = None, **
     return None
 
 
+async def api_raw_upload(path: str, files: dict, data: dict = None, token: str = None):
+    """Upload multipart/form-data to the backend. Returns (result, error_msg)."""
+    headers = {}
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+    try:
+        async with httpx.AsyncClient(timeout=60, follow_redirects=True) as client:
+            resp = await client.post(
+                f"{API_BASE}{path}", headers=headers, files=files, data=data or {}
+            )
+        if resp.status_code in (200, 201):
+            return resp.json(), None
+        try:
+            body = resp.json()
+            detail = body.get("detail", str(body)) if isinstance(body, dict) else str(body)
+        except Exception:
+            detail = resp.text[:300]
+        return None, f"خطأ {resp.status_code}: {detail}"
+    except Exception as e:
+        return None, f"خطأ في الاتصال: {str(e)[:120]}"
+
+
 async def api_ex(method: str, path: str, token: str = None, **kwargs):
     """Extended API call — returns (data, error_msg). data=None means failure."""
     headers = {}
@@ -1315,7 +1337,7 @@ async def loyalty_list(request: Request):
         a["status_v"] = a.get("status", "")
     return templates.TemplateResponse("loyalty.html", {
         "request": request,
-        "admin_name": _admin_name(request),
+        "admin_name": _name(request),
         "active": "loyalty",
         "accounts": accounts,
         "show_add_form": False,
@@ -1329,7 +1351,7 @@ async def loyalty_add_form(request: Request):
     accounts = await api("get", "/api/loyalty/all", token=_token(request)) or []
     return templates.TemplateResponse("loyalty.html", {
         "request": request,
-        "admin_name": _admin_name(request),
+        "admin_name": _name(request),
         "active": "loyalty",
         "accounts": accounts,
         "show_add_form": True,
@@ -1369,7 +1391,7 @@ async def loyalty_user_transactions(request: Request, user_id: int):
     acc = await api("get", f"/api/loyalty/account/{user_id}", token=_token(request)) or {}
     return templates.TemplateResponse("loyalty_user.html", {
         "request": request,
-        "admin_name": _admin_name(request),
+        "admin_name": _name(request),
         "active": "loyalty",
         "transactions": txs,
         "account": acc,
@@ -1391,7 +1413,7 @@ async def shortage_list(request: Request, status: str = "", view: str = "list"):
     groups = await api("get", "/api/shortage-requests/grouped", token=_token(request)) or []
     return templates.TemplateResponse("shortage_requests.html", {
         "request": request,
-        "admin_name": _admin_name(request),
+        "admin_name": _name(request),
         "active": "shortage-requests",
         "requests": requests_data,
         "groups": groups,
@@ -1447,7 +1469,7 @@ async def auctions_list(request: Request, status: str = ""):
     auctions = await api("get", "/api/auctions/admin/all", token=_token(request), params=params) or []
     return templates.TemplateResponse("auctions.html", {
         "request": request,
-        "admin_name": _admin_name(request),
+        "admin_name": _name(request),
         "active": "auctions",
         "auctions": auctions,
         "status_filter": status,
@@ -1461,7 +1483,7 @@ async def auction_detail(request: Request, auction_id: int):
     auction = await api("get", f"/api/auctions/{auction_id}", token=_token(request)) or {}
     return templates.TemplateResponse("auction_detail.html", {
         "request": request,
-        "admin_name": _admin_name(request),
+        "admin_name": _name(request),
         "active": "auctions",
         "auction": auction,
     })
@@ -1504,7 +1526,7 @@ async def secret_deals_list(request: Request, status: str = ""):
     deals = await api("get", "/api/secret-deals/", token=_token(request), params=params) or []
     return templates.TemplateResponse("secret_deals.html", {
         "request": request,
-        "admin_name": _admin_name(request),
+        "admin_name": _name(request),
         "active": "secret-deals",
         "deals": deals,
         "status_filter": status,
@@ -1517,7 +1539,7 @@ async def secret_deal_add_form(request: Request):
         return _redirect_login()
     return templates.TemplateResponse("secret_deal_add.html", {
         "request": request,
-        "admin_name": _admin_name(request),
+        "admin_name": _name(request),
         "active": "secret-deals",
     })
 
@@ -1551,7 +1573,7 @@ async def secret_deal_detail(request: Request, deal_id: int):
     deal = await api("get", f"/api/secret-deals/{deal_id}", token=_token(request)) or {}
     return templates.TemplateResponse("secret_deal_detail.html", {
         "request": request,
-        "admin_name": _admin_name(request),
+        "admin_name": _name(request),
         "active": "secret-deals",
         "deal": deal,
     })
@@ -1564,7 +1586,7 @@ async def secret_deal_upload_form(request: Request, deal_id: int):
     deal = await api("get", f"/api/secret-deals/{deal_id}", token=_token(request)) or {}
     return templates.TemplateResponse("secret_deal_upload.html", {
         "request": request,
-        "admin_name": _admin_name(request),
+        "admin_name": _name(request),
         "active": "secret-deals",
         "deal": deal,
     })
@@ -1601,7 +1623,7 @@ async def eng_support_list(request: Request, status: str = ""):
     posts = await api("get", "/api/eng-support/", token=_token(request), params=params) or []
     return templates.TemplateResponse("eng_support.html", {
         "request": request,
-        "admin_name": _admin_name(request),
+        "admin_name": _name(request),
         "active": "eng-support",
         "posts": posts,
         "status_filter": status,
@@ -1615,7 +1637,7 @@ async def eng_support_detail(request: Request, post_id: int):
     post = await api("get", f"/api/eng-support/{post_id}", token=_token(request)) or {}
     return templates.TemplateResponse("eng_support_detail.html", {
         "request": request,
-        "admin_name": _admin_name(request),
+        "admin_name": _name(request),
         "active": "eng-support",
         "post": post,
     })
@@ -1654,7 +1676,7 @@ async def complaints_list(request: Request, status: str = "", type: str = ""):
     unread_count = unread.get("unread_count", 0) if isinstance(unread, dict) else 0
     return templates.TemplateResponse("complaints.html", {
         "request": request,
-        "admin_name": _admin_name(request),
+        "admin_name": _name(request),
         "active": "complaints",
         "complaints": complaints,
         "status_filter": status,
@@ -1670,7 +1692,7 @@ async def complaint_detail(request: Request, complaint_id: int):
     complaint = await api("get", f"/api/complaints/{complaint_id}", token=_token(request)) or {}
     return templates.TemplateResponse("complaint_detail.html", {
         "request": request,
-        "admin_name": _admin_name(request),
+        "admin_name": _name(request),
         "active": "complaints",
         "complaint": complaint,
     })
@@ -1714,7 +1736,7 @@ async def purchase_invoices_list(request: Request):
     total_owner = summary.get("total_from_owner", 0) if isinstance(summary, dict) else 0
     return templates.TemplateResponse("purchase_invoices.html", {
         "request": request,
-        "admin_name": _admin_name(request),
+        "admin_name": _name(request),
         "active": "purchase-invoices",
         "invoices": invoices,
         "total_amount": total_amount,
@@ -1732,7 +1754,7 @@ async def purchase_invoice_add_form(request: Request):
     summary = await api("get", "/api/purchase-invoices/summary", token=_token(request)) or {}
     return templates.TemplateResponse("purchase_invoices.html", {
         "request": request,
-        "admin_name": _admin_name(request),
+        "admin_name": _name(request),
         "active": "purchase-invoices",
         "invoices": invoices,
         "total_amount": summary.get("total_purchased", 0) if isinstance(summary, dict) else 0,
@@ -1799,7 +1821,7 @@ async def purchase_invoice_detail(request: Request, invoice_id: int):
     inv = await api("get", f"/api/purchase-invoices/{invoice_id}", token=_token(request)) or {}
     return templates.TemplateResponse("purchase_invoice_detail.html", {
         "request": request,
-        "admin_name": _admin_name(request),
+        "admin_name": _name(request),
         "active": "purchase-invoices",
         "invoice": inv,
     })
@@ -1811,6 +1833,67 @@ async def purchase_invoice_mark_print(request: Request, invoice_id: int):
         return _redirect_login()
     await api("put", f"/api/purchase-invoices/{invoice_id}/mark-printed", token=_token(request))
     return RedirectResponse(f"/purchase-invoices/{invoice_id}?success={_q('تم تسجيل الطباعة')}", status_code=302)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  GALLERY
+# ══════════════════════════════════════════════════════════════════════════════
+@app.get("/gallery")
+async def gallery_list(request: Request):
+    if not _logged(request):
+        return _redirect_login()
+    series_list = await api("get", "/api/gallery/folders", token=_token(request)) or []
+    return templates.TemplateResponse("gallery.html", {
+        "request": request,
+        "admin_name": _name(request),
+        "active": "gallery",
+        "series_list": series_list,
+    })
+
+
+@app.get("/gallery/{folder_id}")
+async def gallery_folder_detail(request: Request, folder_id: int):
+    if not _logged(request):
+        return _redirect_login()
+    folder = await api("get", f"/api/gallery/folders/{folder_id}", token=_token(request)) or {}
+    series_list = await api("get", "/api/gallery/folders", token=_token(request)) or []
+    return templates.TemplateResponse("gallery_folder.html", {
+        "request": request,
+        "admin_name": _name(request),
+        "active": "gallery",
+        "folder": folder,
+        "series_list": series_list,
+    })
+
+
+@app.post("/gallery/{folder_id}/upload")
+async def gallery_upload_image(
+    request: Request,
+    folder_id: int,
+    file: UploadFile = File(...),
+    title: Optional[str] = Form(None),
+):
+    if not _logged(request):
+        return _redirect_login()
+    import io
+    content = await file.read()
+    files_payload = {"file": (file.filename, io.BytesIO(content), file.content_type)}
+    data = {}
+    if title:
+        data["title"] = title
+    result, err = await api_raw_upload(f"/api/gallery/folders/{folder_id}/images",
+                                       files_payload, data, token=_token(request))
+    if err:
+        return RedirectResponse(f"/gallery/{folder_id}?error={_q(err)}", status_code=302)
+    return RedirectResponse(f"/gallery/{folder_id}?success={_q('تم رفع الصورة')}", status_code=302)
+
+
+@app.post("/gallery/images/{image_id}/delete")
+async def gallery_delete_image(request: Request, image_id: int, folder_id: int = Form(...)):
+    if not _logged(request):
+        return _redirect_login()
+    await api("delete", f"/api/gallery/images/{image_id}", token=_token(request))
+    return RedirectResponse(f"/gallery/{folder_id}?success={_q('تم الحذف')}", status_code=302)
 
 
 # ══════════════════════════════════════════════════════════════════════════════

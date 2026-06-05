@@ -7,64 +7,33 @@ import '../../../../core/constants/app_constants.dart';
 import '../../../../core/network/api_client.dart';
 import '../../../home/presentation/pages/main_shell.dart';
 
-// ─── Data & Provider ──────────────────────────────────────────────────────────
+// ─── Providers ────────────────────────────────────────────────────────────────
 
-final _galleryProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
+final _gallerySeriesProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
   final api = ref.read(apiClientProvider);
   try {
-    final res = await api.get('/products/', queryParameters: {'limit': '200'});
-    final all = List<Map<String, dynamic>>.from(res.data);
-    return all.where((p) {
-      final url = p['image_url'] as String?;
-      return url != null && url.isNotEmpty;
-    }).toList();
+    final res = await api.get('/gallery/folders');
+    return List<Map<String, dynamic>>.from(res.data);
   } catch (_) {
     return [];
   }
 });
 
-// ─── Category Model ───────────────────────────────────────────────────────────
+final _folderImagesProvider =
+    FutureProvider.family<Map<String, dynamic>, int>((ref, folderId) async {
+  final api = ref.read(apiClientProvider);
+  final res = await api.get('/gallery/folders/$folderId');
+  return Map<String, dynamic>.from(res.data);
+});
 
-class _Category {
-  final String key;
-  final String label;
-  final IconData icon;
-  final Color color;
-  const _Category({
-    required this.key,
-    required this.label,
-    required this.icon,
-    required this.color,
-  });
-}
+// ─── Page (Level 1 — series list) ────────────────────────────────────────────
 
-const _kCategories = [
-  _Category(key: 'all',        label: 'الكل',        icon: Icons.apps_rounded,          color: AppColors.primary),
-  _Category(key: 'screen',     label: 'شاشات',       icon: Icons.phone_android,          color: Color(0xFF42A5F5)),
-  _Category(key: 'battery',    label: 'بطاريات',     icon: Icons.battery_charging_full,  color: Color(0xFF66BB6A)),
-  _Category(key: 'device',     label: 'أجهزة',       icon: Icons.devices,                color: Color(0xFFAB47BC)),
-  _Category(key: 'camera',     label: 'كاميرات',     icon: Icons.camera_alt_outlined,    color: Color(0xFFEF5350)),
-  _Category(key: 'speaker',    label: 'سماعات',      icon: Icons.speaker_outlined,       color: Color(0xFF26C6DA)),
-  _Category(key: 'charger',    label: 'شواحن',       icon: Icons.power_outlined,         color: Color(0xFFFFCA28)),
-  _Category(key: 'spare_part', label: 'قطع غيار',    icon: Icons.settings_outlined,      color: Color(0xFFFF7043)),
-  _Category(key: 'other',      label: 'أخرى',        icon: Icons.category_outlined,      color: AppColors.textMuted),
-];
-
-// ─── Page ─────────────────────────────────────────────────────────────────────
-
-class GalleryPage extends ConsumerStatefulWidget {
+class GalleryPage extends ConsumerWidget {
   const GalleryPage({super.key});
 
   @override
-  ConsumerState<GalleryPage> createState() => _GalleryPageState();
-}
-
-class _GalleryPageState extends ConsumerState<GalleryPage> {
-  String _selectedCategory = 'all';
-
-  @override
-  Widget build(BuildContext context) {
-    final productsAsync = ref.watch(_galleryProvider);
+  Widget build(BuildContext context, WidgetRef ref) {
+    final seriesAsync = ref.watch(_gallerySeriesProvider);
 
     return Scaffold(
       backgroundColor: AppColors.darkBg,
@@ -79,151 +48,49 @@ class _GalleryPageState extends ConsumerState<GalleryPage> {
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh, color: AppColors.primary),
-            onPressed: () => ref.invalidate(_galleryProvider),
+            onPressed: () => ref.invalidate(_gallerySeriesProvider),
           ),
         ],
       ),
-      body: Column(
-        children: [
-          // Category tabs
-          _CategoryBar(
-            selected: _selectedCategory,
-            onSelect: (k) => setState(() => _selectedCategory = k),
+      body: seriesAsync.when(
+        loading: () =>
+            const Center(child: CircularProgressIndicator(color: AppColors.primary)),
+        error: (_, __) => Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.error_outline, color: AppColors.error, size: 48),
+              const SizedBox(height: 12),
+              const Text('تعذر تحميل المعرض',
+                  style: TextStyle(fontFamily: 'Cairo', color: Colors.white)),
+              const SizedBox(height: 12),
+              ElevatedButton.icon(
+                onPressed: () => ref.invalidate(_gallerySeriesProvider),
+                icon: const Icon(Icons.refresh),
+                label: const Text('إعادة المحاولة',
+                    style: TextStyle(fontFamily: 'Cairo')),
+              ),
+            ],
           ),
-          // Grid
-          Expanded(
-            child: productsAsync.when(
-              loading: () => const Center(
-                child: CircularProgressIndicator(color: AppColors.primary),
-              ),
-              error: (_, __) => Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(Icons.error_outline, color: AppColors.error, size: 48),
-                    const SizedBox(height: 12),
-                    const Text('تعذر تحميل الصور',
-                        style: TextStyle(fontFamily: 'Cairo', color: Colors.white)),
-                    const SizedBox(height: 12),
-                    ElevatedButton.icon(
-                      onPressed: () => ref.invalidate(_galleryProvider),
-                      icon: const Icon(Icons.refresh),
-                      label: const Text('إعادة المحاولة',
-                          style: TextStyle(fontFamily: 'Cairo')),
-                    ),
-                  ],
-                ),
-              ),
-              data: (products) {
-                final filtered = _selectedCategory == 'all'
-                    ? products
-                    : products
-                        .where((p) => p['category'] == _selectedCategory)
-                        .toList();
-
-                if (filtered.isEmpty) {
-                  return _EmptyCategory(
-                    category: _kCategories.firstWhere(
-                      (c) => c.key == _selectedCategory,
-                      orElse: () => _kCategories.first,
-                    ),
-                  );
-                }
-
-                return GridView.builder(
-                  padding: const EdgeInsets.all(12),
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 3,
-                    crossAxisSpacing: 8,
-                    mainAxisSpacing: 8,
-                    childAspectRatio: 0.85,
-                  ),
-                  itemCount: filtered.length,
-                  itemBuilder: (ctx, i) => _GalleryItem(
-                    product: filtered[i],
-                    index: i,
-                    onTap: () => _showFullScreen(ctx, filtered, i),
-                  ),
-                );
-              },
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showFullScreen(
-      BuildContext context, List<Map<String, dynamic>> items, int startIndex) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) =>
-            _FullScreenViewer(items: items, initialIndex: startIndex),
-      ),
-    );
-  }
-}
-
-// ─── Category Bar ─────────────────────────────────────────────────────────────
-
-class _CategoryBar extends StatelessWidget {
-  final String selected;
-  final ValueChanged<String> onSelect;
-  const _CategoryBar({required this.selected, required this.onSelect});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 60,
-      decoration: const BoxDecoration(
-        color: AppColors.darkSurface,
-        border: Border(bottom: BorderSide(color: AppColors.darkBorder)),
-      ),
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-        itemCount: _kCategories.length,
-        itemBuilder: (ctx, i) {
-          final cat = _kCategories[i];
-          final isSelected = selected == cat.key;
-          return GestureDetector(
-            onTap: () => onSelect(cat.key),
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              margin: const EdgeInsets.only(right: 8),
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-              decoration: BoxDecoration(
-                color: isSelected
-                    ? cat.color.withOpacity(0.2)
-                    : AppColors.darkCard,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(
-                  color: isSelected ? cat.color : AppColors.darkBorder,
-                  width: isSelected ? 1.5 : 1,
-                ),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(cat.icon,
-                      size: 15,
-                      color: isSelected ? cat.color : AppColors.textMuted),
-                  const SizedBox(width: 6),
-                  Text(
-                    cat.label,
-                    style: TextStyle(
-                      fontFamily: 'Cairo',
-                      fontSize: 12,
-                      fontWeight: isSelected
-                          ? FontWeight.w700
-                          : FontWeight.normal,
-                      color: isSelected ? cat.color : AppColors.textSecondary,
-                    ),
-                  ),
-                ],
-              ),
-            ),
+        ),
+        data: (seriesList) {
+          if (seriesList.isEmpty) {
+            return const Center(
+              child: Text('لا توجد مجلدات بعد',
+                  style: TextStyle(
+                      fontFamily: 'Cairo', color: AppColors.textMuted, fontSize: 16)),
+            );
+          }
+          return ListView.builder(
+            padding: const EdgeInsets.all(12),
+            itemCount: seriesList.length,
+            itemBuilder: (ctx, si) {
+              final series = seriesList[si];
+              final folders =
+                  List<Map<String, dynamic>>.from(series['folders'] as List? ?? []);
+              return _SeriesSection(
+                  series: series, folders: folders, seriesIndex: si);
+            },
           );
         },
       ),
@@ -231,31 +98,367 @@ class _CategoryBar extends StatelessWidget {
   }
 }
 
-// ─── Grid Item ────────────────────────────────────────────────────────────────
+// ─── Series Section ────────────────────────────────────────────────────────────
 
-class _GalleryItem extends StatelessWidget {
-  final Map<String, dynamic> product;
-  final int index;
-  final VoidCallback onTap;
-  const _GalleryItem(
-      {required this.product, required this.index, required this.onTap});
+class _SeriesSection extends StatelessWidget {
+  final Map<String, dynamic> series;
+  final List<Map<String, dynamic>> folders;
+  final int seriesIndex;
+
+  const _SeriesSection(
+      {required this.series, required this.folders, required this.seriesIndex});
 
   @override
   Widget build(BuildContext context) {
-    final imageUrl = product['image_url'] as String? ?? '';
-    final fullUrl = imageUrl.startsWith('http')
-        ? imageUrl
-        : '${AppConstants.baseUrl}$imageUrl';
-    final name = product['name'] as String? ?? '';
-    final category = product['category'] as String? ?? '';
-    final catLabel = AppConstants.categoryAr[category] ?? category;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Series header
+        Container(
+          margin: const EdgeInsets.only(bottom: 12, top: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [Color(0xFF7B1FA2), AppColors.primary],
+              begin: Alignment.centerRight,
+              end: Alignment.centerLeft,
+            ),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Row(
+            children: [
+              const Icon(Icons.folder_special, color: Colors.white, size: 20),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      series['label_ar'] as String? ?? '',
+                      style: const TextStyle(
+                          fontFamily: 'Cairo',
+                          color: Colors.white,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 15),
+                    ),
+                    Text(
+                      '${folders.length} موديل',
+                      style: const TextStyle(
+                          fontFamily: 'Cairo',
+                          color: Colors.white70,
+                          fontSize: 12),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ).animate(delay: Duration(milliseconds: seriesIndex * 80)).fadeIn().slideY(begin: -0.1),
+
+        // Folder grid
+        GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 3,
+            crossAxisSpacing: 8,
+            mainAxisSpacing: 8,
+            childAspectRatio: 0.78,
+          ),
+          itemCount: folders.length,
+          itemBuilder: (ctx, fi) {
+            final folder = folders[fi];
+            return _FolderCard(
+              folder: folder,
+              index: fi,
+              onTap: () {
+                Navigator.push(
+                  ctx,
+                  MaterialPageRoute(
+                    builder: (_) => _FolderPage(folder: folder),
+                  ),
+                );
+              },
+            );
+          },
+        ),
+        const SizedBox(height: 20),
+      ],
+    );
+  }
+}
+
+// ─── Folder Card ──────────────────────────────────────────────────────────────
+
+class _FolderCard extends StatelessWidget {
+  final Map<String, dynamic> folder;
+  final int index;
+  final VoidCallback onTap;
+
+  const _FolderCard(
+      {required this.folder, required this.index, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final cover = folder['cover_image_url'] as String?;
+    final fullCover = cover != null && cover.isNotEmpty
+        ? (cover.startsWith('http') ? cover : '${AppConstants.baseUrl}$cover')
+        : null;
+    final count = folder['image_count'] as int? ?? 0;
 
     return GestureDetector(
       onTap: onTap,
       child: Container(
         decoration: BoxDecoration(
           color: AppColors.darkCard,
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppColors.darkBorder),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Cover
+            Expanded(
+              child: ClipRRect(
+                borderRadius:
+                    const BorderRadius.vertical(top: Radius.circular(11)),
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    if (fullCover != null)
+                      CachedNetworkImage(
+                        imageUrl: fullCover,
+                        fit: BoxFit.cover,
+                        placeholder: (_, __) => Container(
+                          color: AppColors.darkSurface,
+                          child: const Center(
+                            child: SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: AppColors.primary),
+                            ),
+                          ),
+                        ),
+                        errorWidget: (_, __, ___) => _emptyFolder(),
+                      )
+                    else
+                      _emptyFolder(),
+                    // Count badge
+                    Positioned(
+                      top: 5,
+                      left: 5,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withOpacity(0.7),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Text(
+                          '$count',
+                          style: const TextStyle(
+                              fontFamily: 'Cairo',
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            // Label
+            Padding(
+              padding: const EdgeInsets.fromLTRB(7, 5, 7, 6),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    folder['label_ar'] as String? ?? '',
+                    style: const TextStyle(
+                        fontFamily: 'Cairo',
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  Text(
+                    folder['model_key'] as String? ?? '',
+                    style: const TextStyle(
+                        fontFamily: 'Cairo',
+                        color: AppColors.textMuted,
+                        fontSize: 9),
+                    maxLines: 1,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      )
+          .animate(delay: Duration(milliseconds: (index % 9) * 40))
+          .fadeIn(duration: 300.ms)
+          .scale(begin: const Offset(0.92, 0.92), end: const Offset(1, 1)),
+    );
+  }
+
+  Widget _emptyFolder() => Container(
+        color: AppColors.darkSurface,
+        child: const Center(
+          child: Icon(Icons.folder_open_outlined,
+              color: AppColors.textMuted, size: 32),
+        ),
+      );
+}
+
+// ─── Folder Page (Level 2 — images in folder) ─────────────────────────────────
+
+class _FolderPage extends ConsumerWidget {
+  final Map<String, dynamic> folder;
+  const _FolderPage({required this.folder});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final folderId = folder['id'] as int;
+    final folderAsync = ref.watch(_folderImagesProvider(folderId));
+
+    return Scaffold(
+      backgroundColor: AppColors.darkBg,
+      appBar: AppBar(
+        backgroundColor: AppColors.darkSurface,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              folder['label_ar'] as String? ?? '',
+              style: const TextStyle(
+                  fontFamily: 'Cairo',
+                  fontWeight: FontWeight.w800,
+                  fontSize: 15),
+            ),
+            Text(
+              folder['label_en'] as String? ?? '',
+              style: const TextStyle(
+                  fontFamily: 'Cairo', color: Colors.white60, fontSize: 11),
+            ),
+          ],
+        ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh, color: AppColors.primary),
+            onPressed: () => ref.invalidate(_folderImagesProvider(folderId)),
+          ),
+        ],
+      ),
+      body: folderAsync.when(
+        loading: () =>
+            const Center(child: CircularProgressIndicator(color: AppColors.primary)),
+        error: (_, __) => Center(
+          child: ElevatedButton.icon(
+            onPressed: () =>
+                ref.invalidate(_folderImagesProvider(folderId)),
+            icon: const Icon(Icons.refresh),
+            label: const Text('إعادة المحاولة',
+                style: TextStyle(fontFamily: 'Cairo')),
+          ),
+        ),
+        data: (data) {
+          final images =
+              List<Map<String, dynamic>>.from(data['images'] as List? ?? []);
+
+          if (images.isEmpty) {
+            return Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.folder_open,
+                      color: AppColors.textMuted, size: 64),
+                  const SizedBox(height: 16),
+                  Text(
+                    'لا توجد صور في ${folder['label_ar']}',
+                    style: const TextStyle(
+                        fontFamily: 'Cairo',
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text('سيتم إضافة صور لهذا الموديل قريباً',
+                      style: TextStyle(
+                          fontFamily: 'Cairo',
+                          color: AppColors.textMuted,
+                          fontSize: 13)),
+                ],
+              ),
+            );
+          }
+
+          return GridView.builder(
+            padding: const EdgeInsets.all(12),
+            gridDelegate:
+                const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 3,
+              crossAxisSpacing: 8,
+              mainAxisSpacing: 8,
+              childAspectRatio: 0.82,
+            ),
+            itemCount: images.length,
+            itemBuilder: (ctx, i) => _GalleryImage(
+              image: images[i],
+              index: i,
+              onTap: () => _showFullScreen(ctx, images, i),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  void _showFullScreen(BuildContext context,
+      List<Map<String, dynamic>> images, int startIndex) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) =>
+            _FullScreenViewer(images: images, initialIndex: startIndex, folderLabel: folder['label_ar'] as String? ?? ''),
+      ),
+    );
+  }
+}
+
+// ─── Image card ───────────────────────────────────────────────────────────────
+
+class _GalleryImage extends StatelessWidget {
+  final Map<String, dynamic> image;
+  final int index;
+  final VoidCallback onTap;
+
+  const _GalleryImage(
+      {required this.image, required this.index, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final url = image['image_url'] as String? ?? '';
+    final fullUrl = url.startsWith('http')
+        ? url
+        : '${AppConstants.baseUrl}$url';
+    final watermark = image['watermark_number'] as String?;
+    final title = image['title'] as String?;
+
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        decoration: BoxDecoration(
+          color: AppColors.darkCard,
+          borderRadius: BorderRadius.circular(12),
           border: Border.all(color: AppColors.darkBorder),
         ),
         child: Column(
@@ -264,57 +467,71 @@ class _GalleryItem extends StatelessWidget {
             Expanded(
               child: ClipRRect(
                 borderRadius:
-                    const BorderRadius.vertical(top: Radius.circular(13)),
-                child: CachedNetworkImage(
-                  imageUrl: fullUrl,
-                  fit: BoxFit.cover,
-                  width: double.infinity,
-                  placeholder: (_, __) => Container(
-                    color: AppColors.darkSurface,
-                    child: const Center(
-                      child: SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(
-                            strokeWidth: 2, color: AppColors.primary),
+                    const BorderRadius.vertical(top: Radius.circular(11)),
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    CachedNetworkImage(
+                      imageUrl: fullUrl,
+                      fit: BoxFit.cover,
+                      placeholder: (_, __) => Container(
+                        color: AppColors.darkSurface,
+                        child: const Center(
+                          child: SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(
+                                strokeWidth: 2, color: AppColors.primary),
+                          ),
+                        ),
+                      ),
+                      errorWidget: (_, __, ___) => Container(
+                        color: AppColors.darkSurface,
+                        child: const Icon(Icons.image_not_supported_outlined,
+                            color: AppColors.textMuted, size: 28),
                       ),
                     ),
-                  ),
-                  errorWidget: (_, __, ___) => Container(
-                    color: AppColors.darkSurface,
-                    child: const Icon(Icons.image_not_supported_outlined,
-                        color: AppColors.textMuted, size: 28),
-                  ),
+                    if (watermark != null)
+                      Positioned(
+                        top: 5,
+                        right: 5,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 5, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: AppColors.primary.withOpacity(0.85),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            watermark,
+                            style: const TextStyle(
+                                fontFamily: 'Cairo',
+                                color: Colors.white,
+                                fontSize: 8,
+                                fontWeight: FontWeight.w700),
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
               ),
             ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(6, 5, 6, 6),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    name,
-                    style: const TextStyle(
-                        fontFamily: 'Cairo',
-                        color: Colors.white,
-                        fontSize: 10,
-                        fontWeight: FontWeight.w600),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  if (catLabel.isNotEmpty)
-                    Text(
-                      catLabel,
-                      style: const TextStyle(
-                          fontFamily: 'Cairo',
-                          color: AppColors.textMuted,
-                          fontSize: 9),
-                      maxLines: 1,
-                    ),
-                ],
-              ),
-            ),
+            if (title != null && title.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(6, 4, 6, 5),
+                child: Text(
+                  title,
+                  style: const TextStyle(
+                      fontFamily: 'Cairo',
+                      color: Colors.white,
+                      fontSize: 9,
+                      fontWeight: FontWeight.w600),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              )
+            else
+              const SizedBox(height: 6),
           ],
         ),
       )
@@ -325,53 +542,17 @@ class _GalleryItem extends StatelessWidget {
   }
 }
 
-// ─── Empty State ──────────────────────────────────────────────────────────────
-
-class _EmptyCategory extends StatelessWidget {
-  final _Category category;
-  const _EmptyCategory({required this.category});
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 80,
-            height: 80,
-            decoration: BoxDecoration(
-              color: category.color.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Icon(category.icon, color: category.color, size: 38),
-          ),
-          const SizedBox(height: 16),
-          Text('لا توجد صور في ${category.label}',
-              style: const TextStyle(
-                  fontFamily: 'Cairo',
-                  color: Colors.white,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w700)),
-          const SizedBox(height: 8),
-          const Text('سيتم إضافة صور لهذه الفئة قريباً',
-              style: TextStyle(
-                  fontFamily: 'Cairo',
-                  color: AppColors.textMuted,
-                  fontSize: 13)),
-        ],
-      ),
-    );
-  }
-}
-
 // ─── Full-Screen Viewer ───────────────────────────────────────────────────────
 
 class _FullScreenViewer extends StatefulWidget {
-  final List<Map<String, dynamic>> items;
+  final List<Map<String, dynamic>> images;
   final int initialIndex;
+  final String folderLabel;
+
   const _FullScreenViewer(
-      {required this.items, required this.initialIndex});
+      {required this.images,
+      required this.initialIndex,
+      required this.folderLabel});
 
   @override
   State<_FullScreenViewer> createState() => _FullScreenViewerState();
@@ -396,13 +577,10 @@ class _FullScreenViewerState extends State<_FullScreenViewer> {
 
   @override
   Widget build(BuildContext context) {
-    final product = widget.items[_current];
-    final name = product['name'] as String? ?? '';
-    final category = product['category'] as String? ?? '';
-    final catLabel = AppConstants.categoryAr[category] ?? category;
-    final price = product['price'];
-    final status = product['status'] as String? ?? '';
-    final statusLabel = AppConstants.productStatusAr[status] ?? status;
+    final img = widget.images[_current];
+    final watermark = img['watermark_number'] as String?;
+    final title = img['title'] as String?;
+    final createdAt = (img['created_at'] as String? ?? '').replaceFirst('T', ' ');
 
     return Scaffold(
       backgroundColor: Colors.black,
@@ -415,19 +593,21 @@ class _FullScreenViewerState extends State<_FullScreenViewer> {
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(name,
-                style: const TextStyle(
-                    fontFamily: 'Cairo',
-                    color: Colors.white,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis),
-            Text('${_current + 1} / ${widget.items.length}  •  $catLabel',
-                style: const TextStyle(
-                    fontFamily: 'Cairo',
-                    color: Colors.white60,
-                    fontSize: 11)),
+            Text(
+              title ?? watermark ?? widget.folderLabel,
+              style: const TextStyle(
+                  fontFamily: 'Cairo',
+                  color: Colors.white,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            Text(
+              '${_current + 1} / ${widget.images.length}  •  ${widget.folderLabel}',
+              style: const TextStyle(
+                  fontFamily: 'Cairo', color: Colors.white60, fontSize: 11),
+            ),
           ],
         ),
       ),
@@ -435,10 +615,10 @@ class _FullScreenViewerState extends State<_FullScreenViewer> {
         children: [
           PageView.builder(
             controller: _ctrl,
-            itemCount: widget.items.length,
+            itemCount: widget.images.length,
             onPageChanged: (i) => setState(() => _current = i),
             itemBuilder: (ctx, i) {
-              final p = widget.items[i];
+              final p = widget.images[i];
               final imgUrl = p['image_url'] as String? ?? '';
               final fullUrl = imgUrl.startsWith('http')
                   ? imgUrl
@@ -462,14 +642,14 @@ class _FullScreenViewerState extends State<_FullScreenViewer> {
             },
           ),
 
-          // Info bar at bottom
+          // Bottom info bar
           Positioned(
             bottom: 0,
             left: 0,
             right: 0,
             child: Container(
               padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
-              decoration: BoxDecoration(
+              decoration: const BoxDecoration(
                 gradient: LinearGradient(
                   begin: Alignment.bottomCenter,
                   end: Alignment.topCenter,
@@ -483,47 +663,54 @@ class _FullScreenViewerState extends State<_FullScreenViewer> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Text(name,
+                        if (watermark != null)
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: AppColors.primary.withOpacity(0.9),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              watermark,
+                              style: const TextStyle(
+                                  fontFamily: 'Cairo',
+                                  color: Colors.white,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700),
+                            ),
+                          ),
+                        if (title != null && title.isNotEmpty) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            title,
                             style: const TextStyle(
                                 fontFamily: 'Cairo',
                                 color: Colors.white,
-                                fontSize: 15,
-                                fontWeight: FontWeight.w700)),
-                        if (catLabel.isNotEmpty)
-                          Text(catLabel,
-                              style: const TextStyle(
-                                  fontFamily: 'Cairo',
-                                  color: Colors.white60,
-                                  fontSize: 12)),
+                                fontSize: 14,
+                                fontWeight: FontWeight.w700),
+                          ),
+                        ],
+                        if (createdAt.isNotEmpty)
+                          Text(
+                            createdAt.length > 10
+                                ? createdAt.substring(0, 16)
+                                : createdAt,
+                            style: const TextStyle(
+                                fontFamily: 'Cairo',
+                                color: Colors.white54,
+                                fontSize: 11),
+                          ),
                       ],
                     ),
                   ),
-                  if (price != null)
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text('${price.toString()} ر.ي',
-                            style: const TextStyle(
-                                fontFamily: 'Cairo',
-                                color: AppColors.primary,
-                                fontSize: 14,
-                                fontWeight: FontWeight.w700)),
-                        if (statusLabel.isNotEmpty)
-                          Text(statusLabel,
-                              style: const TextStyle(
-                                  fontFamily: 'Cairo',
-                                  color: Colors.white54,
-                                  fontSize: 11)),
-                      ],
-                    ),
                 ],
               ),
             ),
           ),
 
           // Dots indicator
-          if (widget.items.length > 1)
+          if (widget.images.length > 1)
             Positioned(
               bottom: 80,
               left: 0,
@@ -531,7 +718,7 @@ class _FullScreenViewerState extends State<_FullScreenViewer> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: List.generate(
-                  widget.items.length.clamp(0, 8),
+                  widget.images.length.clamp(0, 8),
                   (i) => AnimatedContainer(
                     duration: const Duration(milliseconds: 200),
                     width: i == _current % 8 ? 16 : 6,

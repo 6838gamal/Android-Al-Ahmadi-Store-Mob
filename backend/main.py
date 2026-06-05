@@ -15,7 +15,7 @@ from backend.models import (  # noqa
     inventory_item, referral, warranty,
     inspection, wallet, notification, audit_log,
     loyalty, shortage_request, auction, secret_deal,
-    eng_support, complaint, purchase_invoice,
+    eng_support, complaint, purchase_invoice, gallery,
 )
 from backend.models.announcement import Announcement  # noqa
 
@@ -33,6 +33,7 @@ from backend.api.routes import (
     eng_support as eng_support_routes,
     complaints as complaints_routes,
     purchase_invoices as purchase_invoices_routes,
+    gallery as gallery_routes,
 )
 
 
@@ -172,6 +173,7 @@ app.include_router(secret_deals_routes.router,       prefix="/api/secret-deals",
 app.include_router(eng_support_routes.router,        prefix="/api/eng-support",        tags=["EngSupport"])
 app.include_router(complaints_routes.router,         prefix="/api/complaints",         tags=["Complaints"])
 app.include_router(purchase_invoices_routes.router,  prefix="/api/purchase-invoices",  tags=["PurchaseInvoices"])
+app.include_router(gallery_routes.router,            prefix="/api/gallery",            tags=["Gallery"])
 
 
 @app.get("/api/health")

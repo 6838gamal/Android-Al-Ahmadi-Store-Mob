@@ -46,5 +46,7 @@ class PurchaseInvoiceItem(Base):
     unit_price = Column(Float, nullable=False)
     total_price = Column(Float, nullable=False)
     notes = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
     invoice = relationship("PurchaseInvoice", back_populates="items")

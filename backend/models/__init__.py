@@ -19,6 +19,7 @@ from backend.models.secret_deal import SecretDeal, SecretDealImage, SecretDealSt
 from backend.models.eng_support import EngSupportPost, EngSupportResponse, EngPostStatus
 from backend.models.complaint import Complaint, ComplaintStatus, ComplaintType
 from backend.models.purchase_invoice import PurchaseInvoice, PurchaseInvoiceItem, InvoiceStatus
+from backend.models.gallery import GalleryFolder, GalleryImage
 
 __all__ = [
     "Branch", "Warehouse",
@@ -40,4 +41,5 @@ __all__ = [
     "EngSupportPost", "EngSupportResponse", "EngPostStatus",
     "Complaint", "ComplaintStatus", "ComplaintType",
     "PurchaseInvoice", "PurchaseInvoiceItem", "InvoiceStatus",
+    "GalleryFolder", "GalleryImage",
 ]

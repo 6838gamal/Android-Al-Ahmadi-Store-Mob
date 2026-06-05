@@ -158,6 +158,16 @@ def run_migrations():
                 if col_name not in res_cols:
                     conn.execute(text(f"ALTER TABLE reservations ADD COLUMN {col_name} {col_def}"))
 
+        # ── purchase_invoice_items table (timestamps) ──────────────────────
+        if "purchase_invoice_items" in existing_tables:
+            pii_cols = [c["name"] for c in inspector.get_columns("purchase_invoice_items")]
+            for col_name, col_def in [("created_at", f"{ts_type} DEFAULT CURRENT_TIMESTAMP"),
+                                       ("updated_at", ts_type)]:
+                if col_name not in pii_cols:
+                    conn.execute(text(
+                        f"ALTER TABLE purchase_invoice_items ADD COLUMN {col_name} {col_def}"
+                    ))
+
         conn.commit()
 
     # ── Indexes for performance ──────────────────────────────────────────────
