@@ -67,12 +67,24 @@ def register(user_data: UserCreate, request: Request, db: Session = Depends(get_
         raise HTTPException(status_code=400, detail="البريد الإلكتروني أو رقم الهاتف مطلوب")
 
     if user_data.email:
-        if db.query(User).filter(User.email == user_data.email).first():
-            raise HTTPException(status_code=400, detail="البريد الإلكتروني مسجل مسبقاً")
+        existing_email = db.query(User).filter(User.email == user_data.email).first()
+        if existing_email:
+            # Allow re-registration if the account is unverified (incomplete signup)
+            if existing_email.role == UserRole.customer and not existing_email.is_verified:
+                db.delete(existing_email)
+                db.commit()
+            else:
+                raise HTTPException(status_code=400, detail="البريد الإلكتروني مسجل مسبقاً")
 
     if user_data.phone:
-        if db.query(User).filter(User.phone == user_data.phone).first():
-            raise HTTPException(status_code=400, detail="رقم الهاتف مسجل مسبقاً")
+        existing_phone = db.query(User).filter(User.phone == user_data.phone).first()
+        if existing_phone:
+            # Allow re-registration if the account is unverified (incomplete signup)
+            if existing_phone.role == UserRole.customer and not existing_phone.is_verified:
+                db.delete(existing_phone)
+                db.commit()
+            else:
+                raise HTTPException(status_code=400, detail="رقم الهاتف مسجل مسبقاً")
 
     referred_by_id = None
     if user_data.referral_code:

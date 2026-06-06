@@ -59,6 +59,21 @@ class _LoginPageState extends ConsumerState<LoginPage> {
       final auth = ref.read(authProvider);
       // Phone not verified — redirect to OTP verification page
       if (auth.error == 'PHONE_NOT_VERIFIED') {
+        // Show explanation then redirect to OTP
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text(
+              'حسابك غير مفعّل — سنرسل لك رمز التحقق على جوالك',
+              style: TextStyle(fontFamily: 'Cairo'),
+            ),
+            backgroundColor: const Color(0xFF1A73E8),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            duration: const Duration(seconds: 3),
+          ),
+        );
+        await Future.delayed(const Duration(seconds: 1));
+        if (!mounted) return;
         Navigator.push(
           context,
           MaterialPageRoute(
