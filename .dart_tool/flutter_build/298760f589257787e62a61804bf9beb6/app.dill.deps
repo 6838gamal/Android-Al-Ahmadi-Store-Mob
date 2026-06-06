@@ -1787,6 +1787,8 @@ file:///home/runner/workspace/lib/core/constants/app_constants.dart
 file:///home/runner/workspace/lib/core/network/api_client.dart
 file:///home/runner/workspace/lib/core/providers/connectivity_provider.dart
 file:///home/runner/workspace/lib/core/router/app_router.dart
+file:///home/runner/workspace/lib/core/services/firebase_js_bridge_web.dart
+file:///home/runner/workspace/lib/core/services/firebase_phone_service.dart
 file:///home/runner/workspace/lib/core/theme/app_colors.dart
 file:///home/runner/workspace/lib/core/theme/app_theme.dart
 file:///home/runner/workspace/lib/core/utils/app_utils.dart
@@ -1797,6 +1799,7 @@ file:///home/runner/workspace/lib/features/announcements/presentation/providers/
 file:///home/runner/workspace/lib/features/auth/presentation/pages/forgot_password_page.dart
 file:///home/runner/workspace/lib/features/auth/presentation/pages/login_page.dart
 file:///home/runner/workspace/lib/features/auth/presentation/pages/onboarding_page.dart
+file:///home/runner/workspace/lib/features/auth/presentation/pages/phone_otp_page.dart
 file:///home/runner/workspace/lib/features/auth/presentation/pages/register_page.dart
 file:///home/runner/workspace/lib/features/auth/presentation/pages/splash_page.dart
 file:///home/runner/workspace/lib/features/auth/presentation/pages/welcome_page.dart

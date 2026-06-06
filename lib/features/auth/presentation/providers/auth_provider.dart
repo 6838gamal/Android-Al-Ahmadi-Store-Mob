@@ -70,12 +70,14 @@ class AuthState {
   final bool isLoading;
   final String? error;
   final bool isInitialized;
+  final String? unverifiedPhone;
 
   const AuthState({
     this.user,
     this.isLoading = false,
     this.error,
     this.isInitialized = false,
+    this.unverifiedPhone,
   });
 
   bool get isAuthenticated => user != null;
@@ -91,12 +93,15 @@ class AuthState {
     String? error,
     bool? isInitialized,
     bool clearUser = false,
+    String? unverifiedPhone,
+    bool clearUnverifiedPhone = false,
   }) =>
       AuthState(
         user: clearUser ? null : (user ?? this.user),
         isLoading: isLoading ?? this.isLoading,
         error: error,
         isInitialized: isInitialized ?? this.isInitialized,
+        unverifiedPhone: clearUnverifiedPhone ? null : (unverifiedPhone ?? this.unverifiedPhone),
       );
 }
 
@@ -127,7 +132,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
   }
 
   Future<bool> login(String identifier, String password) async {
-    state = state.copyWith(isLoading: true, error: null);
+    state = state.copyWith(isLoading: true, error: null, clearUnverifiedPhone: true);
     try {
       final res = await _api.post('/auth/login',
           data: {'identifier': identifier, 'password': password});
@@ -137,6 +142,19 @@ class AuthNotifier extends StateNotifier<AuthState> {
       state = state.copyWith(user: user, isLoading: false);
       return true;
     } catch (e) {
+      // Check if the backend rejected login because phone is not verified
+      try {
+        final detail = (e as dynamic).response?.data['detail'];
+        if (detail == 'PHONE_NOT_VERIFIED') {
+          final phone = (e as dynamic).response?.headers?.value('x-phone') ?? identifier;
+          state = state.copyWith(
+            isLoading: false,
+            error: 'PHONE_NOT_VERIFIED',
+            unverifiedPhone: phone,
+          );
+          return false;
+        }
+      } catch (_) {}
       state = state.copyWith(isLoading: false, error: 'بيانات الدخول غير صحيحة');
       return false;
     }

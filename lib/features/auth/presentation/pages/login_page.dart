@@ -54,10 +54,25 @@ class _LoginPageState extends ConsumerState<LoginPage> {
         context.go('/products');
       }
     } else {
+      final auth = ref.read(authProvider);
+      // Phone not verified — redirect to OTP verification page
+      if (auth.error == 'PHONE_NOT_VERIFIED') {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => PhoneOtpPage(
+              mode: 'verify',
+              prefilledPhone: auth.unverifiedPhone ?? _idCtrl.text.trim(),
+              redirectTo: '/products',
+            ),
+          ),
+        );
+        return;
+      }
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            ref.read(authProvider).error ?? 'بيانات الدخول غير صحيحة',
+            auth.error ?? 'بيانات الدخول غير صحيحة',
             style: const TextStyle(fontFamily: 'Cairo'),
           ),
           backgroundColor: AppColors.error,

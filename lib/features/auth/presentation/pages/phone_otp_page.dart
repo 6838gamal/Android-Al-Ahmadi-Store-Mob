@@ -55,11 +55,13 @@ class _OtpState {
 class PhoneOtpPage extends ConsumerStatefulWidget {
   final String mode;
   final String? prefilledPhone;
+  final String? redirectTo;
 
   const PhoneOtpPage({
     super.key,
     this.mode = 'verify',
     this.prefilledPhone,
+    this.redirectTo,
   });
 
   @override
@@ -200,7 +202,13 @@ class _PhoneOtpPageState extends ConsumerState<PhoneOtpPage> {
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ));
-        Navigator.pop(context);
+        // If we have a redirect target (post-register or post-login-unverified),
+        // navigate there; otherwise pop back (e.g. from profile settings)
+        if (widget.redirectTo != null) {
+          context.go(widget.redirectTo!);
+        } else {
+          Navigator.pop(context);
+        }
       }
     } catch (e) {
       String msg = 'تعذر التحقق — أعد المحاولة';

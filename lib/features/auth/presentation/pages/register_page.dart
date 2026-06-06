@@ -6,6 +6,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/app_button.dart';
 import '../../../../shared/widgets/app_text_field.dart';
 import '../providers/auth_provider.dart';
+import 'phone_otp_page.dart';
 
 class RegisterPage extends ConsumerStatefulWidget {
   const RegisterPage({super.key});
@@ -50,7 +51,18 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
         );
     if (!mounted) return;
     if (ok) {
-      context.go('/products');
+      // Navigate to phone verification before accessing the app
+      final phone = _phoneCtrl.text.trim();
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => PhoneOtpPage(
+            mode: 'verify',
+            prefilledPhone: phone,
+            redirectTo: '/products',
+          ),
+        ),
+      );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text(

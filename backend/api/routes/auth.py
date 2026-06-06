@@ -127,6 +127,14 @@ def login(login_data: UserLogin, request: Request, db: Session = Depends(get_db)
     if not user.is_active:
         raise HTTPException(status_code=403, detail="الحساب معطّل")
 
+    # Block unverified customers — they must verify their phone first
+    if user.role == UserRole.customer and not user.is_verified:
+        raise HTTPException(
+            status_code=403,
+            detail="PHONE_NOT_VERIFIED",
+            headers={"X-Phone": user.phone or ""},
+        )
+
     return _build_token_response(user)
 
 
