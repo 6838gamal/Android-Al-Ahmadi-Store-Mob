@@ -112,12 +112,48 @@ class AuthNotifier extends StateNotifier<AuthState> {
     _init();
   }
 
-  /// Extracts the Arabic `detail` string from a Dio/HTTP error response.
-  /// Falls back to [fallback] if the response has no readable detail.
+  /// Safely pulls the `detail` string out of a Dio error response.
+  String? _getDetail(Object e) {
+    try {
+      final data = (e as dynamic).response?.data;
+      if (data is Map) {
+        final d = data['detail'];
+        if (d is String && d.isNotEmpty) return d;
+      }
+      if (data is String && data.isNotEmpty) return data;
+    } catch (_) {}
+    return null;
+  }
+
+  /// Returns a human-readable Arabic error message for any thrown exception.
   String _extractError(Object e, {required String fallback}) {
     try {
-      final detail = (e as dynamic).response?.data['detail'];
-      if (detail is String && detail.isNotEmpty) return detail;
+      // ── Network / timeout errors (no response at all) ───────────────
+      final typeStr = (e as dynamic).type?.toString() ?? '';
+      if (typeStr.contains('connectionError') ||
+          typeStr.contains('connectionTimeout') ||
+          typeStr.contains('receiveTimeout') ||
+          typeStr.contains('sendTimeout')) {
+        return 'تعذّر الاتصال بالخادم — تحقق من اتصالك بالإنترنت وأعد المحاولة';
+      }
+
+      // ── Backend returned a JSON detail message ─────────────────────
+      final detail = _getDetail(e);
+      if (detail != null) return detail;
+
+      // ── HTTP status-code fallbacks ─────────────────────────────────
+      final status = (e as dynamic).response?.statusCode as int?;
+      if (status != null) {
+        if (status >= 500) {
+          return 'حدث خطأ في الخادم ($status) — أعد المحاولة لاحقاً';
+        }
+        if (status == 429) {
+          return 'محاولات كثيرة — انتظر دقيقة ثم أعد المحاولة';
+        }
+        if (status == 404) {
+          return 'الخدمة غير متاحة حالياً — أعد المحاولة لاحقاً';
+        }
+      }
     } catch (_) {}
     return fallback;
   }
@@ -153,19 +189,20 @@ class AuthNotifier extends StateNotifier<AuthState> {
       return true;
     } catch (e) {
       // Check if the backend rejected login because phone is not verified
-      try {
-        final detail = (e as dynamic).response?.data['detail'];
-        if (detail == 'PHONE_NOT_VERIFIED') {
-          final phone = (e as dynamic).response?.headers?.value('x-phone') ?? identifier;
-          state = state.copyWith(
-            isLoading: false,
-            error: 'PHONE_NOT_VERIFIED',
-            unverifiedPhone: phone,
-          );
-          return false;
-        }
-      } catch (_) {}
-      final msg = _extractError(e, fallback: 'بيانات الدخول غير صحيحة');
+      final detail = _getDetail(e);
+      if (detail == 'PHONE_NOT_VERIFIED') {
+        String phone = identifier;
+        try {
+          phone = (e as dynamic).response?.headers?.value('x-phone') ?? identifier;
+        } catch (_) {}
+        state = state.copyWith(
+          isLoading: false,
+          error: 'PHONE_NOT_VERIFIED',
+          unverifiedPhone: phone,
+        );
+        return false;
+      }
+      final msg = _extractError(e, fallback: 'بيانات الدخول غير صحيحة — تحقق من رقم الجوال وكلمة المرور');
       state = state.copyWith(isLoading: false, error: msg);
       return false;
     }

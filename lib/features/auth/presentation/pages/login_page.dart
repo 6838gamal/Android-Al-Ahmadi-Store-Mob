@@ -20,6 +20,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   final _idCtrl = TextEditingController();
   final _passCtrl = TextEditingController();
   bool _isStaffMode = false;
+  String? _errorMsg;
 
   @override
   void dispose() {
@@ -29,6 +30,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   }
 
   Future<void> _login() async {
+    setState(() => _errorMsg = null);
     if (!_form.currentState!.validate()) return;
 
     bool ok;
@@ -69,17 +71,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
         );
         return;
       }
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            auth.error ?? 'بيانات الدخول غير صحيحة',
-            style: const TextStyle(fontFamily: 'Cairo'),
-          ),
-          backgroundColor: AppColors.error,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        ),
-      );
+      setState(() => _errorMsg = auth.error ?? 'بيانات الدخول غير صحيحة');
     }
   }
 
@@ -223,6 +215,39 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                     onPressed: _login,
                     icon: _isStaffMode ? Icons.badge_outlined : Icons.login,
                   ).animate(delay: 420.ms).fadeIn().slideY(begin: 0.3, end: 0),
+
+                  if (_errorMsg != null) ...[
+                    const SizedBox(height: 16),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: AppColors.error.withOpacity(0.12),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                            color: AppColors.error.withOpacity(0.5)),
+                      ),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Icon(Icons.error_outline,
+                              color: AppColors.error, size: 20),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              _errorMsg!,
+                              style: const TextStyle(
+                                fontFamily: 'Cairo',
+                                fontSize: 13,
+                                color: Color(0xFFFF6B6B),
+                                height: 1.5,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ).animate().fadeIn().shake(hz: 2, offset: Offset(4, 0)),
+                  ],
 
                   const SizedBox(height: 24),
 
