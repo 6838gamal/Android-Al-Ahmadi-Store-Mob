@@ -21,14 +21,41 @@ app = FastAPI(title="لوحة إدارة اندرويد الاحمدي", docs_ur
 
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
-    import traceback
+    import traceback, html as _html
     tb = "".join(traceback.format_exception(type(exc), exc, exc.__traceback__))
     print(f"[UNHANDLED 500] {request.method} {request.url}\n{tb}")
+    tb_escaped = _html.escape(tb)
+    method_escaped = _html.escape(str(request.method))
+    url_escaped = _html.escape(str(request.url))
     from fastapi.responses import HTMLResponse
     return HTMLResponse(
-        f"<pre style='color:red;padding:20px;font-size:13px'>"
-        f"<b>500 Internal Server Error</b>\n"
-        f"<b>{request.method} {request.url}</b>\n\n{tb}</pre>",
+        f"""<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>خطأ في الخادم</title>
+  <style>
+    body {{ font-family: 'Segoe UI', sans-serif; background:#0D1117; color:#e6edf3; margin:0; padding:32px; }}
+    .card {{ background:#161B22; border:1px solid #30363d; border-radius:12px; padding:28px; max-width:900px; margin:auto; }}
+    h2 {{ color:#f85149; margin:0 0 8px; font-size:20px; }}
+    .meta {{ color:#8b949e; font-size:13px; margin-bottom:20px; }}
+    .trace {{ background:#0D1117; border:1px solid #30363d; border-radius:8px; padding:16px;
+              font-family:monospace; font-size:12px; color:#e6edf3; white-space:pre-wrap;
+              word-break:break-word; max-height:400px; overflow-y:auto; }}
+    .back {{ display:inline-block; margin-top:20px; padding:10px 20px; background:#1A73E8;
+             color:#fff; border-radius:8px; text-decoration:none; font-size:14px; }}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h2>⚠️ حدث خطأ داخلي في الخادم</h2>
+    <p class="meta">{method_escaped} {url_escaped}</p>
+    <div class="trace">{tb_escaped}</div>
+    <a href="javascript:history.back()" class="back">← العودة للصفحة السابقة</a>
+  </div>
+</body>
+</html>""",
         status_code=500,
     )
 

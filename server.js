@@ -98,9 +98,18 @@ function proxyAdminRequest(req, res) {
 
       proxyRes.resume();
       res.writeHead(200, respHeaders);
-      res.end(`<!doctype html><html><head>
-<script>window.location.replace(${JSON.stringify(newLoc)})</script>
-</head><body>جارٍ التحويل...</body></html>`);
+      res.end(`<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="refresh" content="0;url=${newLoc}">
+  <script>window.location.replace(${JSON.stringify(newLoc)})</script>
+  <style>body{background:#0D1117;color:#e6edf3;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0}a{color:#1A73E8}</style>
+</head>
+<body>
+  <p>جارٍ التحويل... <a href="${newLoc}">انقر هنا إن لم يحدث التحويل تلقائياً</a></p>
+</body>
+</html>`);
       return;
     }
 
