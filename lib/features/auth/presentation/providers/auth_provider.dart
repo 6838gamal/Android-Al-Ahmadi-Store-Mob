@@ -112,6 +112,16 @@ class AuthNotifier extends StateNotifier<AuthState> {
     _init();
   }
 
+  /// Extracts the Arabic `detail` string from a Dio/HTTP error response.
+  /// Falls back to [fallback] if the response has no readable detail.
+  String _extractError(Object e, {required String fallback}) {
+    try {
+      final detail = (e as dynamic).response?.data['detail'];
+      if (detail is String && detail.isNotEmpty) return detail;
+    } catch (_) {}
+    return fallback;
+  }
+
   Future<void> _init() async {
     final token = await StorageService.getToken();
     if (token != null) {
@@ -155,7 +165,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
           return false;
         }
       } catch (_) {}
-      state = state.copyWith(isLoading: false, error: 'بيانات الدخول غير صحيحة');
+      final msg = _extractError(e, fallback: 'بيانات الدخول غير صحيحة');
+      state = state.copyWith(isLoading: false, error: msg);
       return false;
     }
   }
@@ -171,8 +182,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
       state = state.copyWith(user: user, isLoading: false);
       return true;
     } catch (e) {
-      state = state.copyWith(
-          isLoading: false, error: 'بيانات الدخول غير صحيحة أو الحساب غير مخوّل');
+      final msg = _extractError(e,
+          fallback: 'بيانات الدخول غير صحيحة أو الحساب غير مخوّل');
+      state = state.copyWith(isLoading: false, error: msg);
       return false;
     }
   }
@@ -206,9 +218,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
       state = state.copyWith(user: user, isLoading: false);
       return true;
     } catch (e) {
-      state = state.copyWith(
-          isLoading: false,
-          error: 'فشل إنشاء الحساب. تحقق من البيانات أو جرب رقم جوال آخر');
+      final msg = _extractError(e,
+          fallback: 'فشل إنشاء الحساب — تحقق من البيانات أو جرب رقم جوال آخر');
+      state = state.copyWith(isLoading: false, error: msg);
       return false;
     }
   }

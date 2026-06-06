@@ -227,54 +227,6 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                   const SizedBox(height: 24),
 
                   if (!_isStaffMode) ...[
-                    // ── OTP login divider ──
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 4),
-                      child: Row(
-                        children: [
-                          const Expanded(child: Divider(color: AppColors.darkBorder)),
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 12),
-                            child: Text('أو',
-                                style: TextStyle(
-                                    fontFamily: 'Cairo',
-                                    color: AppColors.textMuted,
-                                    fontSize: 12)),
-                          ),
-                          const Expanded(child: Divider(color: AppColors.darkBorder)),
-                        ],
-                      ),
-                    ).animate(delay: 460.ms).fadeIn(),
-
-                    // OTP login button
-                    SizedBox(
-                      width: double.infinity,
-                      child: OutlinedButton.icon(
-                        onPressed: () => Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const PhoneOtpPage(mode: 'login'),
-                          ),
-                        ),
-                        style: OutlinedButton.styleFrom(
-                          side: const BorderSide(color: AppColors.darkBorder),
-                          padding: const EdgeInsets.symmetric(vertical: 13),
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(14)),
-                        ),
-                        icon: const Icon(Icons.phone_android,
-                            color: AppColors.primary, size: 18),
-                        label: const Text('الدخول برمز SMS',
-                            style: TextStyle(
-                                fontFamily: 'Cairo',
-                                color: Colors.white,
-                                fontWeight: FontWeight.w600,
-                                fontSize: 14)),
-                      ),
-                    ).animate(delay: 480.ms).fadeIn().slideY(begin: 0.2, end: 0),
-
-                    const SizedBox(height: 8),
-
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
@@ -291,7 +243,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                                   fontWeight: FontWeight.w700)),
                         ),
                       ],
-                    ).animate(delay: 520.ms).fadeIn(),
+                    ).animate(delay: 460.ms).fadeIn(),
                   ],
 
                   if (_isStaffMode)
