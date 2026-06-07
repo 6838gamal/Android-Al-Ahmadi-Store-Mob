@@ -94,7 +94,6 @@ def register(user_data: UserCreate, request: Request, db: Session = Depends(get_
         if referrer:
             referred_by_id = referrer.id
 
-    _dev_mode = os.getenv("ENVIRONMENT", "development").lower() != "production"
     user = User(
         name=user_data.name,
         email=user_data.email,
@@ -103,7 +102,7 @@ def register(user_data: UserCreate, request: Request, db: Session = Depends(get_
         role=UserRole.customer,
         referral_code=_gen_referral_code(db),
         referred_by_id=referred_by_id,
-        is_verified=_dev_mode,
+        is_verified=False,
     )
     db.add(user)
     db.commit()
@@ -122,6 +121,37 @@ def register(user_data: UserCreate, request: Request, db: Session = Depends(get_
     return _build_token_response(user)
 
 
+def _delete_user_cascade(user_id: int, db: Session):
+    """Delete a user and clear/remove all FK references first to avoid constraint errors."""
+    from sqlalchemy import text
+    db.execute(text("UPDATE users SET referred_by_id = NULL WHERE referred_by_id = :uid"), {"uid": user_id})
+    db.execute(text("DELETE FROM referrals WHERE referrer_id = :uid OR referred_id = :uid"), {"uid": user_id})
+    db.execute(text("DELETE FROM notifications WHERE user_id = :uid"), {"uid": user_id})
+    db.execute(text("DELETE FROM loyalty_transactions WHERE user_id = :uid"), {"uid": user_id})
+    db.execute(text("DELETE FROM loyalty_accounts WHERE user_id = :uid"), {"uid": user_id})
+    for tbl, col in [
+        ("orders", "customer_id"),
+        ("reservations", "customer_id"),
+        ("complaints", "customer_id"),
+        ("inspection_requests", "customer_id"),
+        ("inventory_items", "sold_to_id"),
+        ("auction_bids", "bidder_id"),
+        ("audit_logs", "user_id"),
+        ("wallet_transactions", "user_id"),
+        ("warranties", "customer_id"),
+        ("shortage_requests", "customer_id"),
+    ]:
+        try:
+            db.execute(text(f"UPDATE {tbl} SET {col} = NULL WHERE {col} = :uid"), {"uid": user_id})
+        except Exception:
+            db.rollback()
+    db.commit()
+    user_obj = db.query(User).filter(User.id == user_id).first()
+    if user_obj:
+        db.delete(user_obj)
+        db.commit()
+
+
 @router.post("/login", response_model=TokenResponse)
 def login(login_data: UserLogin, request: Request, db: Session = Depends(get_db)):
     client_ip = _get_client_ip(request)
@@ -135,20 +165,27 @@ def login(login_data: UserLogin, request: Request, db: Session = Depends(get_db)
     else:
         user = db.query(User).filter(User.phone == identifier).first()
 
-    if not user or not verify_password(login_data.password, user.hashed_password):
-        raise HTTPException(status_code=401, detail="بيانات الدخول غير صحيحة")
+    # Phone/email not registered at all
+    if not user:
+        raise HTTPException(
+            status_code=401,
+            detail="رقم الجوال غير مسجّل — اضغط على «إنشاء حساب» في الأسفل للتسجيل",
+        )
+
+    # Unverified customer account → delete it so the user can re-register freely
+    if user.role == UserRole.customer and not user.is_verified:
+        user_id = user.id
+        _delete_user_cascade(user_id, db)
+        raise HTTPException(
+            status_code=401,
+            detail="هذا الحساب لم يتم تفعيله — تم حذفه تلقائياً. يمكنك إنشاء حساب جديد بنفس الرقم",
+        )
 
     if not user.is_active:
-        raise HTTPException(status_code=403, detail="الحساب معطّل")
+        raise HTTPException(status_code=403, detail="الحساب معطّل — تواصل مع الدعم")
 
-    # Block unverified customers in production only
-    _dev_mode = os.getenv("ENVIRONMENT", "development").lower() != "production"
-    if not _dev_mode and user.role == UserRole.customer and not user.is_verified:
-        raise HTTPException(
-            status_code=403,
-            detail="PHONE_NOT_VERIFIED",
-            headers={"X-Phone": user.phone or ""},
-        )
+    if not verify_password(login_data.password, user.hashed_password):
+        raise HTTPException(status_code=401, detail="كلمة المرور غير صحيحة")
 
     return _build_token_response(user)
 

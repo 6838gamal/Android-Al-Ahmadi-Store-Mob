@@ -97,7 +97,47 @@ def delete_customer(
 ):
     user = db.query(User).filter(User.id == user_id, User.role == UserRole.customer).first()
     if not user:
-        raise HTTPException(404, "Customer not found")
+        raise HTTPException(404, "العميل غير موجود")
+
+    try:
+        from sqlalchemy import text
+
+        # Clear self-referential FK: other users referred by this customer
+        db.execute(text("UPDATE users SET referred_by_id = NULL WHERE referred_by_id = :uid"), {"uid": user_id})
+
+        # Delete referral records for this user (as referrer or referred)
+        db.execute(text("DELETE FROM referrals WHERE referrer_id = :uid OR referred_id = :uid"), {"uid": user_id})
+
+        # Delete notifications owned by this user
+        db.execute(text("DELETE FROM notifications WHERE user_id = :uid"), {"uid": user_id})
+
+        # Delete loyalty data
+        db.execute(text("DELETE FROM loyalty_transactions WHERE user_id = :uid"), {"uid": user_id})
+        db.execute(text("DELETE FROM loyalty_accounts WHERE user_id = :uid"), {"uid": user_id})
+
+        # Null out customer_id in tables that allow NULL (preserve records, just disassociate)
+        for tbl, col in [
+            ("orders", "customer_id"),
+            ("reservations", "customer_id"),
+            ("complaints", "customer_id"),
+            ("inspection_requests", "customer_id"),
+            ("inventory_items", "sold_to_id"),
+            ("auction_bids", "bidder_id"),
+            ("audit_logs", "user_id"),
+            ("wallet_transactions", "user_id"),
+            ("warranties", "customer_id"),
+            ("shortage_requests", "customer_id"),
+        ]:
+            try:
+                db.execute(text(f"UPDATE {tbl} SET {col} = NULL WHERE {col} = :uid"), {"uid": user_id})
+            except Exception:
+                db.rollback()
+
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"خطأ أثناء الحذف: {str(e)}")
+
     db.delete(user)
     db.commit()
-    return {"message": "Deleted"}
+    return {"message": "تم حذف العميل بنجاح"}
