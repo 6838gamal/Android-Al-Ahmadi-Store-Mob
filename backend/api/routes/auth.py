@@ -94,6 +94,7 @@ def register(user_data: UserCreate, request: Request, db: Session = Depends(get_
         if referrer:
             referred_by_id = referrer.id
 
+    _dev_mode = os.getenv("ENVIRONMENT", "development").lower() != "production"
     user = User(
         name=user_data.name,
         email=user_data.email,
@@ -102,6 +103,7 @@ def register(user_data: UserCreate, request: Request, db: Session = Depends(get_
         role=UserRole.customer,
         referral_code=_gen_referral_code(db),
         referred_by_id=referred_by_id,
+        is_verified=_dev_mode,
     )
     db.add(user)
     db.commit()
@@ -139,8 +141,9 @@ def login(login_data: UserLogin, request: Request, db: Session = Depends(get_db)
     if not user.is_active:
         raise HTTPException(status_code=403, detail="الحساب معطّل")
 
-    # Block unverified customers — they must verify their phone first
-    if user.role == UserRole.customer and not user.is_verified:
+    # Block unverified customers in production only
+    _dev_mode = os.getenv("ENVIRONMENT", "development").lower() != "production"
+    if not _dev_mode and user.role == UserRole.customer and not user.is_verified:
         raise HTTPException(
             status_code=403,
             detail="PHONE_NOT_VERIFIED",
