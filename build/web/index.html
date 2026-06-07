@@ -13,12 +13,21 @@
   <title>اندرويد الاحمدي</title>
   <link rel="manifest" href="manifest.json">
   <script>
-    // Unregister stale service workers so new builds load immediately
+    // Aggressively unregister all service workers and clear caches
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.getRegistrations().then(function(registrations) {
-        for (let reg of registrations) { reg.unregister(); }
+        registrations.forEach(function(reg) { reg.unregister(); });
+      });
+      caches.keys().then(function(cacheNames) {
+        cacheNames.forEach(function(name) { caches.delete(name); });
       });
     }
+
+    // Auto-complete onboarding so users go straight to the welcome/login page.
+    // shared_preferences on Flutter Web stores keys under the "flutter." prefix.
+    try {
+      localStorage.setItem('flutter.onboarding_done', 'true');
+    } catch(e) {}
   </script>
 </head>
 <body>
