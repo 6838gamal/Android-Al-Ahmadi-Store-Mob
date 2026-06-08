@@ -1,4 +1,4 @@
-import random, string, time, os
+import random, string, time, os, secrets
 from datetime import datetime
 from collections import defaultdict
 from fastapi import APIRouter, Depends, HTTPException, Request, status
@@ -21,6 +21,27 @@ router = APIRouter()
 STAFF_ROLES = [UserRole.staff, UserRole.branch_manager, UserRole.admin]
 
 _rate_store: dict = defaultdict(list)
+
+# ── Simple OTP store — no Firebase, no SMS (dev mode) ─────────────────────────
+# phone → {"code": "123456", "expires": float}
+_otp_store: dict = {}
+
+
+def _gen_otp() -> str:
+    return f"{secrets.randbelow(1000000):06d}"
+
+
+def _normalise_phone(p: str) -> list[str]:
+    """Return all plausible local/international variants of a phone string."""
+    p = p.strip().lstrip("+")
+    variants = [p]
+    for prefix in ("967", "00967"):
+        if p.startswith(prefix):
+            local = p[len(prefix):]
+            variants += [local, "0" + local]
+    if not p.startswith("0") and len(p) == 9:
+        variants += ["0" + p, "967" + p, "+967" + p]
+    return list(dict.fromkeys(variants))
 
 
 def _get_client_ip(request: Request) -> str:
@@ -258,6 +279,71 @@ def logout(
     current_user.tokens_invalidated_at = datetime.utcnow()
     db.commit()
     return {"message": "تم تسجيل الخروج بنجاح"}
+
+
+# ── Simple backend OTP (Firebase disabled temporarily) ────────────────────────
+
+class OtpSendRequest(BaseModel):
+    phone: str
+
+class OtpVerifyRequest(BaseModel):
+    phone: str
+    code: str
+
+
+@router.post("/send-otp")
+def send_otp(body: OtpSendRequest, request: Request):
+    client_ip = _get_client_ip(request)
+    _check_rate_limit(f"send_otp:{client_ip}", limit=5, window=60)
+
+    phone = body.phone.strip()
+    if not phone:
+        raise HTTPException(status_code=400, detail="رقم الجوال مطلوب")
+
+    code = _gen_otp()
+    _otp_store[phone] = {"code": code, "expires": time.time() + 600}
+
+    # Dev mode: print code to console (no SMS configured yet)
+    print(f"[OTP] {phone} → {code}", flush=True)
+
+    return {"message": "تم إرسال رمز التحقق", "dev_note": "check server console for the OTP code"}
+
+
+@router.post("/verify-otp", response_model=TokenResponse)
+def verify_otp(body: OtpVerifyRequest, request: Request, db: Session = Depends(get_db)):
+    client_ip = _get_client_ip(request)
+    _check_rate_limit(f"verify_otp:{client_ip}", limit=10, window=60)
+
+    phone = body.phone.strip()
+    code = body.code.strip()
+
+    entry = _otp_store.get(phone)
+    if not entry:
+        raise HTTPException(status_code=400, detail="لم يتم إرسال رمز لهذا الرقم — اطلب رمزاً جديداً")
+    if time.time() > entry["expires"]:
+        _otp_store.pop(phone, None)
+        raise HTTPException(status_code=400, detail="انتهت صلاحية الرمز — اطلب رمزاً جديداً")
+    if entry["code"] != code:
+        raise HTTPException(status_code=400, detail="الرمز غير صحيح")
+
+    _otp_store.pop(phone, None)
+
+    # Find user by any phone variant
+    user = None
+    for variant in _normalise_phone(phone):
+        user = db.query(User).filter(User.phone == variant).first()
+        if user:
+            break
+
+    if not user:
+        raise HTTPException(status_code=404, detail="لا يوجد حساب مرتبط بهذا الرقم")
+    if not user.is_active:
+        raise HTTPException(status_code=403, detail="الحساب معطّل")
+
+    user.is_verified = True
+    db.commit()
+    db.refresh(user)
+    return _build_token_response(user)
 
 
 # ── Firebase Phone OTP verification ──────────────────────────────────────────

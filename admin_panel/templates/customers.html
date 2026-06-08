@@ -87,8 +87,9 @@
                 </button>
               </form>
               <span class="text-gray-600">|</span>
-              <form method="post" action="/customers/{{ c.id }}/delete" class="inline" onsubmit="return confirm('هل تريد حذف هذا العميل نهائياً؟')">
-                <button class="text-xs text-red-500 hover:text-red-300 font-bold">حذف</button>
+              <form method="post" action="/customers/{{ c.id }}/delete" class="inline"
+                    onsubmit="return confirm('⚠️ حذف العميل: {{ c.name }}\n\nهل تريد حذف هذا العميل نهائياً؟\nلا يمكن التراجع عن هذه العملية.')">
+                <button type="submit" class="text-xs text-red-500 hover:text-red-300 font-bold">حذف</button>
               </form>
             </div>
           </td>
