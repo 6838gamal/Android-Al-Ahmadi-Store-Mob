@@ -120,7 +120,22 @@ class AuthNotifier extends StateNotifier<AuthState> {
         final d = data['detail'];
         if (d is String && d.isNotEmpty) return d;
       }
-      if (data is String && data.isNotEmpty) return data;
+      // Flutter web: Dio sometimes delivers JSON as a raw String
+      if (data is String && data.isNotEmpty) {
+        final trimmed = data.trimLeft();
+        // Never return raw HTML to the UI
+        if (trimmed.startsWith('<')) return null;
+        // Try to parse as JSON and extract detail
+        try {
+          final parsed = jsonDecode(data);
+          if (parsed is Map) {
+            final d = parsed['detail'];
+            if (d is String && d.isNotEmpty) return d;
+          }
+        } catch (_) {}
+        // Plain-text error message from server
+        return data;
+      }
     } catch (_) {}
     return null;
   }
