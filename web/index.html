@@ -20,6 +20,84 @@
       });
     }
   </script>
+
+  <!-- ── Firebase Phone Auth Bridge ──────────────────────────────────────── -->
+  <script type="module">
+    import { initializeApp, getApps } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
+    import { getAuth, RecaptchaVerifier, signInWithPhoneNumber }
+      from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
+
+    window.firebasePhoneAuth = {
+      _auth: null,
+      _recaptchaVerifier: null,
+      _confirmationResult: null,
+
+      init: async function(config) {
+        try {
+          if (!config.apiKey) return { ok: false, error: 'Firebase API key not configured' };
+          const app = getApps().length ? getApps()[0] : initializeApp(config);
+          this._auth = getAuth(app);
+          this._auth.languageCode = 'ar';
+          return { ok: true };
+        } catch(e) {
+          console.error('[Firebase] init error:', e);
+          return { ok: false, error: String(e) };
+        }
+      },
+
+      sendOtp: async function(phone) {
+        try {
+          // Remove old reCAPTCHA container if it exists
+          const old = document.getElementById('fb-recaptcha');
+          if (old) old.remove();
+          if (this._recaptchaVerifier) {
+            try { this._recaptchaVerifier.clear(); } catch(_) {}
+            this._recaptchaVerifier = null;
+          }
+
+          // Create a fresh invisible reCAPTCHA container
+          const div = document.createElement('div');
+          div.id = 'fb-recaptcha';
+          div.style.cssText = 'position:fixed;bottom:0;right:0;z-index:-1;opacity:0;';
+          document.body.appendChild(div);
+
+          this._recaptchaVerifier = new RecaptchaVerifier(this._auth, 'fb-recaptcha', {
+            size: 'invisible',
+            callback: () => {},
+            'expired-callback': () => {}
+          });
+
+          this._confirmationResult = await signInWithPhoneNumber(
+            this._auth, phone, this._recaptchaVerifier
+          );
+          console.log('[Firebase] OTP sent to', phone);
+          return { ok: true };
+        } catch(e) {
+          console.error('[Firebase] sendOtp error:', e);
+          return { ok: false, error: String(e) };
+        }
+      },
+
+      verifyOtp: async function(code) {
+        try {
+          if (!this._confirmationResult) {
+            return { ok: false, error: 'لم يُرسَل رمز تحقق بعد' };
+          }
+          const result = await this._confirmationResult.confirm(code);
+          const idToken = await result.user.getIdToken();
+          const phone = result.user.phoneNumber;
+          console.log('[Firebase] OTP verified, phone:', phone);
+          return { ok: true, idToken: idToken, phone: phone };
+        } catch(e) {
+          console.error('[Firebase] verifyOtp error:', e);
+          return { ok: false, error: String(e) };
+        }
+      }
+    };
+
+    console.log('[Firebase] Phone auth bridge ready');
+  </script>
+  <!-- ───────────────────────────────────────────────────────────────────── -->
 </head>
 <body>
   <script src="flutter_bootstrap.js" async></script>
