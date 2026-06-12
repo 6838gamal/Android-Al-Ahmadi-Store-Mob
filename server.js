@@ -56,10 +56,31 @@ function proxyRequest(req, res, urlOverride) {
     proxyRes.pipe(res, { end: true });
   });
 
+  // 45-second timeout for API requests — prevents hanging when backend is slow
+  proxyReq.setTimeout(45000, () => {
+    proxyReq.destroy();
+    if (!res.headersSent) {
+      res.writeHead(503, {
+        'Content-Type': 'application/json; charset=utf-8',
+        'Access-Control-Allow-Origin': '*',
+      });
+      res.end(JSON.stringify({
+        detail: 'الخادم يستغرق وقتاً أطول من المعتاد — أعد المحاولة خلال لحظات'
+      }));
+    }
+  });
+
   proxyReq.on('error', (err) => {
     console.error('Proxy error:', err.message);
-    res.writeHead(502);
-    res.end('Backend unavailable');
+    if (!res.headersSent) {
+      res.writeHead(502, {
+        'Content-Type': 'application/json; charset=utf-8',
+        'Access-Control-Allow-Origin': '*',
+      });
+      res.end(JSON.stringify({
+        detail: 'تعذّر الاتصال بالخادم — تأكد من تشغيل الباكند وأعد المحاولة'
+      }));
+    }
   });
 
   req.pipe(proxyReq, { end: true });

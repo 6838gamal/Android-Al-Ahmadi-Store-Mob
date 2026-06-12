@@ -176,17 +176,38 @@ class AuthNotifier extends StateNotifier<AuthState> {
   Future<void> _init() async {
     final token = await StorageService.getToken();
     if (token != null) {
+      // Load cached user first so the UI is responsive even before the server replies
+      try {
+        final cached = await StorageService.getUser();
+        if (cached != null) {
+          final user = UserModel.fromJson(jsonDecode(cached));
+          state = state.copyWith(user: user, isInitialized: true);
+        }
+      } catch (_) {}
+
       try {
         // Validate token against the live server — catches stale tokens
-        // from old SQLite DB after a PostgreSQL migration.
         final res = await _api.get('/auth/me');
         final user = UserModel.fromJson(res.data);
         await StorageService.saveUser(jsonEncode(user.toJson()));
         state = state.copyWith(user: user, isInitialized: true);
         return;
-      } catch (_) {
-        // Token invalid / user not found — clear stored credentials
-        await StorageService.clearToken();
+      } catch (e) {
+        // Only clear token for actual auth failures (401/403), NOT for timeouts/network errors
+        bool isAuthError = false;
+        try {
+          final status = (e as dynamic).response?.statusCode as int?;
+          if (status == 401 || status == 403) isAuthError = true;
+        } catch (_) {}
+
+        if (isAuthError) {
+          await StorageService.clearToken();
+          state = state.copyWith(isInitialized: true, clearUser: true);
+        } else {
+          // Network/timeout error — keep the cached user logged in
+          state = state.copyWith(isInitialized: true);
+        }
+        return;
       }
     }
     state = state.copyWith(isInitialized: true);

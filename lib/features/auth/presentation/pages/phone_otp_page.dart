@@ -85,6 +85,10 @@ class _PhoneOtpPageState extends ConsumerState<PhoneOtpPage> {
     super.initState();
     if (widget.prefilledPhone != null) {
       _phoneCtrl.text = widget.prefilledPhone!;
+      // Auto-send OTP when coming from registration
+      Future.delayed(const Duration(milliseconds: 600), () {
+        if (mounted) _sendOtp();
+      });
     }
   }
 

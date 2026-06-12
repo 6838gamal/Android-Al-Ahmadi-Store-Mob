@@ -3,15 +3,15 @@ const MANIFEST = 'flutter-app-manifest';
 const TEMP = 'flutter-temp-cache';
 const CACHE_NAME = 'flutter-app-cache';
 
-const RESOURCES = {"assets/assets/fonts/Cairo-Light.ttf": "0e355a997fd3fdc3a2a5d13ba68a6fd0",
-"assets/assets/fonts/Cairo-Regular.ttf": "0e355a997fd3fdc3a2a5d13ba68a6fd0",
+const RESOURCES = {"assets/assets/fonts/Cairo-Bold.ttf": "d6142d155c71b0239454b2853e51087e",
 "assets/assets/fonts/Cairo-SemiBold.ttf": "0e355a997fd3fdc3a2a5d13ba68a6fd0",
-"assets/assets/fonts/Cairo-Bold.ttf": "d6142d155c71b0239454b2853e51087e",
+"assets/assets/fonts/Cairo-Regular.ttf": "0e355a997fd3fdc3a2a5d13ba68a6fd0",
+"assets/assets/fonts/Cairo-Light.ttf": "0e355a997fd3fdc3a2a5d13ba68a6fd0",
 "assets/fonts/MaterialIcons-Regular.otf": "0344d2339fac43232fbc284f9445f986",
 "assets/packages/cupertino_icons/assets/CupertinoIcons.ttf": "825e75415ebd366b740bb49659d7a5c6",
+"assets/packages/font_awesome_flutter/lib/fonts/fa-brands-400.ttf": "15d54d142da2f2d6f2e90ed1d55121af",
 "assets/packages/font_awesome_flutter/lib/fonts/fa-solid-900.ttf": "269f971cec0d5dc864fe9ae080b19e23",
 "assets/packages/font_awesome_flutter/lib/fonts/fa-regular-400.ttf": "262525e2081311609d1fdab966c82bfc",
-"assets/packages/font_awesome_flutter/lib/fonts/fa-brands-400.ttf": "15d54d142da2f2d6f2e90ed1d55121af",
 "assets/shaders/ink_sparkle.frag": "ecc85a2e95f5e9f53123dcaf8cb9b6ce",
 "assets/AssetManifest.json": "9bb2596e907f018e5cf7d001e8881a74",
 "assets/AssetManifest.bin": "2f5984f441567bb6bd7b6f500cb24861",
@@ -28,7 +28,7 @@ const RESOURCES = {"assets/assets/fonts/Cairo-Light.ttf": "0e355a997fd3fdc3a2a5d
 "canvaskit/skwasm.js.symbols": "9fe690d47b904d72c7d020bd303adf16",
 "canvaskit/skwasm.wasm": "1c93738510f202d9ff44d36a4760126b",
 "flutter.js": "83d881c1dbb6d6bcd6b42e274605b69c",
-"flutter_bootstrap.js": "d545c0aacd999e049474f089871af20c",
+"flutter_bootstrap.js": "0a8c0147ca823e8200aee95f954a0d06",
 "icons/Icon-192.png": "ac9a721a12bbc803b44f645561ecb1e1",
 "icons/Icon-512.png": "96e752610906ba2a93c65f8abe1645f1",
 "icons/Icon-maskable-192.png": "c457ef57daa1d16f64b27b786ec2ea3c",
@@ -36,7 +36,7 @@ const RESOURCES = {"assets/assets/fonts/Cairo-Light.ttf": "0e355a997fd3fdc3a2a5d
 "index.html": "ce20700baec3bfd974ec6522096446c9",
 "/": "ce20700baec3bfd974ec6522096446c9",
 "version.json": "1041a7c63f6f07076b6288255d760b31",
-"main.dart.js": "a5719a4e38e6ffd56a58cfe51effbd24",
+"main.dart.js": "adbc286ea25e4e0663e1dc15c1824c9c",
 "favicon.png": "5dcef449791fa27946b3d35ad8803796",
 "manifest.json": "2c1ef8e8c9c941903057efa0b2205471"};
 // The application shell files that are downloaded before a service worker can
