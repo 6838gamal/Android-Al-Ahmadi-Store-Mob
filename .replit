@@ -86,4 +86,3 @@ publicDir = "build/web"
 SECRET_KEY = "android-alahmadi-replit-secret-key-2026-very-secure-random-string"
 
 [userenv.development]
-API_BASE = "http://127.0.0.1:8000"
