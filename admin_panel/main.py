@@ -14,8 +14,6 @@ from urllib.parse import quote as _q
 
 # ── Backend API — رابط الـ API يُقرأ من متغير البيئة API_BASE ──────────────
 API_BASE = os.getenv("API_BASE", "https://android-al-ahmadi-store-api.onrender.com")
-if not API_BASE:
-    raise RuntimeError("يجب ضبط متغير البيئة API_BASE")
 
 app = FastAPI(title="لوحة إدارة اندرويد الاحمدي", docs_url=None, redoc_url=None)
 
