@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dio/dio.dart';
 
+import '../constants/app_constants.dart';
 import 'firebase_js_bridge.dart'
     if (dart.library.html) 'firebase_js_bridge_web.dart';
 
@@ -26,13 +27,21 @@ class FirebasePhoneService {
     if (!kIsWeb) return const OtpResult(ok: false, error: 'Web only');
     if (_initialised) return const OtpResult(ok: true);
     try {
-      final dio = Dio(BaseOptions(connectTimeout: const Duration(seconds: 10)));
-      final resp = await dio.get('/firebase-config');
+      // Use the explicit API origin — never a relative URL, which breaks on
+      // Netlify and any host different from the API server.
+      final configUrl = '${AppConstants.baseUrl}/firebase-config';
+      final dio = Dio(BaseOptions(
+        connectTimeout: const Duration(seconds: 10),
+        receiveTimeout: const Duration(seconds: 10),
+      ));
+      if (kDebugMode) print('[Firebase] fetching config from $configUrl');
+      final resp = await dio.get(configUrl);
       final config = Map<String, dynamic>.from(resp.data as Map);
       final res = await jsBridgeCall('init', config);
       if (res['ok'] == true) _initialised = true;
       return OtpResult(ok: res['ok'] == true, error: res['error'] as String?);
     } catch (e) {
+      if (kDebugMode) print('[Firebase] init error: $e');
       return OtpResult(ok: false, error: 'خطأ في تهيئة Firebase: $e');
     }
   }

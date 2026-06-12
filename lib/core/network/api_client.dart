@@ -1,5 +1,5 @@
 import 'package:dio/dio.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show kDebugMode, kIsWeb;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../constants/app_constants.dart';
 import '../utils/storage_service.dart';
@@ -11,11 +11,10 @@ class ApiClient {
   bool _isRefreshing = false;
 
   ApiClient() {
-    // On web, use relative origin so the proxied Replit server routes correctly.
-    // On native (mobile), fall back to the configured base URL.
-    final String base = kIsWeb
-        ? Uri.base.origin
-        : AppConstants.baseUrl;
+    // Always use the configured base URL (Render.com API).
+    // Never use Uri.base.origin — on Netlify/APK that resolves to the wrong
+    // host (the frontend domain) and breaks every request.
+    final String base = _resolveBase();
 
     _dio = Dio(BaseOptions(
       baseUrl: '$base${AppConstants.apiVersion}',
@@ -25,21 +24,49 @@ class ApiClient {
       headers: {'Content-Type': 'application/json'},
     ));
 
+    // ── Debug logging interceptor ──────────────────────────────────────────
+    if (kDebugMode) {
+      _dio.interceptors.add(LogInterceptor(
+        requestHeader: true,
+        requestBody: true,
+        responseHeader: false,
+        responseBody: true,
+        error: true,
+        logPrint: (obj) => print('[API] $obj'),
+      ));
+    }
+
+    // ── Auth + 401 refresh interceptor ─────────────────────────────────────
     _dio.interceptors.add(InterceptorsWrapper(
       onRequest: (options, handler) async {
         final token = await StorageService.getToken();
         if (token != null) {
           options.headers['Authorization'] = 'Bearer $token';
         }
+        if (kDebugMode) {
+          print('[API] → ${options.method} ${options.uri}');
+        }
         handler.next(options);
       },
+      onResponse: (response, handler) {
+        if (kDebugMode) {
+          print('[API] ← ${response.statusCode} ${response.requestOptions.uri}');
+        }
+        handler.next(response);
+      },
       onError: (error, handler) async {
+        if (kDebugMode) {
+          print('[API] ✗ ${error.response?.statusCode} '
+              '${error.requestOptions.uri} — ${error.message}');
+          if (error.response?.data != null) {
+            print('[API] ✗ body: ${error.response?.data}');
+          }
+        }
         if (error.response?.statusCode == 401 && !_isRefreshing) {
           _isRefreshing = true;
           try {
             final refreshed = await _tryRefresh();
             if (refreshed) {
-              // Retry original request with new token
               final token = await StorageService.getToken();
               final opts = error.requestOptions;
               opts.headers['Authorization'] = 'Bearer $token';
@@ -54,6 +81,16 @@ class ApiClient {
         handler.next(error);
       },
     ));
+  }
+
+  /// Resolve the correct base URL.
+  /// On Replit dev (serving via port 5000 proxy) we still use the explicit
+  /// API URL so that the same build works on Netlify, APK, and every other
+  /// environment without a rebuild.
+  static String _resolveBase() {
+    // 1. Prefer compile-time override (--dart-define=API_BASE_URL=...)
+    // 2. Fall back to the hardcoded Render.com production URL
+    return AppConstants.baseUrl;
   }
 
   Future<bool> _tryRefresh() async {
@@ -96,4 +133,10 @@ class ApiClient {
 
   Future<Response> postForm(String path, FormData data) => _dio.post(path,
       data: data, options: Options(contentType: 'multipart/form-data'));
+
+  /// Expose the configured base API URL (used for image URL construction etc.)
+  String get baseUrl => _dio.options.baseUrl;
+
+  /// The API origin (without /api suffix) for direct asset URLs
+  String get origin => AppConstants.baseUrl;
 }
