@@ -155,7 +155,7 @@ class _PhoneOtpPageState extends ConsumerState<PhoneOtpPage> {
 
     final api = ref.read(apiClientProvider);
     try {
-      await api.post('/auth/send-otp', data: {'phone': phone});
+      final res = await api.post('/auth/send-otp', data: {'phone': phone});
       if (!mounted) return;
       for (final c in _digitCtrls) c.clear();
       setState(() => _s = _s.copyWith(
@@ -167,11 +167,90 @@ class _PhoneOtpPageState extends ConsumerState<PhoneOtpPage> {
       _startTimer();
       Future.delayed(const Duration(milliseconds: 300),
           () { if (mounted) _foci[0].requestFocus(); });
+
+      // Dev mode: show OTP in a copyable popup
+      final devCode = res.data['dev_code'];
+      if (devCode != null && mounted) {
+        _showDevOtpDialog(devCode.toString());
+      }
     } catch (e) {
       final msg = _extractDetail(e) ?? 'تعذر إرسال الرمز — تحقق من رقم الجوال';
       if (!mounted) return;
       setState(() => _s = _s.copyWith(loading: false, error: msg));
     }
+  }
+
+  void _showDevOtpDialog(String code) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF1E2A3A),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        title: const Row(
+          children: [
+            Icon(Icons.developer_mode, color: Color(0xFFFFA000), size: 20),
+            SizedBox(width: 8),
+            Text('رمز التحقق — وضع التطوير',
+                style: TextStyle(
+                    fontFamily: 'Cairo',
+                    fontSize: 14,
+                    color: Colors.white,
+                    fontWeight: FontWeight.w700)),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('الرمز المرسَل إلى رقمك:',
+                style: TextStyle(
+                    fontFamily: 'Cairo',
+                    color: Color(0xFF90A4AE),
+                    fontSize: 13)),
+            const SizedBox(height: 14),
+            SelectableText(
+              code,
+              style: const TextStyle(
+                  fontFamily: 'Cairo',
+                  fontSize: 38,
+                  fontWeight: FontWeight.w900,
+                  color: Color(0xFF4FC3F7),
+                  letterSpacing: 10),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 14),
+            OutlinedButton.icon(
+              style: OutlinedButton.styleFrom(
+                foregroundColor: const Color(0xFF4FC3F7),
+                side: const BorderSide(color: Color(0xFF4FC3F7)),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10)),
+              ),
+              onPressed: () {
+                Clipboard.setData(ClipboardData(text: code));
+                Navigator.pop(ctx);
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                  content: Text('✅ تم نسخ الرمز',
+                      style: TextStyle(fontFamily: 'Cairo')),
+                  duration: Duration(seconds: 2),
+                  behavior: SnackBarBehavior.floating,
+                ));
+              },
+              icon: const Icon(Icons.copy, size: 16),
+              label: const Text('نسخ الرمز',
+                  style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.w700)),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('إغلاق',
+                style: TextStyle(
+                    fontFamily: 'Cairo', color: Color(0xFF90A4AE))),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _verifyOtp() async {

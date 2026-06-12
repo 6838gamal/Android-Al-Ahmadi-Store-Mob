@@ -303,10 +303,10 @@ def send_otp(body: OtpSendRequest, request: Request):
     code = _gen_otp()
     _otp_store[phone] = {"code": code, "expires": time.time() + 600}
 
-    # Dev mode: print code to console (no SMS configured yet)
+    # Dev mode: print code to console and return in response
     print(f"[OTP] {phone} → {code}", flush=True)
 
-    return {"message": "تم إرسال رمز التحقق", "dev_note": "check server console for the OTP code"}
+    return {"message": "تم إرسال رمز التحقق", "dev_code": code}
 
 
 @router.post("/verify-otp", response_model=TokenResponse)
