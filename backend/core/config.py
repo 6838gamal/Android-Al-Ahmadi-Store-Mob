@@ -3,16 +3,18 @@ from typing import Optional
 import os
 
 
+_DEFAULT_DB_URL = "postgresql://gamalalmaqtary:QPg3qlwP31n4QNczLjG1C3XpdXdZj29D@dpg-d8egmfv40ujc73dj2ggg-a.ohio-postgres.render.com/android_al_ahmadi_store_db"
+
+
 def _resolve_db_url() -> str:
-    # Priority: APP_DATABASE_URL → DATABASE_URL (Replit built-in) → SQLite fallback
+    # Priority: APP_DATABASE_URL (override) → DATABASE_URL env → Render.com default
     url = os.getenv("APP_DATABASE_URL") or os.getenv("DATABASE_URL", "")
     if url:
-        # Render.com / some providers return postgres:// — normalise to postgresql://
+        # Normalise postgres:// → postgresql://
         if url.startswith("postgres://"):
             url = "postgresql://" + url[len("postgres://"):]
         return url
-    # Local SQLite fallback for dev without a DB configured
-    return "sqlite:///./android_alahmadi.db"
+    return _DEFAULT_DB_URL
 
 
 class Settings(BaseSettings):
