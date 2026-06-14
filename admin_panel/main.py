@@ -1944,3 +1944,69 @@ async def export_inventory_excel(request: Request):
                    branch.get("name","") if isinstance(branch, dict) else "",
                    created])
     return _wb_response(wb, f"inventory_{_date.today()}.xlsx")
+
+
+# ── Settings ─────────────────────────────────────────────────────────────────
+
+@app.get("/settings", response_class=HTMLResponse)
+async def settings_page(request: Request):
+    if not _logged(request):
+        return _redirect_login()
+    data = await api("get", "/api/settings/", token=_token(request)) or {}
+    sms_api_key = data.get("sms_api_key", "")
+    sms_devices  = data.get("sms_devices", "0")
+    return templates.TemplateResponse(request, "settings.html", {
+        "admin_name":    _name(request),
+        "active":        "settings",
+        "sms_configured": bool(sms_api_key),
+        "sms_api_key":   sms_api_key,
+        "sms_devices":   sms_devices,
+    })
+
+
+@app.post("/settings/sms", response_class=HTMLResponse)
+async def settings_sms_save(
+    request: Request,
+    sms_api_key: str = Form(""),
+    sms_devices:  str = Form("0"),
+):
+    if not _logged(request):
+        return _redirect_login()
+    token = _token(request)
+    errors = []
+    if sms_api_key.strip():
+        _, err = await api_ex("post", "/api/settings/", token=token,
+                              json={"key": "sms_api_key", "value": sms_api_key.strip()})
+        if err:
+            errors.append(err)
+    _, err = await api_ex("post", "/api/settings/", token=token,
+                          json={"key": "sms_devices", "value": sms_devices.strip() or "0"})
+    if err:
+        errors.append(err)
+    if errors:
+        from urllib.parse import quote as _q
+        return RedirectResponse(f"/settings?error={_q('; '.join(errors))}", status_code=302)
+    return RedirectResponse("/settings?success=تم+حفظ+إعدادات+SMS+بنجاح", status_code=302)
+
+
+@app.post("/settings/sms/clear")
+async def settings_sms_clear(request: Request):
+    if not _logged(request):
+        return _redirect_login()
+    token = _token(request)
+    await api_ex("delete", "/api/settings/sms_api_key", token=token)
+    await api_ex("delete", "/api/settings/sms_devices",  token=token)
+    return RedirectResponse("/settings?success=تم+حذف+مفتاح+SMS", status_code=302)
+
+
+@app.post("/settings/sms/test")
+async def settings_sms_test(request: Request, test_phone: str = Form(...)):
+    if not _logged(request):
+        return _redirect_login()
+    phone = test_phone.strip()
+    _, err = await api_ex("post", "/api/auth/send-otp", token=_token(request),
+                          json={"phone": phone})
+    if err:
+        from urllib.parse import quote as _q
+        return RedirectResponse(f"/settings?error={_q(err)}", status_code=302)
+    return RedirectResponse(f"/settings?success=تم+إرسال+رسالة+تجريبية+إلى+{phone}", status_code=302)

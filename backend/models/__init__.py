@@ -20,6 +20,7 @@ from backend.models.eng_support import EngSupportPost, EngSupportResponse, EngPo
 from backend.models.complaint import Complaint, ComplaintStatus, ComplaintType
 from backend.models.purchase_invoice import PurchaseInvoice, PurchaseInvoiceItem, InvoiceStatus
 from backend.models.gallery import GalleryFolder, GalleryImage
+from backend.models.app_setting import AppSetting
 
 __all__ = [
     "Branch", "Warehouse",

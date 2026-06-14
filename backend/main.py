@@ -34,6 +34,7 @@ from backend.api.routes import (
     complaints as complaints_routes,
     purchase_invoices as purchase_invoices_routes,
     gallery as gallery_routes,
+    settings as settings_routes,
 )
 
 
@@ -176,6 +177,7 @@ app.include_router(eng_support_routes.router,        prefix="/api/eng-support", 
 app.include_router(complaints_routes.router,         prefix="/api/complaints",         tags=["Complaints"])
 app.include_router(purchase_invoices_routes.router,  prefix="/api/purchase-invoices",  tags=["PurchaseInvoices"])
 app.include_router(gallery_routes.router,            prefix="/api/gallery",            tags=["Gallery"])
+app.include_router(settings_routes.router,          prefix="/api/settings",           tags=["Settings"])
 
 
 @app.get("/health")

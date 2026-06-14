@@ -1,0 +1,212 @@
+{% extends "layout.html" %}
+
+{% block title %}الإعدادات — أندرويد الأحمدي{% endblock %}
+{% block page_title %}الإعدادات{% endblock %}
+{% block page_title_mobile %}الإعدادات{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div style="display:flex;align-items:center;gap:14px">
+    <div style="width:46px;height:46px;border-radius:12px;background:rgba(255,255,255,0.15);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+      <i class="fa-solid fa-gear" style="color:white;font-size:20px"></i>
+    </div>
+    <div>
+      <h1 style="color:white;font-size:20px;font-weight:800;margin:0">إعدادات النظام</h1>
+      <p style="color:rgba(255,255,255,0.7);font-size:13px;margin:4px 0 0">ضبط خدمة الرسائل النصية وإعدادات التحقق</p>
+    </div>
+  </div>
+</div>
+
+<!-- ── SMS Gateway Card ──────────────────────────────────── -->
+<div class="card" style="max-width:680px;margin-bottom:24px">
+  <div style="padding:20px 24px;border-bottom:1px solid #2D3748;display:flex;align-items:center;gap:12px">
+    <div style="width:38px;height:38px;border-radius:10px;background:rgba(34,197,94,0.12);border:1px solid rgba(34,197,94,0.25);display:flex;align-items:center;justify-content:center">
+      <i class="fa-solid fa-comment-sms" style="color:#22C55E;font-size:16px"></i>
+    </div>
+    <div>
+      <div style="color:white;font-weight:700;font-size:15px">بوابة الرسائل النصية (SMS Gateway)</div>
+      <div style="color:#6B7280;font-size:12px">خدمة إرسال رموز التحقق عبر sms-gateway.app</div>
+    </div>
+    <div style="margin-right:auto">
+      {% if sms_configured %}
+      <span style="padding:4px 12px;border-radius:20px;background:rgba(34,197,94,0.12);border:1px solid rgba(34,197,94,0.25);color:#22C55E;font-size:12px;font-weight:700">
+        <i class="fa-solid fa-circle-check" style="font-size:10px"></i> مُفعَّلة
+      </span>
+      {% else %}
+      <span style="padding:4px 12px;border-radius:20px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.2);color:#EF4444;font-size:12px;font-weight:700">
+        <i class="fa-solid fa-circle-xmark" style="font-size:10px"></i> غير مفعّلة
+      </span>
+      {% endif %}
+    </div>
+  </div>
+
+  <form method="post" action="/settings/sms" style="padding:24px">
+    {% if not sms_configured %}
+    <div style="background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.2);border-radius:10px;padding:12px 16px;margin-bottom:20px;display:flex;gap:10px">
+      <i class="fa-solid fa-triangle-exclamation" style="color:#F59E0B;font-size:14px;margin-top:1px;flex-shrink:0"></i>
+      <div style="color:#D97706;font-size:13px;line-height:1.6">
+        لم يتم ضبط مفتاح SMS بعد. رموز التحقق تُعرض حالياً على الشاشة (وضع التطوير فقط).
+        أدخل المفتاح أدناه لتفعيل الإرسال الفعلي للرسائل.
+      </div>
+    </div>
+    {% endif %}
+
+    <div style="margin-bottom:18px">
+      <label style="display:block;color:#9CA3AF;font-size:13px;font-weight:600;margin-bottom:8px">
+        <i class="fa-solid fa-key" style="color:#1A73E8;margin-left:4px"></i>
+        مفتاح API الخاص بـ sms-gateway.app
+      </label>
+      <div style="position:relative">
+        <input
+          type="password"
+          id="sms-key-input"
+          name="sms_api_key"
+          value="{{ sms_api_key or '' }}"
+          placeholder="أدخل مفتاح الـ API هنا..."
+          class="input-field"
+          style="padding-left:44px;direction:ltr;font-family:monospace;letter-spacing:0.5px"
+          autocomplete="off"
+        >
+        <button type="button" onclick="toggleKey()"
+          style="position:absolute;left:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:#6B7280;font-size:14px;padding:4px"
+          title="إظهار/إخفاء">
+          <i class="fa-solid fa-eye" id="eye-icon"></i>
+        </button>
+      </div>
+      <p style="color:#4B5563;font-size:11px;margin-top:6px">
+        احصل على المفتاح من لوحة تحكم
+        <a href="https://app.sms-gateway.app" target="_blank" style="color:#1A73E8">app.sms-gateway.app</a>
+      </p>
+    </div>
+
+    <div style="margin-bottom:18px">
+      <label style="display:block;color:#9CA3AF;font-size:13px;font-weight:600;margin-bottom:8px">
+        <i class="fa-solid fa-mobile-screen-button" style="color:#1A73E8;margin-left:4px"></i>
+        رقم الجهاز (Devices)
+      </label>
+      <input
+        type="text"
+        name="sms_devices"
+        value="{{ sms_devices or '0' }}"
+        placeholder="0 = أي جهاز متاح"
+        class="input-field"
+        style="direction:ltr;max-width:220px"
+      >
+      <p style="color:#4B5563;font-size:11px;margin-top:6px">
+        استخدم <code style="background:#1C2230;padding:1px 5px;border-radius:4px;color:#9CA3AF">0</code>
+        لاختيار الجهاز تلقائياً، أو أدخل معرّف جهاز محدد.
+      </p>
+    </div>
+
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <button type="submit" class="btn-primary">
+        <i class="fa-solid fa-floppy-disk"></i> حفظ الإعدادات
+      </button>
+      {% if sms_configured %}
+      <button type="button" onclick="openTestModal()" class="btn-secondary">
+        <i class="fa-solid fa-paper-plane"></i> اختبار الإرسال
+      </button>
+      <form method="post" action="/settings/sms/clear" style="display:inline">
+        <button type="submit" class="btn-danger" onclick="return confirm('هل تريد حذف مفتاح SMS؟')">
+          <i class="fa-solid fa-trash"></i> حذف المفتاح
+        </button>
+      </form>
+      {% endif %}
+    </div>
+  </form>
+</div>
+
+<!-- ── How it works ──────────────────────────────────────── -->
+<div class="card" style="max-width:680px;margin-bottom:24px">
+  <div style="padding:18px 24px;border-bottom:1px solid #2D3748">
+    <div style="color:white;font-weight:700;font-size:14px">
+      <i class="fa-solid fa-circle-info" style="color:#06B6D4;margin-left:6px"></i>
+      كيف يعمل نظام التحقق؟
+    </div>
+  </div>
+  <div style="padding:20px 24px">
+    <div style="display:flex;flex-direction:column;gap:14px">
+      <div style="display:flex;gap:12px;align-items:flex-start">
+        <div style="width:28px;height:28px;border-radius:50%;background:rgba(26,115,232,0.15);border:1px solid rgba(26,115,232,0.3);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:12px;font-weight:800;color:#1A73E8">1</div>
+        <div>
+          <div style="color:#E5E7EB;font-size:13px;font-weight:600">العميل يطلب رمز التحقق</div>
+          <div style="color:#6B7280;font-size:12px;margin-top:2px">يدخل العميل رقم جواله في التطبيق، ويضغط على «إرسال رمز التحقق».</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:12px;align-items:flex-start">
+        <div style="width:28px;height:28px;border-radius:50%;background:rgba(26,115,232,0.15);border:1px solid rgba(26,115,232,0.3);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:12px;font-weight:800;color:#1A73E8">2</div>
+        <div>
+          <div style="color:#E5E7EB;font-size:13px;font-weight:600">الخادم يُولّد رمزاً عشوائياً</div>
+          <div style="color:#6B7280;font-size:12px;margin-top:2px">رمز من 6 أرقام صالح لمدة 10 دقائق، يُرسَل عبر sms-gateway.app إذا كان المفتاح مضبوطاً.</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:12px;align-items:flex-start">
+        <div style="width:28px;height:28px;border-radius:50%;background:rgba(26,115,232,0.15);border:1px solid rgba(26,115,232,0.3);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:12px;font-weight:800;color:#1A73E8">3</div>
+        <div>
+          <div style="color:#E5E7EB;font-size:13px;font-weight:600">العميل يُدخل الرمز ويُؤكَّد حسابه</div>
+          <div style="color:#6B7280;font-size:12px;margin-top:2px">عند التحقق الناجح يتم تسجيل الدخول تلقائياً وتُفعَّل الحساب.</div>
+        </div>
+      </div>
+      <div style="border:1px solid #2D3748;border-radius:10px;padding:12px 14px;background:#0D1117;margin-top:4px">
+        <div style="color:#F59E0B;font-size:12px;font-weight:700;margin-bottom:4px">
+          <i class="fa-solid fa-triangle-exclamation" style="margin-left:4px"></i> وضع التطوير
+        </div>
+        <div style="color:#6B7280;font-size:12px;line-height:1.6">
+          إذا لم يُضبط مفتاح SMS، سيظهر رمز التحقق مباشرةً على شاشة التطبيق لأغراض الاختبار فقط.
+          <strong style="color:#EF4444">لا تترك هذا الوضع في الإنتاج.</strong>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Test SMS Modal ────────────────────────────────────── -->
+<div id="test-modal" style="display:none;position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,.7);backdrop-filter:blur(4px);align-items:center;justify-content:center">
+  <div style="background:#161B22;border:1px solid #2D3748;border-radius:16px;padding:28px;width:90%;max-width:420px">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px">
+      <div style="width:36px;height:36px;border-radius:10px;background:rgba(26,115,232,0.12);display:flex;align-items:center;justify-content:center">
+        <i class="fa-solid fa-paper-plane" style="color:#1A73E8;font-size:15px"></i>
+      </div>
+      <div style="color:white;font-weight:700;font-size:15px">اختبار إرسال SMS</div>
+      <button onclick="closeTestModal()" style="margin-right:auto;background:none;border:none;color:#6B7280;font-size:18px;cursor:pointer;padding:4px">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+    </div>
+    <form method="post" action="/settings/sms/test">
+      <label style="display:block;color:#9CA3AF;font-size:13px;font-weight:600;margin-bottom:8px">رقم الجوال للاختبار</label>
+      <input
+        type="text"
+        name="test_phone"
+        placeholder="+9677XXXXXXXX"
+        class="input-field"
+        style="direction:ltr;margin-bottom:16px"
+      >
+      <div style="display:flex;gap:10px">
+        <button type="submit" class="btn-primary" style="flex:1;justify-content:center">
+          <i class="fa-solid fa-paper-plane"></i> إرسال رسالة تجريبية
+        </button>
+        <button type="button" onclick="closeTestModal()" class="btn-secondary">إلغاء</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+function toggleKey() {
+  var inp = document.getElementById('sms-key-input');
+  var ico = document.getElementById('eye-icon');
+  if (inp.type === 'password') {
+    inp.type = 'text';
+    ico.className = 'fa-solid fa-eye-slash';
+  } else {
+    inp.type = 'password';
+    ico.className = 'fa-solid fa-eye';
+  }
+}
+function openTestModal()  { document.getElementById('test-modal').style.display = 'flex'; }
+function closeTestModal() { document.getElementById('test-modal').style.display = 'none'; }
+</script>
+{% endblock %}

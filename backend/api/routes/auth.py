@@ -291,8 +291,46 @@ class OtpVerifyRequest(BaseModel):
     code: str
 
 
+def _get_sms_config(db: Session) -> tuple[str | None, str]:
+    """Return (api_key, devices). Env var takes priority over DB setting."""
+    from backend.models.app_setting import AppSetting
+    api_key = os.getenv("SMS_API_KEY") or ""
+    devices = os.getenv("SMS_DEVICES", "0")
+    if not api_key:
+        row = db.query(AppSetting).filter(AppSetting.key == "sms_api_key").first()
+        if row and row.value:
+            api_key = row.value
+    if devices == "0":
+        row = db.query(AppSetting).filter(AppSetting.key == "sms_devices").first()
+        if row and row.value:
+            devices = row.value
+    return api_key or None, devices
+
+
+def _send_sms(phone: str, message: str, api_key: str, devices: str = "0") -> bool:
+    """Send SMS via sms-gateway.app. Returns True on success."""
+    import httpx
+    try:
+        resp = httpx.post(
+            "https://app.sms-gateway.app/services/send.php",
+            data={
+                "number": phone,
+                "message": message,
+                "key": api_key,
+                "devices": devices,
+                "type": "sms",
+            },
+            timeout=15,
+        )
+        print(f"[SMS] {phone} → status={resp.status_code} body={resp.text[:120]}", flush=True)
+        return resp.status_code == 200
+    except Exception as e:
+        print(f"[SMS] Error sending to {phone}: {e}", flush=True)
+        return False
+
+
 @router.post("/send-otp")
-def send_otp(body: OtpSendRequest, request: Request):
+def send_otp(body: OtpSendRequest, request: Request, db: Session = Depends(get_db)):
     client_ip = _get_client_ip(request)
     _check_rate_limit(f"send_otp:{client_ip}", limit=5, window=60)
 
@@ -303,10 +341,17 @@ def send_otp(body: OtpSendRequest, request: Request):
     code = _gen_otp()
     _otp_store[phone] = {"code": code, "expires": time.time() + 600}
 
-    # Dev mode: print code to console and return in response
-    print(f"[OTP] {phone} → {code}", flush=True)
-
-    return {"message": "تم إرسال رمز التحقق", "dev_code": code}
+    api_key, devices = _get_sms_config(db)
+    if api_key:
+        message = f"رمز التحقق الخاص بك في أندرويد الأحمدي هو: {code}\nصالح لمدة 10 دقائق"
+        sent = _send_sms(phone, message, api_key, devices)
+        if not sent:
+            print(f"[OTP] SMS failed — code for {phone}: {code}", flush=True)
+        return {"message": "تم إرسال رمز التحقق"}
+    else:
+        # Dev mode — no SMS key configured, print and return code in response
+        print(f"[OTP-DEV] {phone} → {code}", flush=True)
+        return {"message": "تم إرسال رمز التحقق", "dev_code": code}
 
 
 @router.post("/verify-otp", response_model=TokenResponse)
