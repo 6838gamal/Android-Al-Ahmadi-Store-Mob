@@ -13,7 +13,7 @@ import httpx
 from urllib.parse import quote as _q
 
 # ── Backend API — رابط الـ API يُقرأ من متغير البيئة API_BASE ──────────────
-API_BASE = os.getenv("API_BASE", "http://127.0.0.1:8000")
+API_BASE = os.getenv("API_BASE", "https://android-al-ahmadi-store-api.onrender.com")
 
 app = FastAPI(title="لوحة إدارة اندرويد الاحمدي", docs_url=None, redoc_url=None)
 
