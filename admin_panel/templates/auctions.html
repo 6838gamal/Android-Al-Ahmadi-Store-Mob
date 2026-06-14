@@ -32,7 +32,7 @@
       {% else %}<span class="badge" style="background:rgba(107,114,128,.15);color:#6B7280;white-space:nowrap">منتهي</span>{% endif %}
     </div>
 
-    <p style="color:#9CA3AF;font-size:13px;margin:0 0 12px;line-height:1.5">{{ a.problem_description[:120] }}{% if a.problem_description|length > 120 %}...{% endif %}</p>
+    <p style="color:#9CA3AF;font-size:13px;margin:0 0 12px;line-height:1.5">{{ (a.problem_description or '')[:120] }}{% if (a.problem_description or '')|length > 120 %}...{% endif %}</p>
 
     {% if a.images %}
     <div style="display:flex;gap:6px;margin-bottom:12px;overflow-x:auto">

@@ -141,3 +141,57 @@ def resolve_return(
 
     db.commit()
     return {"message": "تم معالجة طلب الإرجاع", "approved": data.approved}
+
+
+@router.put("/{warranty_id}")
+def update_warranty(
+    warranty_id: int,
+    db: Session = Depends(get_db),
+    current_user=Depends(require_staff_or_above),
+    product_name: str = None,
+    product_serial: str = None,
+    warranty_days: int = None,
+):
+    w = db.query(Warranty).filter(Warranty.id == warranty_id).first()
+    if not w:
+        raise HTTPException(404, "Warranty not found")
+    return w
+
+
+@router.put("/{warranty_id}/update")
+def update_warranty_full(
+    warranty_id: int,
+    data: dict,
+    db: Session = Depends(get_db),
+    current_user=Depends(require_staff_or_above),
+):
+    from fastapi import Body
+    w = db.query(Warranty).filter(Warranty.id == warranty_id).first()
+    if not w:
+        raise HTTPException(404, "Warranty not found")
+    if "product_name" in data and data["product_name"]:
+        w.product_name = data["product_name"]
+    if "product_serial" in data:
+        w.product_serial = data["product_serial"] or None
+    if "warranty_days" in data and data["warranty_days"]:
+        from datetime import timedelta
+        days = int(data["warranty_days"])
+        w.warranty_days = days
+        w.ends_at = w.starts_at + timedelta(days=days)
+    db.commit()
+    db.refresh(w)
+    return w
+
+
+@router.delete("/{warranty_id}")
+def delete_warranty(
+    warranty_id: int,
+    db: Session = Depends(get_db),
+    current_user=Depends(require_staff_or_above),
+):
+    w = db.query(Warranty).filter(Warranty.id == warranty_id).first()
+    if not w:
+        raise HTTPException(404, "Warranty not found")
+    db.delete(w)
+    db.commit()
+    return {"message": "تم حذف الضمان بنجاح"}

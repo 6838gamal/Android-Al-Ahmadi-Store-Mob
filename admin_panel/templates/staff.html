@@ -20,7 +20,7 @@
     <table class="w-full">
       <thead>
         <tr class="border-b border-dark-border">
-          {% for h in ['#','الاسم','الهاتف','البريد','الدور','الفرع','الحالة','تاريخ الإضافة','إجراء'] %}
+          {% for h in ['#','الاسم','الهاتف','الدور','الفرع','الحالة','تاريخ الإضافة','إجراء'] %}
           <th class="px-4 py-3 text-right text-gray-400 text-xs font-bold">{{ h }}</th>
           {% endfor %}
         </tr>
@@ -38,7 +38,6 @@
             </div>
           </td>
           <td class="px-4 py-3 text-gray-300 text-sm">{{ s.phone or '—' }}</td>
-          <td class="px-4 py-3 text-gray-300 text-sm">{{ s.email or '—' }}</td>
           <td class="px-4 py-3">
             {% set role_colors = {'staff':'#3B82F6','branch_manager':'#8B5CF6','admin':'#EF4444'} %}
             {% set role_labels = {'staff':'موظف','branch_manager':'مدير فرع','admin':'مدير عام'} %}
@@ -58,7 +57,7 @@
           <td class="px-4 py-3 text-gray-500 text-xs">{{ s.created_at.strftime('%Y-%m-%d %H:%M') if s.created_at else '—' }}</td>
           <td class="px-4 py-3">
             <div class="flex items-center gap-2">
-              <button onclick="openEditStaff({{ s.id }}, '{{ s.name|replace("'","\\'")|replace('"','\\"') }}', '{{ (s.phone or '') }}', '{{ (s.email or '') }}', '{{ role_key }}')"
+              <button onclick="openEditStaff({{ s.id }}, '{{ s.name|replace("'","\\'")|replace('"','\\"') }}', '{{ (s.phone or '') }}', '{{ role_key }}')"
                 class="text-xs text-blue-400 hover:text-blue-300 font-bold">تعديل</button>
               <span class="text-gray-600">|</span>
               <form method="post" action="/staff/{{ s.id }}/toggle-active" class="inline">
@@ -89,7 +88,6 @@
       <div class="space-y-3 mb-4">
         <div><label class="block text-gray-400 text-xs mb-1">الاسم *</label><input name="name" class="input-field" required></div>
         <div><label class="block text-gray-400 text-xs mb-1">رقم الهاتف</label><input name="phone" class="input-field"></div>
-        <div><label class="block text-gray-400 text-xs mb-1">البريد الإلكتروني</label><input name="email" type="email" class="input-field"></div>
         <div>
           <label class="block text-gray-400 text-xs mb-1">الدور *</label>
           <select name="role" class="select-field w-full">
@@ -118,7 +116,6 @@
       <div class="space-y-3 mb-5">
         <div><label class="block text-gray-400 text-xs mb-1">الاسم *</label><input id="editName" name="name" class="input-field" required></div>
         <div><label class="block text-gray-400 text-xs mb-1">رقم الهاتف</label><input id="editPhone" name="phone" class="input-field"></div>
-        <div><label class="block text-gray-400 text-xs mb-1">البريد الإلكتروني</label><input id="editEmail" name="email" type="email" class="input-field"></div>
         <div>
           <label class="block text-gray-400 text-xs mb-1">الدور *</label>
           <select id="editRole" name="role" class="select-field w-full">
@@ -138,11 +135,10 @@
 {% endblock %}
 {% block scripts %}
 <script>
-function openEditStaff(id, name, phone, email, role) {
-  document.getElementById('editStaffForm').action = '/admin-panel/staff/' + id + '/edit';
+function openEditStaff(id, name, phone, role) {
+  document.getElementById('editStaffForm').action = '/staff/' + id + '/edit';
   document.getElementById('editName').value = name;
   document.getElementById('editPhone').value = phone;
-  document.getElementById('editEmail').value = email;
   document.getElementById('editRole').value = role;
   document.getElementById('editStaffModal').classList.remove('hidden');
 }

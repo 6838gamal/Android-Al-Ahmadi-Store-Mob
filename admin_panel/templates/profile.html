@@ -58,13 +58,6 @@
         </div>
       </div>
       <div style="background:#0D1117;border:1px solid #2D3748;border-radius:10px;padding:12px 14px;display:flex;align-items:center;gap:12px">
-        <i class="fa-solid fa-envelope" style="color:#1A73E8;width:16px;text-align:center"></i>
-        <div>
-          <div style="color:#6B7280;font-size:11px;margin-bottom:2px">البريد الإلكتروني</div>
-          <div style="color:white;font-size:14px;font-weight:700">{{ admin.email if admin and admin.email else '—' }}</div>
-        </div>
-      </div>
-      <div style="background:#0D1117;border:1px solid #2D3748;border-radius:10px;padding:12px 14px;display:flex;align-items:center;gap:12px">
         <i class="fa-solid fa-phone" style="color:#1A73E8;width:16px;text-align:center"></i>
         <div>
           <div style="color:#6B7280;font-size:11px;margin-bottom:2px">رقم الجوال</div>
@@ -98,13 +91,6 @@
           <input type="text" name="name" required
                  value="{{ admin.name if admin else admin_name }}"
                  class="input-field" placeholder="الاسم الكامل للمدير">
-        </div>
-
-        <div style="margin-bottom:12px">
-          <label style="display:block;color:#9CA3AF;font-size:12px;font-weight:600;margin-bottom:6px">البريد الإلكتروني (بيانات الدخول)</label>
-          <input type="email" name="email"
-                 value="{{ admin.email if admin and admin.email else '' }}"
-                 class="input-field" placeholder="البريد الإلكتروني">
         </div>
 
         <div>

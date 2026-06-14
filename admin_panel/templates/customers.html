@@ -35,7 +35,6 @@
           <th class="px-5 py-3 text-right font-semibold">#</th>
           <th class="px-5 py-3 text-right font-semibold">الاسم</th>
           <th class="px-5 py-3 text-right font-semibold">رقم الجوال</th>
-          <th class="px-5 py-3 text-right font-semibold">البريد الإلكتروني</th>
           <th class="px-5 py-3 text-right font-semibold">المحفظة</th>
           <th class="px-5 py-3 text-right font-semibold">الحالة</th>
           <th class="px-5 py-3 text-right font-semibold">التوثيق</th>
@@ -56,7 +55,6 @@
             </div>
           </td>
           <td class="px-5 py-3 text-gray-300">{{ c.phone or '—' }}</td>
-          <td class="px-5 py-3 text-gray-400">{{ c.email or '—' }}</td>
           <td class="px-5 py-3 text-sm font-bold" style="color:#22C55E">{{ "%.2f"|format(c.wallet_balance or 0) }} {{ c.wallet_currency or 'YER' }}</td>
           <td class="px-5 py-3">
             {% if c.is_active %}
@@ -72,7 +70,7 @@
             <span class="badge bg-gray-500/15 text-gray-500">غير موثّق</span>
             {% endif %}
           </td>
-          <td class="px-5 py-3 text-gray-500 text-xs">{{ c.created_at.strftime('%Y-%m-%d') if c.created_at else '—' }}</td>
+          <td class="px-5 py-3 text-gray-500 text-xs">{{ c.created_at.strftime('%Y-%m-%d %H:%M') if c.created_at else '—' }}</td>
           <td class="px-5 py-3">
             <div class="flex items-center gap-2 flex-wrap">
               <form method="post" action="/customers/{{ c.id }}/toggle-active" class="inline">
@@ -117,7 +115,6 @@
       <div class="space-y-3 mb-5">
         <div><label class="block text-gray-400 text-xs mb-1">الاسم الكامل *</label><input name="name" class="input-field" required></div>
         <div><label class="block text-gray-400 text-xs mb-1">رقم الجوال *</label><input name="phone" class="input-field" required></div>
-        <div><label class="block text-gray-400 text-xs mb-1">البريد الإلكتروني</label><input name="email" type="email" class="input-field"></div>
         <div><label class="block text-gray-400 text-xs mb-1">كلمة المرور *</label><input name="password" type="password" class="input-field" required></div>
       </div>
       <div class="flex gap-3 justify-end">

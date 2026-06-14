@@ -3,25 +3,38 @@
 {% block page_title %}سجل المراجعة{% endblock %}
 {% block content %}
 <div class="page-header">
-  <h1 class="text-white text-2xl font-extrabold">سجل المراجعة — Audit Log</h1>
-  <p class="text-white/70 text-sm mt-1">تسجيل كامل للعمليات الحساسة</p>
+  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
+    <div>
+      <h1 class="text-white text-2xl font-extrabold">سجل المراجعة — Audit Log</h1>
+      <p class="text-white/70 text-sm mt-1">تسجيل كامل للعمليات الحساسة — يتحدث تلقائياً كل 15 ثانية</p>
+    </div>
+    <div style="display:flex;align-items:center;gap:12px">
+      <div id="live-indicator" style="display:flex;align-items:center;gap:6px;color:#22C55E;font-size:12px;font-weight:700">
+        <span style="width:8px;height:8px;border-radius:50%;background:#22C55E;animation:pulse 2s infinite"></span>
+        مباشر
+      </div>
+      <button onclick="refreshLogs()" style="background:rgba(26,115,232,.15);color:#1A73E8;border:1px solid rgba(26,115,232,.3);cursor:pointer;padding:7px 14px;border-radius:8px;font-size:12px;font-weight:700">
+        <i class="fa-solid fa-rotate-right"></i> تحديث
+      </button>
+    </div>
+  </div>
 </div>
 
-<div class="card overflow-hidden">
+<div id="audit-table-wrap" class="card overflow-hidden">
   <div class="overflow-x-auto">
-    <table class="w-full">
+    <table class="w-full" id="audit-table">
       <thead>
         <tr class="border-b border-dark-border">
-          {% for h in ['#','المستخدم','الدور','الإجراء','الكيان','التفاصيل','IP','التاريخ'] %}
+          {% for h in ['#','المستخدم','الدور','الإجراء','الكيان','التفاصيل','IP','التاريخ والوقت'] %}
           <th class="px-4 py-3 text-right text-gray-400 text-xs font-bold">{{ h }}</th>
           {% endfor %}
         </tr>
       </thead>
-      <tbody>
+      <tbody id="audit-body">
         {% for log in logs %}
         <tr class="table-row">
           <td class="px-4 py-3 text-gray-500 text-sm">{{ log.id }}</td>
-          <td class="px-4 py-3 text-white text-sm">{{ log.user.name if log.user else 'نظام' }}</td>
+          <td class="px-4 py-3 text-white text-sm font-semibold">{{ log.user.name if log.user else 'نظام' }}</td>
           <td class="px-4 py-3 text-gray-400 text-xs">{{ log.user_role or '—' }}</td>
           <td class="px-4 py-3">
             {% set ac = {'create':'#22C55E','update':'#3B82F6','delete':'#EF4444','login':'#8B5CF6','logout':'#6B7280','view':'#06B6D4','export':'#F59E0B','other':'#9CA3AF'} %}
@@ -34,9 +47,9 @@
           <td class="px-4 py-3 text-gray-300 text-sm">
             {{ log.entity_type or '—' }}{% if log.entity_id %} #{{ log.entity_id }}{% endif %}
           </td>
-          <td class="px-4 py-3 text-gray-400 text-xs max-w-[200px] truncate">{{ log.description or '—' }}</td>
+          <td class="px-4 py-3 text-gray-400 text-xs max-w-[200px] truncate" title="{{ log.description or '' }}">{{ log.description or '—' }}</td>
           <td class="px-4 py-3 text-gray-500 text-xs font-mono">{{ log.ip_address or '—' }}</td>
-          <td class="px-4 py-3 text-gray-400 text-xs">{{ log.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+          <td class="px-4 py-3 text-gray-400 text-xs">{{ log.created_at.strftime('%Y-%m-%d %H:%M:%S') if log.created_at else '—' }}</td>
         </tr>
         {% else %}
         <tr><td colspan="8" class="px-4 py-8 text-center text-gray-500">لا توجد سجلات بعد</td></tr>
@@ -45,4 +58,50 @@
     </table>
   </div>
 </div>
+
+<style>
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+.new-row { animation: fadeIn .5s ease; }
+@keyframes fadeIn { from{background:rgba(34,197,94,.15)} to{background:transparent} }
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+var lastTopId = {{ logs[0].id if logs else 0 }};
+var actionColors = {create:'#22C55E',update:'#3B82F6',delete:'#EF4444',login:'#8B5CF6',logout:'#6B7280',view:'#06B6D4',export:'#F59E0B',other:'#9CA3AF'};
+var actionLabels = {create:'إنشاء',update:'تعديل',delete:'حذف',login:'دخول',logout:'خروج',view:'عرض',export:'تصدير',other:'أخرى'};
+
+function refreshLogs() {
+  fetch('/audit/feed')
+    .then(r => r.json())
+    .then(data => {
+      if (!data.logs || !data.logs.length) return;
+      var newLogs = data.logs.filter(l => l.id > lastTopId);
+      if (!newLogs.length) return;
+      lastTopId = Math.max(...newLogs.map(l => l.id));
+      var tbody = document.getElementById('audit-body');
+      newLogs.reverse().forEach(function(log) {
+        var act = log.action || 'other';
+        var color = actionColors[act] || '#9CA3AF';
+        var label = actionLabels[act] || act;
+        var tr = document.createElement('tr');
+        tr.className = 'table-row new-row';
+        tr.innerHTML =
+          '<td class="px-4 py-3 text-gray-500 text-sm">' + log.id + '</td>' +
+          '<td class="px-4 py-3 text-white text-sm font-semibold">' + (log.user_name || 'نظام') + '</td>' +
+          '<td class="px-4 py-3 text-gray-400 text-xs">' + (log.user_role || '—') + '</td>' +
+          '<td class="px-4 py-3"><span class="badge" style="background:' + color + '22;color:' + color + '">' + label + '</span></td>' +
+          '<td class="px-4 py-3 text-gray-300 text-sm">' + (log.entity_type || '—') + (log.entity_id ? ' #' + log.entity_id : '') + '</td>' +
+          '<td class="px-4 py-3 text-gray-400 text-xs max-w-[200px] truncate">' + (log.description || '—') + '</td>' +
+          '<td class="px-4 py-3 text-gray-500 text-xs font-mono">' + (log.ip_address || '—') + '</td>' +
+          '<td class="px-4 py-3 text-gray-400 text-xs">' + (log.created_at || '').replace('T',' ').substring(0,19) + '</td>';
+        tbody.insertBefore(tr, tbody.firstChild);
+      });
+    })
+    .catch(function(){});
+}
+
+setInterval(refreshLogs, 15000);
+</script>
 {% endblock %}
