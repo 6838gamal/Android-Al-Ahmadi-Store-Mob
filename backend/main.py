@@ -133,7 +133,13 @@ _raw_origins = os.getenv("ALLOWED_ORIGINS", "")
 if _raw_origins:
     _allowed_origins = [o.strip() for o in _raw_origins.split(",") if o.strip()]
 else:
-    _allowed_origins = ["https://android-al-ahmadi-store-mob.netlify.app"]
+    _replit_domain = os.getenv("REPLIT_DEV_DOMAIN", "")
+    _allowed_origins = [
+        "https://android-al-ahmadi-store-mob.netlify.app",
+    ]
+    if _replit_domain:
+        _allowed_origins.append(f"https://{_replit_domain}")
+    _allowed_origins.append("*")
 
 app.add_middleware(
     CORSMiddleware,
