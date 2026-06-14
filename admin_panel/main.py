@@ -426,8 +426,10 @@ async def product_edit_post(
 async def product_delete(product_id: int, request: Request):
     if not _logged(request):
         return _redirect_login()
-    await api("delete", f"/api/products/{product_id}", token=_token(request))
-    return RedirectResponse("/products", status_code=302)
+    _, err = await api_ex("delete", f"/api/products/{product_id}", token=_token(request))
+    if err:
+        return RedirectResponse(f"/products?error={_q(err)}", status_code=302)
+    return RedirectResponse("/products?success=تم+حذف+المنتج+بنجاح", status_code=302)
 
 
 # ── Orders ──────────────────────────────────────────────────────────────────────
@@ -494,8 +496,10 @@ async def update_order_status(
         "estimated_time": estimated_time or None,
         "employee_name": employee_name or _name(request),
     }
-    await api("put", f"/api/orders/{order_id}/status", token=_token(request), json=payload)
-    return RedirectResponse(f"/orders/{order_id}", status_code=302)
+    _, err = await api_ex("put", f"/api/orders/{order_id}/status", token=_token(request), json=payload)
+    if err:
+        return RedirectResponse(f"/orders/{order_id}?error={_q(err)}", status_code=302)
+    return RedirectResponse(f"/orders/{order_id}?success=تم+تحديث+حالة+الطلب+بنجاح", status_code=302)
 
 
 # ── Maintenance ─────────────────────────────────────────────────────────────────
@@ -562,8 +566,10 @@ async def update_maintenance_status(
         "estimated_time": estimated_time or None,
         "employee_name": _name(request),
     }
-    await api("put", f"/api/maintenance/{order_id}/status", token=_token(request), json=payload)
-    return RedirectResponse("/maintenance", status_code=302)
+    _, err = await api_ex("put", f"/api/maintenance/{order_id}/status", token=_token(request), json=payload)
+    if err:
+        return RedirectResponse(f"/maintenance?error={_q(err)}", status_code=302)
+    return RedirectResponse("/maintenance?success=تم+تحديث+حالة+الصيانة+بنجاح", status_code=302)
 
 
 # ── Reservations ────────────────────────────────────────────────────────────────
@@ -605,16 +611,20 @@ async def reservation_add(
 async def reservation_cancel(res_id: int, request: Request):
     if not _logged(request):
         return _redirect_login()
-    await api("put", f"/api/reservations/{res_id}/cancel", token=_token(request))
-    return RedirectResponse("/reservations", status_code=302)
+    _, err = await api_ex("put", f"/api/reservations/{res_id}/cancel", token=_token(request))
+    if err:
+        return RedirectResponse(f"/reservations?error={_q(err)}", status_code=302)
+    return RedirectResponse("/reservations?success=تم+إلغاء+الحجز+بنجاح", status_code=302)
 
 
 @app.post("/reservations/{res_id}/complete")
 async def reservation_complete(res_id: int, request: Request):
     if not _logged(request):
         return _redirect_login()
-    await api("put", f"/api/reservations/{res_id}/complete", token=_token(request))
-    return RedirectResponse("/reservations", status_code=302)
+    _, err = await api_ex("put", f"/api/reservations/{res_id}/complete", token=_token(request))
+    if err:
+        return RedirectResponse(f"/reservations?error={_q(err)}", status_code=302)
+    return RedirectResponse("/reservations?success=تم+إكمال+الحجز+بنجاح", status_code=302)
 
 
 # ── Customers ───────────────────────────────────────────────────────────────────
@@ -654,24 +664,30 @@ async def customer_add(
 async def customer_toggle(user_id: int, request: Request):
     if not _logged(request):
         return _redirect_login()
-    await api("post", f"/api/customers/{user_id}/toggle-active", token=_token(request))
-    return RedirectResponse("/customers", status_code=302)
+    _, err = await api_ex("post", f"/api/customers/{user_id}/toggle-active", token=_token(request))
+    if err:
+        return RedirectResponse(f"/customers?error={_q(err)}", status_code=302)
+    return RedirectResponse("/customers?success=تم+تغيير+حالة+العميل+بنجاح", status_code=302)
 
 
 @app.post("/customers/{user_id}/verify")
 async def customer_verify(user_id: int, request: Request):
     if not _logged(request):
         return _redirect_login()
-    await api("post", f"/api/customers/{user_id}/verify", token=_token(request))
-    return RedirectResponse("/customers", status_code=302)
+    _, err = await api_ex("post", f"/api/customers/{user_id}/verify", token=_token(request))
+    if err:
+        return RedirectResponse(f"/customers?error={_q(err)}", status_code=302)
+    return RedirectResponse("/customers?success=تم+توثيق+العميل+بنجاح", status_code=302)
 
 
 @app.post("/customers/{user_id}/delete")
 async def customer_delete(user_id: int, request: Request):
     if not _logged(request):
         return _redirect_login()
-    await api("delete", f"/api/customers/{user_id}", token=_token(request))
-    return RedirectResponse("/customers", status_code=302)
+    _, err = await api_ex("delete", f"/api/customers/{user_id}", token=_token(request))
+    if err:
+        return RedirectResponse(f"/customers?error={_q(err)}", status_code=302)
+    return RedirectResponse("/customers?success=تم+حذف+العميل+بنجاح", status_code=302)
 
 
 # ── Inventory ───────────────────────────────────────────────────────────────────
@@ -720,16 +736,20 @@ async def inventory_add(
 async def inventory_sell(item_id: int, request: Request):
     if not _logged(request):
         return _redirect_login()
-    await api("post", f"/api/inventory/{item_id}/sell", token=_token(request))
-    return RedirectResponse("/inventory", status_code=302)
+    _, err = await api_ex("post", f"/api/inventory/{item_id}/sell", token=_token(request))
+    if err:
+        return RedirectResponse(f"/inventory?error={_q(err)}", status_code=302)
+    return RedirectResponse("/inventory?success=تم+تسجيل+البيع+بنجاح", status_code=302)
 
 
 @app.post("/inventory/{item_id}/return-stock")
 async def inventory_return_stock(item_id: int, request: Request):
     if not _logged(request):
         return _redirect_login()
-    await api("post", f"/api/inventory/{item_id}/return-to-stock", token=_token(request))
-    return RedirectResponse("/inventory", status_code=302)
+    _, err = await api_ex("post", f"/api/inventory/{item_id}/return-to-stock", token=_token(request))
+    if err:
+        return RedirectResponse(f"/inventory?error={_q(err)}", status_code=302)
+    return RedirectResponse("/inventory?success=تم+إعادة+العنصر+للمخزون+بنجاح", status_code=302)
 
 
 # ── Inspection ──────────────────────────────────────────────────────────────────
@@ -757,32 +777,39 @@ async def inspection_respond(
 ):
     if not _logged(request):
         return _redirect_login()
-    # Upload any attached images to the uploads folder
+    # Upload images via the backend API
     image_urls: list[str] = []
     for img in response_images:
         if img.filename:
-            import uuid, shutil
-            ext = os.path.splitext(img.filename)[-1].lower() or ".jpg"
-            fname = f"insp_{req_id}_{uuid.uuid4().hex[:8]}{ext}"
-            dest = os.path.join(UPLOAD_DIR, fname)
-            with open(dest, "wb") as f:
-                shutil.copyfileobj(img.file, f)
-            image_urls.append(f"/uploads/{fname}")
-    await api("post", f"/api/inspection/{req_id}/respond", token=_token(request),
+            content = await img.read()
+            import io as _io
+            files_payload = {"file": (img.filename, _io.BytesIO(content), img.content_type or "image/jpeg")}
+            upload_result, upload_err = await api_raw_upload(
+                "/api/uploads/image", files_payload, token=_token(request)
+            )
+            if upload_result and isinstance(upload_result, dict):
+                image_urls.append(upload_result.get("url", ""))
+            elif upload_err:
+                print(f"[inspection] image upload error: {upload_err}")
+    _, err = await api_ex("post", f"/api/inspection/{req_id}/respond", token=_token(request),
               json={"staff_id": request.session.get("admin_id"),
                     "diagnosis": diagnosis,
                     "estimated_price": estimated_price or None,
                     "response_notes": response_notes or None,
-                    "response_images": image_urls})
-    return RedirectResponse("/inspection", status_code=302)
+                    "response_images": [u for u in image_urls if u]})
+    if err:
+        return RedirectResponse(f"/inspection?error={_q(err)}", status_code=302)
+    return RedirectResponse("/inspection?success=تم+إرسال+رد+الفحص+بنجاح", status_code=302)
 
 
 @app.post("/inspection/{req_id}/close")
 async def inspection_close(req_id: int, request: Request):
     if not _logged(request):
         return _redirect_login()
-    await api("post", f"/api/inspection/{req_id}/close", token=_token(request))
-    return RedirectResponse("/inspection", status_code=302)
+    _, err = await api_ex("post", f"/api/inspection/{req_id}/close", token=_token(request))
+    if err:
+        return RedirectResponse(f"/inspection?error={_q(err)}", status_code=302)
+    return RedirectResponse("/inspection?success=تم+إغلاق+طلب+الفحص+بنجاح", status_code=302)
 
 
 # ── Referrals ───────────────────────────────────────────────────────────────────
@@ -848,9 +875,11 @@ async def warranty_resolve(
     if not _logged(request):
         return _redirect_login()
     is_approved = approved == "true"
-    await api("post", f"/api/warranty/{warranty_id}/resolve-return", token=_token(request),
+    _, err = await api_ex("post", f"/api/warranty/{warranty_id}/resolve-return", token=_token(request),
               json={"approved": is_approved, "notes": notes or "تم الحل من لوحة الإدارة"})
-    return RedirectResponse("/warranty", status_code=302)
+    if err:
+        return RedirectResponse(f"/warranty?error={_q(err)}", status_code=302)
+    return RedirectResponse("/warranty?success=تم+معالجة+طلب+الإرجاع+بنجاح", status_code=302)
 
 
 # ── Staff ───────────────────────────────────────────────────────────────────────
@@ -886,8 +915,10 @@ async def staff_add(
 async def staff_toggle(user_id: int, request: Request):
     if not _logged(request):
         return _redirect_login()
-    await api("post", f"/api/staff/{user_id}/toggle-active", token=_token(request))
-    return RedirectResponse("/staff", status_code=302)
+    _, err = await api_ex("post", f"/api/staff/{user_id}/toggle-active", token=_token(request))
+    if err:
+        return RedirectResponse(f"/staff?error={_q(err)}", status_code=302)
+    return RedirectResponse("/staff?success=تم+تغيير+حالة+الموظف+بنجاح", status_code=302)
 
 
 @app.post("/staff/{user_id}/edit")
@@ -912,8 +943,10 @@ async def staff_edit(
 async def staff_delete(user_id: int, request: Request):
     if not _logged(request):
         return _redirect_login()
-    await api("delete", f"/api/staff/{user_id}", token=_token(request))
-    return RedirectResponse("/staff", status_code=302)
+    _, err = await api_ex("delete", f"/api/staff/{user_id}", token=_token(request))
+    if err:
+        return RedirectResponse(f"/staff?error={_q(err)}", status_code=302)
+    return RedirectResponse("/staff?success=تم+حذف+الموظف+بنجاح", status_code=302)
 
 
 # ── Branches ────────────────────────────────────────────────────────────────────
@@ -968,8 +1001,10 @@ async def branch_edit(
 async def branch_delete(branch_id: int, request: Request):
     if not _logged(request):
         return _redirect_login()
-    await api("delete", f"/api/branches/{branch_id}", token=_token(request))
-    return RedirectResponse("/branches", status_code=302)
+    _, err = await api_ex("delete", f"/api/branches/{branch_id}", token=_token(request))
+    if err:
+        return RedirectResponse(f"/branches?error={_q(err)}", status_code=302)
+    return RedirectResponse("/branches?success=تم+حذف+الفرع+بنجاح", status_code=302)
 
 
 # ── Notifications ───────────────────────────────────────────────────────────────
@@ -1000,20 +1035,26 @@ async def notification_send(
     if not _logged(request):
         return _redirect_login()
     if broadcast:
-        await api("post", "/api/notifications/broadcast", token=_token(request),
+        _, err = await api_ex("post", "/api/notifications/broadcast", token=_token(request),
                   params={"title": title, "body": message})
     elif user_id:
-        await api("post", "/api/notifications/send", token=_token(request),
+        _, err = await api_ex("post", "/api/notifications/send", token=_token(request),
                   json={"user_id": user_id, "title": title, "body": message})
-    return RedirectResponse("/notifications", status_code=302)
+    else:
+        return RedirectResponse("/notifications?error=يجب+اختيار+عميل+أو+تفعيل+الإرسال+الجماعي", status_code=302)
+    if err:
+        return RedirectResponse(f"/notifications?error={_q(err)}", status_code=302)
+    return RedirectResponse("/notifications?success=تم+إرسال+الإشعار+بنجاح", status_code=302)
 
 
 @app.post("/notifications/{notif_id}/delete")
 async def notification_delete(notif_id: int, request: Request):
     if not _logged(request):
         return _redirect_login()
-    await api("delete", f"/api/notifications/{notif_id}", token=_token(request))
-    return RedirectResponse("/notifications", status_code=302)
+    _, err = await api_ex("delete", f"/api/notifications/{notif_id}", token=_token(request))
+    if err:
+        return RedirectResponse(f"/notifications?error={_q(err)}", status_code=302)
+    return RedirectResponse("/notifications?success=تم+حذف+الإشعار+بنجاح", status_code=302)
 
 
 # ── Reports ─────────────────────────────────────────────────────────────────────
@@ -1066,11 +1107,13 @@ async def wallet_credit(
 ):
     if not _logged(request):
         return _redirect_login()
-    await api("post", "/api/wallet/credit", token=_token(request),
+    _, err = await api_ex("post", "/api/wallet/credit", token=_token(request),
               json={"user_id": user_id, "amount": amount,
                     "transaction_type": "credit",
                     "reason": note or "إضافة رصيد من لوحة التحكم"})
-    return RedirectResponse("/wallet", status_code=302)
+    if err:
+        return RedirectResponse(f"/wallet?error={_q(err)}", status_code=302)
+    return RedirectResponse("/wallet?success=تم+إضافة+الرصيد+بنجاح", status_code=302)
 
 
 @app.post("/wallet/{user_id}/debit")
@@ -1080,11 +1123,13 @@ async def wallet_debit(
 ):
     if not _logged(request):
         return _redirect_login()
-    await api("post", "/api/wallet/debit", token=_token(request),
+    _, err = await api_ex("post", "/api/wallet/debit", token=_token(request),
               json={"user_id": user_id, "amount": amount,
                     "transaction_type": "debit",
                     "reason": note or "خصم رصيد من لوحة التحكم"})
-    return RedirectResponse("/wallet", status_code=302)
+    if err:
+        return RedirectResponse(f"/wallet?error={_q(err)}", status_code=302)
+    return RedirectResponse("/wallet?success=تم+خصم+الرصيد+بنجاح", status_code=302)
 
 
 # ── Admin Profile ───────────────────────────────────────────────────────────────
@@ -1198,16 +1243,20 @@ async def announcement_add(
 async def announcement_toggle(ann_id: int, request: Request):
     if not _logged(request):
         return _redirect_login()
-    await api("post", f"/api/announcements/{ann_id}/toggle", token=_token(request))
-    return RedirectResponse("/announcements", status_code=302)
+    _, err = await api_ex("post", f"/api/announcements/{ann_id}/toggle", token=_token(request))
+    if err:
+        return RedirectResponse(f"/announcements?error={_q(err)}", status_code=302)
+    return RedirectResponse("/announcements?success=تم+تغيير+حالة+الإعلان+بنجاح", status_code=302)
 
 
 @app.post("/announcements/{ann_id}/delete")
 async def announcement_delete(ann_id: int, request: Request):
     if not _logged(request):
         return _redirect_login()
-    await api("delete", f"/api/announcements/{ann_id}", token=_token(request))
-    return RedirectResponse("/announcements", status_code=302)
+    _, err = await api_ex("delete", f"/api/announcements/{ann_id}", token=_token(request))
+    if err:
+        return RedirectResponse(f"/announcements?error={_q(err)}", status_code=302)
+    return RedirectResponse("/announcements?success=تم+حذف+الإعلان+بنجاح", status_code=302)
 
 
 # ── Export to Excel ───────────────────────────────────────────────────────────
@@ -1403,7 +1452,9 @@ async def loyalty_add_points(request: Request, phone: str = Form(...), points: i
 async def loyalty_reset(request: Request, user_id: int, reason: str = Form("تسليم شاشة مجانية")):
     if not _logged(request):
         return _redirect_login()
-    result = await api("post", "/api/loyalty/reset", token=_token(request), json={"user_id": user_id, "reason": reason})
+    result, err = await api_ex("post", "/api/loyalty/reset", token=_token(request), json={"user_id": user_id, "reason": reason})
+    if err:
+        return RedirectResponse(f"/loyalty?error={_q(err)}", status_code=302)
     msg = result.get("message", "تم التصفير") if isinstance(result, dict) else "تم التصفير"
     return RedirectResponse(f"/loyalty?success={_q(msg)}", status_code=302)
 
@@ -1451,24 +1502,30 @@ async def shortage_list(request: Request, status: str = "", view: str = "list"):
 async def shortage_notify(request: Request, req_id: int):
     if not _logged(request):
         return _redirect_login()
-    await api("put", f"/api/shortage-requests/{req_id}/notify", token=_token(request))
-    return RedirectResponse(f"/shortage-requests?success={_q('تم تحديث الحالة')}", status_code=302)
+    _, err = await api_ex("put", f"/api/shortage-requests/{req_id}/notify", token=_token(request))
+    if err:
+        return RedirectResponse(f"/shortage-requests?error={_q(err)}", status_code=302)
+    return RedirectResponse(f"/shortage-requests?success={_q('تم تحديث الحالة وإشعار العميل')}", status_code=302)
 
 
 @app.post("/shortage-requests/{req_id}/purchased")
 async def shortage_purchased(request: Request, req_id: int):
     if not _logged(request):
         return _redirect_login()
-    await api("put", f"/api/shortage-requests/{req_id}/purchased", token=_token(request))
-    return RedirectResponse(f"/shortage-requests?success={_q('تم تحديث الحالة')}", status_code=302)
+    _, err = await api_ex("put", f"/api/shortage-requests/{req_id}/purchased", token=_token(request))
+    if err:
+        return RedirectResponse(f"/shortage-requests?error={_q(err)}", status_code=302)
+    return RedirectResponse(f"/shortage-requests?success={_q('تم تسجيل الشراء بنجاح')}", status_code=302)
 
 
 @app.post("/shortage-requests/{req_id}/close")
 async def shortage_close(request: Request, req_id: int):
     if not _logged(request):
         return _redirect_login()
-    await api("put", f"/api/shortage-requests/{req_id}/close", token=_token(request))
-    return RedirectResponse(f"/shortage-requests?success={_q('تم الإغلاق')}", status_code=302)
+    _, err = await api_ex("put", f"/api/shortage-requests/{req_id}/close", token=_token(request))
+    if err:
+        return RedirectResponse(f"/shortage-requests?error={_q(err)}", status_code=302)
+    return RedirectResponse(f"/shortage-requests?success={_q('تم إغلاق الطلب بنجاح')}", status_code=302)
 
 
 @app.post("/shortage-requests/batch-notify")
@@ -1477,8 +1534,10 @@ async def shortage_batch_notify(request: Request):
         return _redirect_login()
     form = await request.form()
     ids = [int(x) for x in form.getlist("ids") if x]
-    await api("put", "/api/shortage-requests/batch-notify", token=_token(request), json={"request_ids": ids})
-    return RedirectResponse(f"/shortage-requests?success={_q(f'تم إشعار {len(ids)} طلب')}", status_code=302)
+    _, err = await api_ex("put", "/api/shortage-requests/batch-notify", token=_token(request), json={"request_ids": ids})
+    if err:
+        return RedirectResponse(f"/shortage-requests?error={_q(err)}", status_code=302)
+    return RedirectResponse(f"/shortage-requests?success={_q(f'تم إشعار {len(ids)} طلب بنجاح')}", status_code=302)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -1518,24 +1577,30 @@ async def auction_detail(request: Request, auction_id: int):
 async def auction_activate(request: Request, auction_id: int):
     if not _logged(request):
         return _redirect_login()
-    await api("put", f"/api/auctions/{auction_id}/activate", token=_token(request), params={"days": 7})
-    return RedirectResponse(f"/auctions?success={_q('تم تفعيل المزاد')}", status_code=302)
+    _, err = await api_ex("put", f"/api/auctions/{auction_id}/activate", token=_token(request), params={"days": 7})
+    if err:
+        return RedirectResponse(f"/auctions?error={_q(err)}", status_code=302)
+    return RedirectResponse(f"/auctions?success={_q('تم تفعيل المزاد بنجاح')}", status_code=302)
 
 
 @app.post("/auctions/{auction_id}/reject")
 async def auction_reject(request: Request, auction_id: int):
     if not _logged(request):
         return _redirect_login()
-    await api("delete", f"/api/auctions/{auction_id}", token=_token(request))
-    return RedirectResponse(f"/auctions?success={_q('تم رفض المزاد')}", status_code=302)
+    _, err = await api_ex("delete", f"/api/auctions/{auction_id}", token=_token(request))
+    if err:
+        return RedirectResponse(f"/auctions?error={_q(err)}", status_code=302)
+    return RedirectResponse(f"/auctions?success={_q('تم رفض المزاد بنجاح')}", status_code=302)
 
 
 @app.post("/auctions/{auction_id}/close")
 async def auction_close(request: Request, auction_id: int):
     if not _logged(request):
         return _redirect_login()
-    await api("put", f"/api/auctions/{auction_id}/close", token=_token(request))
-    return RedirectResponse(f"/auctions?success={_q('تم إغلاق المزاد')}", status_code=302)
+    _, err = await api_ex("put", f"/api/auctions/{auction_id}/close", token=_token(request))
+    if err:
+        return RedirectResponse(f"/auctions?error={_q(err)}", status_code=302)
+    return RedirectResponse(f"/auctions?success={_q('تم إغلاق المزاد بنجاح')}", status_code=302)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -1582,13 +1647,15 @@ async def secret_deal_create(
 ):
     if not _logged(request):
         return _redirect_login()
-    result = await api("post", "/api/secret-deals/", token=_token(request), json={
+    result, err = await api_ex("post", "/api/secret-deals/", token=_token(request), json={
         "title": title, "supplier_name": supplier_name, "supplier_phone": supplier_phone,
         "total_quantity": total_quantity, "price_per_unit": price_per_unit,
         "total_price": total_price, "admin_notes": admin_notes,
     })
+    if err:
+        return RedirectResponse(f"/secret-deals?error={_q(err)}", status_code=302)
     deal_id = result.get("id") if isinstance(result, dict) else None
-    return RedirectResponse(f"/secret-deals/{deal_id}" if deal_id else f"/secret-deals?success={_q('تم الإنشاء')}", status_code=302)
+    return RedirectResponse(f"/secret-deals/{deal_id}" if deal_id else f"/secret-deals?success={_q('تم إنشاء الصفقة بنجاح')}", status_code=302)
 
 
 @app.get("/secret-deals/{deal_id}")
@@ -1622,8 +1689,10 @@ async def secret_deal_upload(request: Request, deal_id: int, image_urls: str = F
     if not _logged(request):
         return _redirect_login()
     urls = [u.strip() for u in image_urls.split("\n") if u.strip()]
-    result = await api("post", f"/api/secret-deals/{deal_id}/images", token=_token(request), json={"image_urls": urls})
-    msg = result.get("message", "تمت الإضافة") if isinstance(result, dict) else "تمت الإضافة"
+    result, err = await api_ex("post", f"/api/secret-deals/{deal_id}/images", token=_token(request), json={"image_urls": urls})
+    if err:
+        return RedirectResponse(f"/secret-deals/{deal_id}?error={_q(err)}", status_code=302)
+    msg = result.get("message", "تمت إضافة الصور بنجاح") if isinstance(result, dict) else "تمت إضافة الصور بنجاح"
     return RedirectResponse(f"/secret-deals/{deal_id}?success={_q(msg)}", status_code=302)
 
 
@@ -1631,8 +1700,10 @@ async def secret_deal_upload(request: Request, deal_id: int, image_urls: str = F
 async def secret_deal_update_status(request: Request, deal_id: int, status: str = Form(...)):
     if not _logged(request):
         return _redirect_login()
-    await api("put", f"/api/secret-deals/{deal_id}/status", token=_token(request), params={"status": status})
-    return RedirectResponse(f"/secret-deals?success={_q('تم تحديث الحالة')}", status_code=302)
+    _, err = await api_ex("put", f"/api/secret-deals/{deal_id}/status", token=_token(request), params={"status": status})
+    if err:
+        return RedirectResponse(f"/secret-deals?error={_q(err)}", status_code=302)
+    return RedirectResponse(f"/secret-deals?success={_q('تم تحديث حالة الصفقة بنجاح')}", status_code=302)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -1672,16 +1743,20 @@ async def eng_support_detail(request: Request, post_id: int):
 async def eng_support_pin(request: Request, post_id: int, is_pinned: bool = Form(True)):
     if not _logged(request):
         return _redirect_login()
-    await api("put", f"/api/eng-support/{post_id}", token=_token(request), json={"is_pinned": is_pinned})
-    return RedirectResponse(f"/eng-support?success={_q('تم التثبيت')}", status_code=302)
+    _, err = await api_ex("put", f"/api/eng-support/{post_id}", token=_token(request), json={"is_pinned": is_pinned})
+    if err:
+        return RedirectResponse(f"/eng-support?error={_q(err)}", status_code=302)
+    return RedirectResponse(f"/eng-support?success={_q('تم تثبيت المنشور بنجاح')}", status_code=302)
 
 
 @app.post("/eng-support/{post_id}/delete")
 async def eng_support_delete(request: Request, post_id: int):
     if not _logged(request):
         return _redirect_login()
-    await api("delete", f"/api/eng-support/{post_id}", token=_token(request))
-    return RedirectResponse(f"/eng-support?success={_q('تم الحذف')}", status_code=302)
+    _, err = await api_ex("delete", f"/api/eng-support/{post_id}", token=_token(request))
+    if err:
+        return RedirectResponse(f"/eng-support?error={_q(err)}", status_code=302)
+    return RedirectResponse(f"/eng-support?success={_q('تم حذف المنشور بنجاح')}", status_code=302)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -1727,24 +1802,30 @@ async def complaint_detail(request: Request, complaint_id: int):
 async def complaint_reply(request: Request, complaint_id: int, reply: str = Form(...)):
     if not _logged(request):
         return _redirect_login()
-    await api("put", f"/api/complaints/{complaint_id}/reply", token=_token(request), json={"reply": reply})
-    return RedirectResponse(f"/complaints/{complaint_id}?success={_q('تم الرد')}", status_code=302)
+    _, err = await api_ex("put", f"/api/complaints/{complaint_id}/reply", token=_token(request), json={"reply": reply})
+    if err:
+        return RedirectResponse(f"/complaints/{complaint_id}?error={_q(err)}", status_code=302)
+    return RedirectResponse(f"/complaints/{complaint_id}?success={_q('تم إرسال الرد بنجاح')}", status_code=302)
 
 
 @app.post("/complaints/{complaint_id}/resolve")
 async def complaint_resolve(request: Request, complaint_id: int):
     if not _logged(request):
         return _redirect_login()
-    await api("put", f"/api/complaints/{complaint_id}/resolve", token=_token(request))
-    return RedirectResponse(f"/complaints?success={_q('تم الحل')}", status_code=302)
+    _, err = await api_ex("put", f"/api/complaints/{complaint_id}/resolve", token=_token(request))
+    if err:
+        return RedirectResponse(f"/complaints?error={_q(err)}", status_code=302)
+    return RedirectResponse(f"/complaints?success={_q('تم حل الشكوى بنجاح')}", status_code=302)
 
 
 @app.post("/complaints/{complaint_id}/archive")
 async def complaint_archive(request: Request, complaint_id: int):
     if not _logged(request):
         return _redirect_login()
-    await api("put", f"/api/complaints/{complaint_id}/archive", token=_token(request))
-    return RedirectResponse(f"/complaints?success={_q('تمت الأرشفة')}", status_code=302)
+    _, err = await api_ex("put", f"/api/complaints/{complaint_id}/archive", token=_token(request))
+    if err:
+        return RedirectResponse(f"/complaints?error={_q(err)}", status_code=302)
+    return RedirectResponse(f"/complaints?success={_q('تمت أرشفة الشكوى بنجاح')}", status_code=302)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -1856,8 +1937,10 @@ async def purchase_invoice_detail(request: Request, invoice_id: int):
 async def purchase_invoice_mark_print(request: Request, invoice_id: int):
     if not _logged(request):
         return _redirect_login()
-    await api("put", f"/api/purchase-invoices/{invoice_id}/mark-printed", token=_token(request))
-    return RedirectResponse(f"/purchase-invoices/{invoice_id}?success={_q('تم تسجيل الطباعة')}", status_code=302)
+    _, err = await api_ex("put", f"/api/purchase-invoices/{invoice_id}/mark-printed", token=_token(request))
+    if err:
+        return RedirectResponse(f"/purchase-invoices/{invoice_id}?error={_q(err)}", status_code=302)
+    return RedirectResponse(f"/purchase-invoices/{invoice_id}?success={_q('تم تسجيل الطباعة بنجاح')}", status_code=302)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -1917,8 +2000,10 @@ async def gallery_upload_image(
 async def gallery_delete_image(request: Request, image_id: int, folder_id: int = Form(...)):
     if not _logged(request):
         return _redirect_login()
-    await api("delete", f"/api/gallery/images/{image_id}", token=_token(request))
-    return RedirectResponse(f"/gallery/{folder_id}?success={_q('تم الحذف')}", status_code=302)
+    _, err = await api_ex("delete", f"/api/gallery/images/{image_id}", token=_token(request))
+    if err:
+        return RedirectResponse(f"/gallery/{folder_id}?error={_q(err)}", status_code=302)
+    return RedirectResponse(f"/gallery/{folder_id}?success={_q('تم حذف الصورة بنجاح')}", status_code=302)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
