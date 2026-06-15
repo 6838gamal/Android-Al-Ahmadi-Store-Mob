@@ -135,7 +135,7 @@ if _raw_origins:
 else:
     _replit_domain = os.getenv("REPLIT_DEV_DOMAIN", "")
     _allowed_origins = [
-        "https://android-al-ahmadi-store-mob.netlify.app",
+        "https://android-al-ahmadi-store-mob-1.netlify.app",
     ]
     if _replit_domain:
         _allowed_origins.append(f"https://{_replit_domain}")
