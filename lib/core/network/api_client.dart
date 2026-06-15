@@ -84,12 +84,14 @@ class ApiClient {
   }
 
   /// Resolve the correct base URL.
-  /// On Replit dev (serving via port 5000 proxy) we still use the explicit
-  /// API URL so that the same build works on Netlify, APK, and every other
-  /// environment without a rebuild.
+  /// On web: use the same origin as the page so the server.js proxy
+  /// routes /api/* to the local backend (works on Replit and self-hosted).
+  /// A compile-time --dart-define=API_BASE_URL=... override takes priority.
+  /// On mobile: always use the configured AppConstants.baseUrl.
   static String _resolveBase() {
-    // 1. Prefer compile-time override (--dart-define=API_BASE_URL=...)
-    // 2. Fall back to the hardcoded Render.com production URL
+    const override = String.fromEnvironment('API_BASE_URL', defaultValue: '');
+    if (override.isNotEmpty) return override;
+    if (kIsWeb) return Uri.base.origin;
     return AppConstants.baseUrl;
   }
 
