@@ -1786,6 +1786,7 @@ file:///home/runner/workspace/.dart_tool/flutter_build/298760f589257787e62a61804
 file:///home/runner/workspace/lib/core/constants/app_constants.dart
 file:///home/runner/workspace/lib/core/network/api_client.dart
 file:///home/runner/workspace/lib/core/providers/connectivity_provider.dart
+file:///home/runner/workspace/lib/core/providers/server_health_provider.dart
 file:///home/runner/workspace/lib/core/router/app_router.dart
 file:///home/runner/workspace/lib/core/theme/app_colors.dart
 file:///home/runner/workspace/lib/core/theme/app_theme.dart

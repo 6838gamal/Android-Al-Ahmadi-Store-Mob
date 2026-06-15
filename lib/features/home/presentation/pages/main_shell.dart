@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -6,6 +7,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/providers/connectivity_provider.dart';
+import '../../../../core/providers/server_health_provider.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../notifications/presentation/providers/notifications_provider.dart';
 import '../../../products/presentation/providers/products_provider.dart';
@@ -54,14 +56,25 @@ class _MainShellState extends ConsumerState<MainShell> {
   @override
   Widget build(BuildContext context) {
     final isOnline = ref.watch(connectivityProvider);
+    final serverHealth = ref.watch(serverHealthProvider);
 
     // Auto-sync: when coming back online, reload all providers
     ref.listen<bool>(connectivityProvider, (prev, next) {
       if (prev == false && next == true) {
         ref.read(productsProvider.notifier).load();
         ref.read(notificationsProvider.notifier).load();
+        ref.read(serverHealthProvider.notifier).retryNow();
       }
     });
+
+    ref.listen<ServerHealthState>(serverHealthProvider, (prev, next) {
+      if (prev?.isOffline == true && next.isOnline) {
+        ref.read(productsProvider.notifier).load();
+        ref.read(notificationsProvider.notifier).load();
+      }
+    });
+
+    final showBanner = !isOnline || serverHealth.isOffline || serverHealth.isChecking && serverHealth.retryCount > 0;
 
     return Scaffold(
       key: MainShell.scaffoldKey,
@@ -69,30 +82,17 @@ class _MainShellState extends ConsumerState<MainShell> {
       drawer: _buildDrawer(context),
       body: Column(
         children: [
-          AnimatedContainer(
-            duration: const Duration(milliseconds: 300),
-            height: isOnline ? 0 : 36,
-            child: isOnline
-                ? const SizedBox.shrink()
-                : Container(
-                    color: const Color(0xFFF57F17),
-                    alignment: Alignment.center,
-                    child: const Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.wifi_off, color: Colors.white, size: 16),
-                        SizedBox(width: 8),
-                        Text(
-                          'لا يوجد اتصال — يعرض بيانات محفوظة',
-                          style: TextStyle(
-                              fontFamily: 'Cairo',
-                              color: Colors.white,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700),
-                        ),
-                      ],
-                    ),
-                  ),
+          AnimatedSize(
+            duration: const Duration(milliseconds: 350),
+            curve: Curves.easeInOut,
+            child: showBanner
+                ? _ServerStatusBanner(
+                    isNetworkOff: !isOnline,
+                    serverHealth: serverHealth,
+                    onRetry: () =>
+                        ref.read(serverHealthProvider.notifier).retryNow(),
+                  )
+                : const SizedBox.shrink(),
           ),
           Expanded(child: widget.child),
         ],
@@ -364,6 +364,179 @@ class _ShopInfoSection extends StatelessWidget {
                   style: const TextStyle(fontFamily: 'Cairo', fontSize: 11, color: AppColors.textSecondary))),
         ],
       ),
+    );
+  }
+}
+
+// ── Server Status Banner ───────────────────────────────────────────────────────
+
+class _ServerStatusBanner extends StatefulWidget {
+  final bool isNetworkOff;
+  final ServerHealthState serverHealth;
+  final VoidCallback onRetry;
+
+  const _ServerStatusBanner({
+    required this.isNetworkOff,
+    required this.serverHealth,
+    required this.onRetry,
+  });
+
+  @override
+  State<_ServerStatusBanner> createState() => _ServerStatusBannerState();
+}
+
+class _ServerStatusBannerState extends State<_ServerStatusBanner>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _pulseCtrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _pulseCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    )..repeat(reverse: true);
+  }
+
+  @override
+  void dispose() {
+    _pulseCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isChecking = widget.serverHealth.isChecking &&
+        widget.serverHealth.retryCount > 0;
+    final isOffline =
+        widget.isNetworkOff || widget.serverHealth.isOffline;
+    final retryCount = widget.serverHealth.retryCount;
+
+    // Colors
+    final Color bannerColor = widget.isNetworkOff
+        ? const Color(0xFF6D1B00)
+        : isChecking
+            ? const Color(0xFF1A3A5C)
+            : const Color(0xFF7B1500);
+
+    final Color borderColor = widget.isNetworkOff
+        ? const Color(0xFFFF5722)
+        : isChecking
+            ? AppColors.primary
+            : const Color(0xFFFF3D00);
+
+    final IconData bannerIcon = widget.isNetworkOff
+        ? Icons.wifi_off_rounded
+        : isChecking
+            ? Icons.autorenew_rounded
+            : Icons.cloud_off_rounded;
+
+    final String mainText = widget.isNetworkOff
+        ? 'لا يوجد اتصال بالإنترنت'
+        : isChecking
+            ? 'جاري إعادة الاتصال بالخادم...'
+            : 'الخادم غير متاح حالياً';
+
+    final String subText = widget.isNetworkOff
+        ? 'تحقق من إعدادات الشبكة'
+        : isChecking
+            ? 'المحاولة $retryCount — يُعاد تلقائياً'
+            : 'يُعاد الاتصال تلقائياً كل ٨ ثوانٍ';
+
+    return AnimatedBuilder(
+      animation: _pulseCtrl,
+      builder: (_, __) {
+        final pulse = isOffline
+            ? 0.85 + 0.15 * math.sin(_pulseCtrl.value * math.pi)
+            : 1.0;
+        return Container(
+          width: double.infinity,
+          decoration: BoxDecoration(
+            color: bannerColor,
+            border: Border(
+              bottom: BorderSide(color: borderColor.withOpacity(0.6), width: 1),
+            ),
+          ),
+          child: Opacity(
+            opacity: pulse,
+            child: SafeArea(
+              bottom: false,
+              child: Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                child: Row(
+                  children: [
+                    // Icon (spinning if checking)
+                    isChecking
+                        ? RotationTransition(
+                            turns: _pulseCtrl,
+                            child: Icon(bannerIcon,
+                                color: AppColors.primaryLight, size: 18),
+                          )
+                        : Icon(bannerIcon, color: borderColor, size: 18),
+
+                    const SizedBox(width: 10),
+
+                    // Text
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            mainText,
+                            style: TextStyle(
+                              fontFamily: 'Cairo',
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: isChecking
+                                  ? Colors.white70
+                                  : Colors.white,
+                            ),
+                          ),
+                          Text(
+                            subText,
+                            style: const TextStyle(
+                              fontFamily: 'Cairo',
+                              fontSize: 10,
+                              color: Colors.white54,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    // Retry button (only when offline, not checking)
+                    if (isOffline && !isChecking)
+                      GestureDetector(
+                        onTap: widget.onRetry,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 5),
+                          decoration: BoxDecoration(
+                            color: borderColor.withOpacity(0.25),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                                color: borderColor.withOpacity(0.5), width: 1),
+                          ),
+                          child: const Text(
+                            'إعادة',
+                            style: TextStyle(
+                              fontFamily: 'Cairo',
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 }
