@@ -333,6 +333,13 @@ class _SplashPageState extends ConsumerState<SplashPage>
           attempt: _attempt,
           maxAttempts: _maxAttempts,
           dotController: _dotController,
+          // Show manual retry button after 5 attempts while auto-retry continues
+          onRetry: _attempt >= 5
+              ? () {
+                  setState(() => _attempt = 0);
+                  _checkServer();
+                }
+              : null,
         );
       case _ConnState.connected:
         return const _ConnectedWidget(key: ValueKey('connected'));
@@ -383,12 +390,14 @@ class _ConnectingWidget extends StatelessWidget {
   final int attempt;
   final int maxAttempts;
   final AnimationController dotController;
+  final VoidCallback? onRetry;
 
   const _ConnectingWidget({
     super.key,
     required this.attempt,
     required this.maxAttempts,
     required this.dotController,
+    this.onRetry,
   });
 
   @override
@@ -459,6 +468,32 @@ class _ConnectingWidget extends StatelessWidget {
               height: 1.4,
             ),
             textAlign: TextAlign.center,
+          ),
+        ],
+
+        // Manual retry button — appears after 5 failed attempts
+        if (onRetry != null) ...[
+          const SizedBox(height: 20),
+          OutlinedButton.icon(
+            onPressed: onRetry,
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppColors.primaryLight,
+              side: BorderSide(
+                  color: AppColors.primary.withOpacity(0.6), width: 1.5),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 28, vertical: 12),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
+            ),
+            icon: const Icon(Icons.refresh_rounded, size: 17),
+            label: const Text(
+              'إعادة المحاولة الآن',
+              style: TextStyle(
+                fontFamily: 'Cairo',
+                fontWeight: FontWeight.w700,
+                fontSize: 13,
+              ),
+            ),
           ),
         ],
       ],

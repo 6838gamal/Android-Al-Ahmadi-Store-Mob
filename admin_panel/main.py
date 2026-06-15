@@ -12,8 +12,14 @@ from datetime import datetime
 import httpx
 from urllib.parse import quote as _q
 
-# ── Backend API — رابط الـ API يُقرأ من متغير البيئة API_BASE ──────────────
-API_BASE = os.getenv("API_BASE", "https://android-al-ahmadi-store-api.onrender.com")
+# ── Backend API — يُقرأ من BACKEND_API_URL (أو API_BASE للتوافق القديم) ──────
+# لا تغيّر هذا المتغير في الكود — غيّر قيمة BACKEND_API_URL في متغيرات البيئة فقط
+_LOCKED_API_URL = "https://android-al-ahmadi-store-api.onrender.com"
+API_BASE = (
+    os.getenv("BACKEND_API_URL")
+    or os.getenv("API_BASE")
+    or _LOCKED_API_URL
+)
 
 app = FastAPI(title="لوحة إدارة اندرويد الاحمدي", docs_url=None, redoc_url=None)
 
