@@ -1,5 +1,5 @@
 import 'package:dio/dio.dart';
-import 'package:flutter/foundation.dart' show kDebugMode, kIsWeb;
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../constants/app_constants.dart';
 import '../utils/storage_service.dart';
@@ -84,14 +84,14 @@ class ApiClient {
   }
 
   /// Resolve the correct base URL.
-  /// On web: use the same origin as the page so the server.js proxy
-  /// routes /api/* to the local backend (works on Replit and self-hosted).
-  /// A compile-time --dart-define=API_BASE_URL=... override takes priority.
-  /// On mobile: always use the configured AppConstants.baseUrl.
+  /// Always uses AppConstants.baseUrl (defaults to Render.com backend).
+  /// Override at build time with --dart-define=API_BASE_URL=https://your-api.com
+  /// This works correctly on Netlify, Replit, mobile, and any future host.
   static String _resolveBase() {
     const override = String.fromEnvironment('API_BASE_URL', defaultValue: '');
     if (override.isNotEmpty) return override;
-    if (kIsWeb) return Uri.base.origin;
+    // Never use Uri.base.origin — on Netlify that resolves to the frontend
+    // domain (not the backend), causing all /api/* requests to 404.
     return AppConstants.baseUrl;
   }
 
