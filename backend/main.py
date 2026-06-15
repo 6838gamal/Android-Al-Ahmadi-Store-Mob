@@ -128,23 +128,20 @@ else:
             db.close()
     _ensure_admin_production()
 
-# CORS
+# CORS — open to any origin (JWT Bearer auth; no cookies on the API)
+# To lock down to specific origins, set ALLOWED_ORIGINS env var (comma-separated).
 _raw_origins = os.getenv("ALLOWED_ORIGINS", "")
 if _raw_origins:
     _allowed_origins = [o.strip() for o in _raw_origins.split(",") if o.strip()]
+    _allow_credentials = True
 else:
-    _replit_domain = os.getenv("REPLIT_DEV_DOMAIN", "")
-    _allowed_origins = [
-        "https://android-al-ahmadi-store-mob-1.netlify.app",
-    ]
-    if _replit_domain:
-        _allowed_origins.append(f"https://{_replit_domain}")
-    _allowed_origins.append("*")
+    _allowed_origins = ["*"]
+    _allow_credentials = False   # required by CORS spec when origins=*
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_allowed_origins,
-    allow_credentials=True,
+    allow_credentials=_allow_credentials,
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["Content-Type", "Authorization", "X-Requested-With", "Accept"],
     expose_headers=["X-Phone"],
