@@ -7,10 +7,11 @@ _DEFAULT_DB_URL = "postgresql://gamalalmaqtary:QPg3qlwP31n4QNczLjG1C3XpdXdZj29D@
 
 
 def _resolve_db_url() -> str:
-    # Priority: APP_DATABASE_URL (override) → DATABASE_URL env → Render.com default
-    url = os.getenv("APP_DATABASE_URL") or os.getenv("DATABASE_URL", "")
+    # Only APP_DATABASE_URL can override the default Render.com URL.
+    # DATABASE_URL is intentionally ignored — Replit auto-sets it to its own
+    # managed DB, but this project uses the external Render.com database.
+    url = os.getenv("APP_DATABASE_URL", "")
     if url:
-        # Normalise postgres:// → postgresql://
         if url.startswith("postgres://"):
             url = "postgresql://" + url[len("postgres://"):]
         return url
