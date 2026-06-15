@@ -1,5 +1,5 @@
 import 'package:dio/dio.dart';
-import 'package:flutter/foundation.dart' show kDebugMode;
+import 'package:flutter/foundation.dart' show kDebugMode, kIsWeb;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../constants/app_constants.dart';
 import '../utils/storage_service.dart';
@@ -84,14 +84,32 @@ class ApiClient {
   }
 
   /// Resolve the correct base URL.
-  /// Always uses AppConstants.baseUrl (defaults to Render.com backend).
-  /// Override at build time with --dart-define=API_BASE_URL=https://your-api.com
-  /// This works correctly on Netlify, Replit, mobile, and any future host.
+  ///
+  /// - Production (Netlify / custom domain): returns AppConstants.baseUrl
+  ///   (Render.com API), because the frontend and backend are on different domains.
+  /// - Dev on Replit / localhost: returns Uri.base.origin so all /api/* requests
+  ///   go through the server.js proxy → localhost:8000.
+  /// - Mobile (non-web): always returns AppConstants.baseUrl.
+  /// - Override at build time with --dart-define=API_BASE_URL=https://your-api.com
   static String _resolveBase() {
     const override = String.fromEnvironment('API_BASE_URL', defaultValue: '');
     if (override.isNotEmpty) return override;
-    // Never use Uri.base.origin — on Netlify that resolves to the frontend
-    // domain (not the backend), causing all /api/* requests to 404.
+
+    if (kIsWeb) {
+      final host = Uri.base.host;
+      // On production domains (Netlify, Render.com hosted frontend, custom domain)
+      // the backend is on a different origin — use the full Render.com URL.
+      if (host.contains('netlify.app') ||
+          host.endsWith('.onrender.com') ||
+          host.contains('alahmadi.')) {
+        return AppConstants.baseUrl;
+      }
+      // On Replit dev, localhost, or any other dev host, use the current origin.
+      // server.js proxies /api/* → localhost:8000 so this routes correctly.
+      return Uri.base.origin;
+    }
+
+    // Mobile (Android / iOS) — always use direct Render.com URL.
     return AppConstants.baseUrl;
   }
 
