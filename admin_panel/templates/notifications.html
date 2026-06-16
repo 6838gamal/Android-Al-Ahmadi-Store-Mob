@@ -51,7 +51,7 @@
             <span class="text-white font-semibold text-sm">{{ n.user.name if n.user else '—' }}</span>
           </td>
           <td class="px-5 py-3 text-gray-300 font-semibold">{{ n.title or '—' }}</td>
-          <td class="px-5 py-3 text-gray-400 max-w-[200px] truncate">{{ n.message or '—' }}</td>
+          <td class="px-5 py-3 text-gray-400 max-w-[200px] truncate">{{ n.body or '—' }}</td>
           <td class="px-5 py-3">
             {% if n.is_read %}
             <span class="badge bg-emerald-500/15 text-emerald-400">مقروء</span>
