@@ -226,6 +226,22 @@ def _logged(req: Request) -> bool:
 def _redirect_login():
     return RedirectResponse("/login", status_code=302)
 
+# ── API Status Check (used by login page JS) ────────────────────────────────────
+
+@app.get("/api-status")
+async def api_status():
+    """Check if backend API is reachable — called by login page JS before showing the form."""
+    from fastapi.responses import JSONResponse
+    try:
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            resp = await client.get(f"{API_BASE}/api/health")
+        if resp.status_code == 200:
+            return JSONResponse({"ok": True})
+        return JSONResponse({"ok": False, "reason": f"HTTP {resp.status_code}"}, status_code=200)
+    except Exception as e:
+        return JSONResponse({"ok": False, "reason": str(e)[:120]}, status_code=200)
+
+
 # ── Auth ────────────────────────────────────────────────────────────────────────
 
 @app.get("/", response_class=HTMLResponse)
