@@ -216,7 +216,7 @@ def login(login_data: UserLogin, request: Request, db: Session = Depends(get_db)
         if staff_exists:
             raise HTTPException(
                 status_code=401,
-                detail="هذا الرقم مسجّل كموظف — استخدم تاب «موظف» لتسجيل الدخول، أو أنشئ حساب عميل جديد بنفس الرقم",
+                detail="لا يوجد عميل مسجّل بهذا الرقم",
             )
         raise HTTPException(
             status_code=401,
