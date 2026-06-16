@@ -67,8 +67,8 @@ app.add_middleware(
     SessionMiddleware,
     secret_key=os.getenv("SECRET_KEY", "admin-alahmadi-panel-secret-2026"),
     max_age=86400,
-    https_only=False,
-    same_site="lax",
+    https_only=True,
+    same_site="none",
 )
 
 UPLOAD_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "uploads")
@@ -213,6 +213,22 @@ async def login_page(request: Request):
     return templates.TemplateResponse(request, "login.html", {"error": None})
 
 
+def _js_redirect(dest: str) -> HTMLResponse:
+    """Return a 200 HTML page that immediately navigates to dest via JS.
+    Avoids 303 redirect chains which can lose cookies in some proxy setups."""
+    return HTMLResponse(f"""<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="refresh" content="0;url={dest}">
+  <script>window.location.replace({dest!r})</script>
+  <style>body{{background:#0D1117;color:#e6edf3;font-family:sans-serif;
+    display:flex;align-items:center;justify-content:center;height:100vh;margin:0}}</style>
+</head>
+<body><p>جارٍ التحويل…</p></body>
+</html>""")
+
+
 @app.post("/login", response_class=HTMLResponse)
 async def login_post(request: Request, identifier: str = Form(...), password: str = Form(...)):
     identifier = identifier.strip()
@@ -236,13 +252,17 @@ async def login_post(request: Request, identifier: str = Form(...), password: st
             if resp.status_code in (200, 201):
                 data = resp.json()
                 user_data = data.get("user", {})
-                if user_data.get("role") == "admin":
+                if user_data.get("role") in ("admin", "branch_manager"):
                     request.session["admin_id"]   = user_data.get("id")
                     request.session["admin_name"] = user_data.get("name", "المدير")
                     request.session["token"]      = data.get("access_token")
-                    return RedirectResponse("/dashboard", status_code=303)
+                    # Return 200 + JS redirect — avoids 303 chain losing cookie in proxy
+                    # If request came from Node proxy (127.0.0.1) → prefix with /admin-panel
+                    via_proxy = request.client and request.client.host == "127.0.0.1"
+                    dest = "/admin-panel/dashboard" if via_proxy else "/dashboard"
+                    return _js_redirect(dest)
         except httpx.TimeoutException:
-            print(f"[login] TIMEOUT connecting to Render.com API")
+            print(f"[login] TIMEOUT connecting to API")
             return templates.TemplateResponse(request, "login.html",
                 {"error": "⏳ الخادم في وضع الاستعداد ويستيقظ الآن — أعد المحاولة خلال 30 ثانية."})
         except Exception as e:
@@ -251,6 +271,12 @@ async def login_post(request: Request, identifier: str = Form(...), password: st
                 {"error": "تعذّر الاتصال بالخادم. تحقق من اتصالك وأعد المحاولة."})
     return templates.TemplateResponse(request, "login.html",
                                       {"error": "بيانات الدخول غير صحيحة. تحقق من البريد وكلمة المرور."})
+
+
+@app.post("/dashboard", response_class=HTMLResponse)
+async def dashboard_post(request: Request):
+    """Catch accidental POST to /dashboard (e.g. proxy redirect re-POST) → redirect to GET."""
+    return RedirectResponse("/dashboard", status_code=303)
 
 
 @app.get("/logout")
