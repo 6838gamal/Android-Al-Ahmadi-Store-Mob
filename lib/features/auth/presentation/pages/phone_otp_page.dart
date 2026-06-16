@@ -51,9 +51,6 @@ class _OtpState {
 /// PhoneOtpPage — dual-purpose:
 ///   mode='verify'  → verifies current user's phone after registration
 ///   mode='login'   → login via OTP without password
-///
-/// Firebase is temporarily disabled. Uses backend /auth/send-otp and
-/// /auth/verify-otp instead. The OTP code is printed to the server console.
 class PhoneOtpPage extends ConsumerStatefulWidget {
   final String mode;
   final String? prefilledPhone;
@@ -74,9 +71,10 @@ class _PhoneOtpPageState extends ConsumerState<PhoneOtpPage> {
   _OtpState _s = const _OtpState();
 
   final _phoneCtrl = TextEditingController();
-  final List<TextEditingController> _digitCtrls =
-      List.generate(6, (_) => TextEditingController());
-  final List<FocusNode> _foci = List.generate(6, (_) => FocusNode());
+
+  // Single controller for the entire 6-digit OTP (enables autofill + paste)
+  final _codeCtrl = TextEditingController();
+  final _codeFocus = FocusNode();
 
   Timer? _timer;
 
@@ -85,7 +83,6 @@ class _PhoneOtpPageState extends ConsumerState<PhoneOtpPage> {
     super.initState();
     if (widget.prefilledPhone != null) {
       _phoneCtrl.text = widget.prefilledPhone!;
-      // Auto-send OTP when coming from registration
       Future.delayed(const Duration(milliseconds: 600), () {
         if (mounted) _sendOtp();
       });
@@ -96,12 +93,12 @@ class _PhoneOtpPageState extends ConsumerState<PhoneOtpPage> {
   void dispose() {
     _timer?.cancel();
     _phoneCtrl.dispose();
-    for (final c in _digitCtrls) c.dispose();
-    for (final f in _foci) f.dispose();
+    _codeCtrl.dispose();
+    _codeFocus.dispose();
     super.dispose();
   }
 
-  String get _fullCode => _digitCtrls.map((c) => c.text).join();
+  String get _fullCode => _codeCtrl.text.trim();
 
   String _formatPhone(String raw) {
     raw = raw.trim().replaceAll(' ', '').replaceAll('-', '');
@@ -157,7 +154,7 @@ class _PhoneOtpPageState extends ConsumerState<PhoneOtpPage> {
     try {
       final res = await api.post('/auth/send-otp', data: {'phone': phone});
       if (!mounted) return;
-      for (final c in _digitCtrls) c.clear();
+      _codeCtrl.clear();
       setState(() => _s = _s.copyWith(
             loading: false,
             step: _OtpStep.enterCode,
@@ -166,7 +163,7 @@ class _PhoneOtpPageState extends ConsumerState<PhoneOtpPage> {
           ));
       _startTimer();
       Future.delayed(const Duration(milliseconds: 300),
-          () { if (mounted) _foci[0].requestFocus(); });
+          () { if (mounted) _codeFocus.requestFocus(); });
 
       // Dev mode: show OTP in a copyable popup
       final devCode = res.data['dev_code'];
@@ -347,13 +344,28 @@ class _PhoneOtpPageState extends ConsumerState<PhoneOtpPage> {
                   )
                 : _CodeStep(
                     phone: _s.phone ?? '',
-                    ctrls: _digitCtrls,
-                    foci: _foci,
+                    codeCtrl: _codeCtrl,
+                    codeFocus: _codeFocus,
                     loading: _s.loading,
                     error: _s.error,
                     resendSeconds: _s.resendSeconds,
                     onVerify: _verifyOtp,
                     onResend: _sendOtp,
+                    onCodeChanged: (v) {
+                      // Keep only digits, max 6
+                      final digits = v.replaceAll(RegExp(r'\D'), '');
+                      if (digits.length > 6) {
+                        _codeCtrl.text = digits.substring(0, 6);
+                        _codeCtrl.selection = TextSelection.collapsed(
+                            offset: _codeCtrl.text.length);
+                      }
+                      setState(() => _s = _s.copyWith(clearError: true));
+                      // Auto-submit when 6 digits entered
+                      if (digits.length == 6 && !_s.loading) {
+                        Future.delayed(const Duration(milliseconds: 80),
+                            () { if (mounted) _verifyOtp(); });
+                      }
+                    },
                   ),
           ),
         ),
@@ -542,26 +554,54 @@ class _PhoneStep extends StatelessWidget {
 
 // ─── Step 2: Code input ───────────────────────────────────────────────────────
 
-class _CodeStep extends StatelessWidget {
+/// Uses a single hidden TextField (autofill-compatible) overlaid under 6
+/// decorative display boxes. Supports SMS OTP autofill, paste, and
+/// manual digit-by-digit entry.
+class _CodeStep extends StatefulWidget {
   final String phone;
-  final List<TextEditingController> ctrls;
-  final List<FocusNode> foci;
+  final TextEditingController codeCtrl;
+  final FocusNode codeFocus;
   final bool loading;
   final String? error;
   final int resendSeconds;
   final VoidCallback onVerify;
   final VoidCallback onResend;
+  final ValueChanged<String> onCodeChanged;
 
   const _CodeStep({
     required this.phone,
-    required this.ctrls,
-    required this.foci,
+    required this.codeCtrl,
+    required this.codeFocus,
     required this.loading,
     required this.error,
     required this.resendSeconds,
     required this.onVerify,
     required this.onResend,
+    required this.onCodeChanged,
   });
+
+  @override
+  State<_CodeStep> createState() => _CodeStepState();
+}
+
+class _CodeStepState extends State<_CodeStep> {
+  bool _isFocused = false;
+
+  @override
+  void initState() {
+    super.initState();
+    widget.codeFocus.addListener(_onFocusChange);
+  }
+
+  @override
+  void dispose() {
+    widget.codeFocus.removeListener(_onFocusChange);
+    super.dispose();
+  }
+
+  void _onFocusChange() {
+    if (mounted) setState(() => _isFocused = widget.codeFocus.hasFocus);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -593,7 +633,7 @@ class _CodeStep extends StatelessWidget {
             .fadeIn(),
 
         const SizedBox(height: 8),
-        Text('تم إرسال رمز التحقق إلى\n$phone',
+        Text('تم إرسال رمز التحقق إلى\n${widget.phone}',
                 textAlign: TextAlign.center,
                 style: const TextStyle(
                     fontFamily: 'Cairo',
@@ -604,23 +644,66 @@ class _CodeStep extends StatelessWidget {
 
         const SizedBox(height: 32),
 
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: List.generate(
-              6,
-              (i) => _OtpBox(
-                    ctrl: ctrls[i],
-                    focus: foci[i],
-                    nextFocus: i < 5 ? foci[i + 1] : null,
-                    prevFocus: i > 0 ? foci[i - 1] : null,
-                    isLast: i == 5,
-                    onComplete: i == 5 ? onVerify : null,
-                  )),
-        ).animate(delay: 140.ms).fadeIn(),
+        // ── OTP input: hidden field + 6 display boxes ──────────────────────
+        GestureDetector(
+          onTap: () => widget.codeFocus.requestFocus(),
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              // Hidden TextField — captures input, enables autofill & paste
+              SizedBox(
+                width: 1,
+                height: 1,
+                child: Opacity(
+                  opacity: 0,
+                  child: AutofillGroup(
+                    child: TextField(
+                      controller: widget.codeCtrl,
+                      focusNode: widget.codeFocus,
+                      autofillHints: const [AutofillHints.oneTimeCode],
+                      keyboardType: TextInputType.number,
+                      maxLength: 6,
+                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                      onChanged: widget.onCodeChanged,
+                      decoration: const InputDecoration(
+                        border: InputBorder.none,
+                        counterText: '',
+                      ),
+                    ),
+                  ),
+                ),
+              ),
 
-        if (error != null) ...[
+              // 6 decorative display boxes
+              ValueListenableBuilder<TextEditingValue>(
+                valueListenable: widget.codeCtrl,
+                builder: (ctx, value, _) {
+                  final digits = value.text.padRight(6);
+                  return Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: List.generate(6, (i) {
+                      final char = digits[i] == ' ' ? '' : digits[i];
+                      final isActive = _isFocused &&
+                          (value.text.length == i ||
+                              (i == 5 && value.text.length >= 5));
+                      final isFilled = char.isNotEmpty;
+                      return _OtpDigitBox(
+                        digit: char,
+                        isActive: isActive,
+                        isFilled: isFilled,
+                      );
+                    }),
+                  );
+                },
+              ),
+            ],
+          ),
+        ).animate(delay: 140.ms).fadeIn(),
+        // ───────────────────────────────────────────────────────────────────
+
+        if (widget.error != null) ...[
           const SizedBox(height: 14),
-          _ErrorBox(error!),
+          _ErrorBox(widget.error!),
         ],
 
         const SizedBox(height: 28),
@@ -628,7 +711,7 @@ class _CodeStep extends StatelessWidget {
         SizedBox(
           width: double.infinity,
           child: ElevatedButton.icon(
-            onPressed: loading ? null : onVerify,
+            onPressed: widget.loading ? null : widget.onVerify,
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.success,
               padding: const EdgeInsets.symmetric(vertical: 15),
@@ -636,7 +719,7 @@ class _CodeStep extends StatelessWidget {
                   borderRadius: BorderRadius.circular(14)),
               elevation: 0,
             ),
-            icon: loading
+            icon: widget.loading
                 ? const SizedBox(
                     width: 18,
                     height: 18,
@@ -645,7 +728,7 @@ class _CodeStep extends StatelessWidget {
                 : const Icon(Icons.verified_outlined,
                     color: Colors.white, size: 18),
             label: Text(
-                loading ? 'جارٍ التحقق...' : 'تأكيد الرمز',
+                widget.loading ? 'جارٍ التحقق...' : 'تأكيد الرمز',
                 style: const TextStyle(
                     fontFamily: 'Cairo',
                     fontWeight: FontWeight.w700,
@@ -656,14 +739,14 @@ class _CodeStep extends StatelessWidget {
 
         const SizedBox(height: 18),
 
-        resendSeconds > 0
-            ? Text('إعادة الإرسال بعد ${resendSeconds}ث',
+        widget.resendSeconds > 0
+            ? Text('إعادة الإرسال بعد ${widget.resendSeconds}ث',
                 style: const TextStyle(
                     fontFamily: 'Cairo',
                     color: AppColors.textMuted,
                     fontSize: 13))
             : TextButton.icon(
-                onPressed: onResend,
+                onPressed: widget.onResend,
                 icon: const Icon(Icons.refresh,
                     color: AppColors.primary, size: 16),
                 label: const Text('إعادة إرسال الرمز',
@@ -673,6 +756,118 @@ class _CodeStep extends StatelessWidget {
                         fontWeight: FontWeight.w700)),
               ),
       ],
+    );
+  }
+}
+
+// ─── OTP digit display box ────────────────────────────────────────────────────
+
+/// Pure display widget — no TextField inside.
+/// Shows the digit (or a blinking cursor when active & empty).
+class _OtpDigitBox extends StatelessWidget {
+  final String digit;
+  final bool isActive;
+  final bool isFilled;
+
+  const _OtpDigitBox({
+    required this.digit,
+    required this.isActive,
+    required this.isFilled,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final Color borderColor;
+    if (isActive) {
+      borderColor = AppColors.primary;
+    } else if (isFilled) {
+      borderColor = AppColors.success.withOpacity(0.7);
+    } else {
+      borderColor = AppColors.darkBorder;
+    }
+
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 180),
+      width: 46,
+      height: 56,
+      margin: const EdgeInsets.symmetric(horizontal: 4),
+      decoration: BoxDecoration(
+        color: isFilled
+            ? AppColors.darkCard.withOpacity(0.95)
+            : AppColors.darkCard,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: borderColor,
+          width: isActive ? 2.0 : 1.5,
+        ),
+        boxShadow: isActive
+            ? [
+                BoxShadow(
+                  color: AppColors.primary.withOpacity(0.25),
+                  blurRadius: 8,
+                  spreadRadius: 1,
+                )
+              ]
+            : null,
+      ),
+      child: Center(
+        child: digit.isNotEmpty
+            ? Text(
+                digit,
+                style: const TextStyle(
+                  fontFamily: 'Cairo',
+                  color: Colors.white,
+                  fontSize: 22,
+                  fontWeight: FontWeight.w800,
+                ),
+              )
+            : isActive
+                ? _BlinkingCursor()
+                : const SizedBox.shrink(),
+      ),
+    );
+  }
+}
+
+// ─── Blinking cursor ──────────────────────────────────────────────────────────
+
+class _BlinkingCursor extends StatefulWidget {
+  @override
+  State<_BlinkingCursor> createState() => _BlinkingCursorState();
+}
+
+class _BlinkingCursorState extends State<_BlinkingCursor>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+  late final Animation<double> _anim;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 600));
+    _anim = Tween<double>(begin: 1, end: 0).animate(_ctrl);
+    _ctrl.repeat(reverse: true);
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FadeTransition(
+      opacity: _anim,
+      child: Container(
+        width: 2,
+        height: 24,
+        decoration: BoxDecoration(
+          color: AppColors.primary,
+          borderRadius: BorderRadius.circular(1),
+        ),
+      ),
     );
   }
 }
@@ -705,66 +900,6 @@ class _ErrorBox extends StatelessWidget {
                     fontSize: 13)),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _OtpBox extends StatelessWidget {
-  final TextEditingController ctrl;
-  final FocusNode focus;
-  final FocusNode? nextFocus;
-  final FocusNode? prevFocus;
-  final bool isLast;
-  final VoidCallback? onComplete;
-
-  const _OtpBox({
-    required this.ctrl,
-    required this.focus,
-    this.nextFocus,
-    this.prevFocus,
-    this.isLast = false,
-    this.onComplete,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 44,
-      height: 54,
-      margin: const EdgeInsets.symmetric(horizontal: 3),
-      decoration: BoxDecoration(
-        color: AppColors.darkCard,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.darkBorder, width: 1.5),
-      ),
-      child: TextField(
-        controller: ctrl,
-        focusNode: focus,
-        textAlign: TextAlign.center,
-        keyboardType: TextInputType.number,
-        maxLength: 1,
-        inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-        style: const TextStyle(
-            fontFamily: 'Cairo',
-            color: Colors.white,
-            fontSize: 20,
-            fontWeight: FontWeight.w700),
-        decoration: const InputDecoration(
-          border: InputBorder.none,
-          counterText: '',
-        ),
-        onChanged: (v) {
-          if (v.length == 1) {
-            if (nextFocus != null) {
-              nextFocus!.requestFocus();
-            } else if (isLast && onComplete != null) {
-              onComplete!();
-            }
-          } else if (v.isEmpty && prevFocus != null) {
-            prevFocus!.requestFocus();
-          }
-        },
       ),
     );
   }
