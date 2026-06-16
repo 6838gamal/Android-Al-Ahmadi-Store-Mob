@@ -674,25 +674,28 @@ class _CodeStepState extends State<_CodeStep> {
                 ),
               ),
 
-              // 6 decorative display boxes
+              // 6 decorative display boxes — forced LTR so digit[0] is always leftmost
               ValueListenableBuilder<TextEditingValue>(
                 valueListenable: widget.codeCtrl,
                 builder: (ctx, value, _) {
                   final digits = value.text.padRight(6);
-                  return Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: List.generate(6, (i) {
-                      final char = digits[i] == ' ' ? '' : digits[i];
-                      final isActive = _isFocused &&
-                          (value.text.length == i ||
-                              (i == 5 && value.text.length >= 5));
-                      final isFilled = char.isNotEmpty;
-                      return _OtpDigitBox(
-                        digit: char,
-                        isActive: isActive,
-                        isFilled: isFilled,
-                      );
-                    }),
+                  return Directionality(
+                    textDirection: TextDirection.ltr,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: List.generate(6, (i) {
+                        final char = digits[i] == ' ' ? '' : digits[i];
+                        final isActive = _isFocused &&
+                            (value.text.length == i ||
+                                (i == 5 && value.text.length >= 5));
+                        final isFilled = char.isNotEmpty;
+                        return _OtpDigitBox(
+                          digit: char,
+                          isActive: isActive,
+                          isFilled: isFilled,
+                        );
+                      }),
+                    ),
                   );
                 },
               ),

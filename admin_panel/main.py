@@ -14,31 +14,13 @@ import httpx
 from urllib.parse import quote as _q
 from contextlib import asynccontextmanager
 
-# ── Backend API — Render.com only ──────────────────────────────────────────────
-API_BASE = "https://android-al-ahmadi-store-api.onrender.com"
-
-
-async def _wake_up_api():
-    """Ping the backend API on startup so Render.com wakes up before the first user request.
-    Retries up to 5 times with 10-second gaps — Render.com free tier can take ~50s to wake."""
-    for attempt in range(1, 6):
-        try:
-            async with httpx.AsyncClient(timeout=60.0) as client:
-                resp = await client.get(f"{API_BASE}/api/health")
-            print(f"[startup] ✅ API awake (attempt {attempt}) → HTTP {resp.status_code}")
-            return
-        except asyncio.CancelledError:
-            return
-        except Exception as e:
-            print(f"[startup] API ping attempt {attempt}/5 failed: {type(e).__name__}: {e}")
-            if attempt < 5:
-                await asyncio.sleep(10)
-    print("[startup] API did not respond after 5 attempts — will connect on first request")
+# ── Backend API — local backend (port 8000) ────────────────────────────────────
+# Uses BACKEND_API_URL env var if set; otherwise defaults to the local backend.
+API_BASE = os.getenv("BACKEND_API_URL", "http://127.0.0.1:8000").rstrip("/")
 
 
 @asynccontextmanager
 async def _lifespan(app: FastAPI):
-    asyncio.ensure_future(_wake_up_api())
     yield
 
 

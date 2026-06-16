@@ -1,26 +1,15 @@
 ---
 name: Admin panel API architecture
-description: Admin panel now calls Render.com API (not SQLAlchemy); architectural decisions and gotchas
+description: Admin panel calls LOCAL backend (port 8000), not Render.com; uses to_obj() helper for SimpleNamespace
 ---
 
-**Rule:** `admin_panel/main.py` calls `https://android-al-ahmadi-store-api.onrender.com` for ALL data — no SQLAlchemy, no direct DB connection.
+**Rule:** `admin_panel/main.py` `API_BASE` now reads from `BACKEND_API_URL` env var, defaulting to `http://127.0.0.1:8000` (local backend).
 
-**Why:** The PostgreSQL database is only reliably accessible through the Render.com backend. The admin panel's local SQLAlchemy connection was showing empty data (or connecting to the wrong DB). Making the admin panel an API client (like Flutter) ensures both apps see the same live data.
+**Why changed:** Originally hardcoded to Render.com API. In Replit all services run locally, so settings saved via admin panel were going to Render.com DB while local backend read from the same Render.com PostgreSQL — but the JWT tokens signed with the local SECRET_KEY were rejected by Render.com API (different secret), causing settings saves to silently fail. Fix: admin panel now calls local backend, which reads from APP_DATABASE_URL (shared Render.com PostgreSQL).
 
 **How to apply:**
 - All routes use `await api(method, path, token=_token(request), ...)` helper (httpx)
 - API dicts are converted to attribute-accessible objects via `to_obj()` (SimpleNamespace recursively)
 - Datetime strings ending in `_at`, `expires_at`, etc. are auto-parsed to `datetime` objects in `to_obj()`
 - Token from session (`request.session["token"]`) is passed as `Authorization: Bearer` header
-
-**New backend endpoints added (require redeploy to Render.com):**
-- `GET/POST /api/customers/` — customer CRUD (search, add)
-- `POST /api/customers/{id}/toggle-active` — toggle customer active
-- `DELETE /api/customers/{id}` — delete customer
-- `GET/POST/PUT/DELETE /api/staff/` — full staff management
-- `POST /api/staff/{id}/toggle-active`
-- `GET /api/notifications/all` — admin sees all notifications (limit 300)
-- `DELETE /api/notifications/{id}` — delete notification
-- `PUT /api/reservations/{id}/complete` — complete a reservation
-
-**Render.com free tier note:** Sleeps after ~15min inactivity. First request wakes it up (30–60s). This is expected; the login shows an error if Render.com is sleeping and takes too long.
+- If deploying admin panel separately from the local backend, set `BACKEND_API_URL` env var to the target API URL
