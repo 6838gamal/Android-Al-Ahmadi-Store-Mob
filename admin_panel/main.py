@@ -9,8 +9,10 @@ from starlette.middleware.sessions import SessionMiddleware
 from typing import Optional
 from types import SimpleNamespace
 from datetime import datetime
+import asyncio
 import httpx
 from urllib.parse import quote as _q
+from contextlib import asynccontextmanager
 
 # ── Backend API — يُقرأ من BACKEND_API_URL (أو API_BASE للتوافق القديم) ──────
 # لا تغيّر هذا المتغير في الكود — غيّر قيمة BACKEND_API_URL في متغيرات البيئة فقط
@@ -21,7 +23,32 @@ API_BASE = (
     or _LOCKED_API_URL
 )
 
-app = FastAPI(title="لوحة إدارة اندرويد الاحمدي", docs_url=None, redoc_url=None)
+
+async def _wake_up_api():
+    """Ping the backend API on startup so Render.com wakes up before the first user request.
+    Retries up to 5 times with 10-second gaps — Render.com free tier can take ~50s to wake."""
+    for attempt in range(1, 6):
+        try:
+            async with httpx.AsyncClient(timeout=60.0) as client:
+                resp = await client.get(f"{API_BASE}/api/health")
+            print(f"[startup] ✅ API awake (attempt {attempt}) → HTTP {resp.status_code}")
+            return
+        except asyncio.CancelledError:
+            return
+        except Exception as e:
+            print(f"[startup] API ping attempt {attempt}/5 failed: {type(e).__name__}: {e}")
+            if attempt < 5:
+                await asyncio.sleep(10)
+    print("[startup] API did not respond after 5 attempts — will connect on first request")
+
+
+@asynccontextmanager
+async def _lifespan(app: FastAPI):
+    asyncio.ensure_future(_wake_up_api())
+    yield
+
+
+app = FastAPI(title="لوحة إدارة اندرويد الاحمدي", docs_url=None, redoc_url=None, lifespan=_lifespan)
 
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
