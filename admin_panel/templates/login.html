@@ -11,10 +11,9 @@
     * { font-family: 'Cairo', sans-serif; }
     body { background: #0D1117; }
 
-    /* Spinner */
     .spinner {
-      width: 52px; height: 52px;
-      border: 4px solid rgba(255,255,255,0.08);
+      width: 56px; height: 56px;
+      border: 4px solid rgba(255,255,255,0.07);
       border-top-color: #7B1FA2;
       border-right-color: #1A73E8;
       border-radius: 50%;
@@ -22,21 +21,23 @@
     }
     @keyframes spin { to { transform: rotate(360deg); } }
 
-    /* Dot pulse */
-    .dot { width: 8px; height: 8px; border-radius: 50%; background: #4B5563; animation: pulse 1.4s ease-in-out infinite; }
-    .dot:nth-child(2) { animation-delay: .2s; }
-    .dot:nth-child(3) { animation-delay: .4s; }
-    @keyframes pulse { 0%,80%,100% { transform:scale(.8); background:#4B5563; } 40% { transform:scale(1.2); background:#7B1FA2; } }
+    .dot { width: 8px; height: 8px; border-radius: 50%; background: #374151; animation: dotpulse 1.4s ease-in-out infinite; }
+    .dot:nth-child(2) { animation-delay: .22s; }
+    .dot:nth-child(3) { animation-delay: .44s; }
+    @keyframes dotpulse {
+      0%,80%,100% { transform: scale(.75); background: #374151; }
+      40% { transform: scale(1.25); background: #7B1FA2; }
+    }
 
-    /* Fade transitions */
-    #connect-screen, #login-screen { transition: opacity .4s ease; }
-    .hidden-fade { opacity: 0; pointer-events: none; position: absolute; top: 0; left: 0; width: 100%; }
+    #progress-bar-inner { transition: width .4s ease; }
+
+    #login-screen { display: none; }
   </style>
 </head>
 <body class="min-h-screen flex items-center justify-center p-4">
-  <div class="w-full max-w-md relative">
+  <div class="w-full max-w-md">
 
-    <!-- Logo (shared) -->
+    <!-- Logo -->
     <div class="text-center mb-8">
       <div class="inline-flex items-center justify-center w-20 h-20 rounded-2xl mb-4"
            style="background: linear-gradient(135deg,#7B1FA2,#1A73E8)">
@@ -47,42 +48,53 @@
     </div>
 
     <!-- ── شاشة الاتصال ── -->
-    <div id="connect-screen" class="bg-[#161B22] border border-[#2D3748] rounded-2xl p-8">
+    <div id="connect-screen">
+      <div class="bg-[#161B22] border border-[#2D3748] rounded-2xl p-8">
 
-      <!-- حالة: جاري الاتصال -->
-      <div id="state-connecting" class="flex flex-col items-center gap-5 py-4">
-        <div class="spinner"></div>
-        <p class="text-white font-bold text-lg">جاري الاتصال بالخادم…</p>
-        <p class="text-gray-500 text-sm text-center">نتحقق من الاتصال قبل فتح صفحة الدخول</p>
-        <div class="flex gap-2 mt-1">
-          <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+        <!-- حالة: جاري المحاولة -->
+        <div id="state-trying" class="flex flex-col items-center gap-5 py-2">
+          <div class="spinner"></div>
+          <div class="text-center">
+            <p class="text-white font-bold text-lg">جاري الاتصال بالخادم…</p>
+            <p id="attempt-label" class="text-gray-500 text-sm mt-1">المحاولة 1 من 10</p>
+          </div>
+
+          <!-- شريط التقدم -->
+          <div class="w-full bg-[#1C2230] rounded-full h-1.5 overflow-hidden">
+            <div id="progress-bar-inner" class="h-full rounded-full w-0"
+                 style="background: linear-gradient(90deg,#7B1FA2,#1A73E8)"></div>
+          </div>
+
+          <div class="flex gap-2">
+            <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+          </div>
         </div>
-      </div>
 
-      <!-- حالة: فشل الاتصال -->
-      <div id="state-failed" class="hidden flex-col items-center gap-5 py-4">
-        <div class="w-14 h-14 rounded-full bg-red-500/10 flex items-center justify-center">
-          <i class="fa-solid fa-triangle-exclamation text-red-400 text-2xl"></i>
+        <!-- حالة: فشل بعد 10 محاولات -->
+        <div id="state-failed" class="hidden flex-col items-center gap-5 py-2">
+          <div class="w-14 h-14 rounded-full bg-red-500/10 flex items-center justify-center">
+            <i class="fa-solid fa-triangle-exclamation text-red-400 text-2xl"></i>
+          </div>
+          <div class="text-center">
+            <p class="text-white font-bold text-lg">تعذّر الاتصال بالخادم</p>
+            <p class="text-gray-500 text-sm mt-1">فشلت 10 محاولات — الخادم لا يستجيب حالياً</p>
+          </div>
+          <button onclick="startRetryLoop()"
+            class="px-7 py-3 rounded-xl text-white font-bold text-sm transition hover:opacity-90 active:scale-95 flex items-center gap-2"
+            style="background: linear-gradient(135deg,#7B1FA2,#1A73E8)">
+            <i class="fa-solid fa-rotate-right"></i> إعادة المحاولة
+          </button>
+          <button onclick="showLogin()"
+            class="text-gray-500 text-xs underline hover:text-gray-300 transition">
+            الدخول على أي حال
+          </button>
         </div>
-        <p class="text-white font-bold text-lg">تعذّر الاتصال بالخادم</p>
-        <p id="fail-reason" class="text-gray-500 text-sm text-center">
-          الخادم لا يستجيب، قد يكون في وضع الاستعداد
-        </p>
-        <button onclick="startCheck()"
-          class="mt-2 px-6 py-3 rounded-xl text-white font-bold text-sm transition hover:opacity-90 active:scale-95 flex items-center gap-2"
-          style="background: linear-gradient(135deg,#7B1FA2,#1A73E8)">
-          <i class="fa-solid fa-rotate-right"></i> إعادة المحاولة
-        </button>
-        <button onclick="showLogin()"
-          class="text-gray-500 text-xs underline hover:text-gray-300 transition">
-          الدخول على أي حال
-        </button>
-      </div>
 
+      </div>
     </div>
 
-    <!-- ── شاشة تسجيل الدخول ── -->
-    <div id="login-screen" class="hidden-fade">
+    <!-- ── نموذج تسجيل الدخول ── -->
+    <div id="login-screen">
       <div class="bg-[#161B22] border border-[#2D3748] rounded-2xl p-8">
         <h2 class="text-white text-xl font-bold mb-6 text-center">تسجيل الدخول</h2>
 
@@ -98,7 +110,7 @@
             <label class="text-gray-400 text-sm font-semibold mb-2 block">البريد الإلكتروني أو رقم الجوال</label>
             <div class="relative">
               <i class="fa-solid fa-user absolute top-1/2 -translate-y-1/2 right-4 text-gray-500"></i>
-              <input type="text" name="identifier" placeholder="admin@alahmadi.com" required
+              <input type="text" name="identifier" placeholder="admin@alahmadi.com" required autofocus
                 class="w-full bg-[#1C2230] border border-[#2D3748] text-white placeholder-gray-600 rounded-xl py-3 px-4 pr-11 text-sm outline-none focus:border-blue-500 transition">
             </div>
           </div>
@@ -123,62 +135,79 @@
   </div>
 
   <script>
-    // Resolve the correct /api-status URL whether we're under /admin-panel prefix or not
-    const _base = location.pathname.startsWith('/admin-panel') ? '/admin-panel' : '';
-    const STATUS_URL = _base + '/api-status';
+    const MAX_ATTEMPTS = 10;
+    const BASE_URL = location.pathname.startsWith('/admin-panel') ? '/admin-panel' : '';
+    const STATUS_URL = BASE_URL + '/api-status';
 
-    function showLogin() {
-      const cs = document.getElementById('connect-screen');
-      const ls = document.getElementById('login-screen');
-      cs.style.opacity = '0';
-      cs.style.pointerEvents = 'none';
-      setTimeout(() => {
-        cs.style.display = 'none';
-        ls.classList.remove('hidden-fade');
-        ls.style.opacity = '0';
-        ls.style.position = 'relative';
-        requestAnimationFrame(() => { ls.style.opacity = '1'; });
-      }, 350);
-    }
+    let _stopped = false;
 
     function setState(name) {
-      ['connecting', 'failed'].forEach(s => {
-        const el = document.getElementById('state-' + s);
-        if (s === name) {
-          el.classList.remove('hidden');
-          el.style.display = 'flex';
-        } else {
-          el.classList.add('hidden');
-          el.style.display = 'none';
-        }
+      ['trying', 'failed'].forEach(id => {
+        const el = document.getElementById('state-' + id);
+        el.style.display = (id === name) ? 'flex' : 'none';
+        el.classList.toggle('hidden', id !== name);
       });
     }
 
-    async function startCheck() {
-      setState('connecting');
+    function showLogin() {
+      _stopped = true;
+      document.getElementById('connect-screen').style.display = 'none';
+      const ls = document.getElementById('login-screen');
+      ls.style.display = 'block';
+      ls.style.opacity = '0';
+      requestAnimationFrame(() => {
+        ls.style.transition = 'opacity .35s ease';
+        ls.style.opacity = '1';
+      });
+    }
+
+    function setProgress(attempt) {
+      const pct = Math.round((attempt / MAX_ATTEMPTS) * 100);
+      document.getElementById('progress-bar-inner').style.width = pct + '%';
+      document.getElementById('attempt-label').textContent =
+        'المحاولة ' + attempt + ' من ' + MAX_ATTEMPTS;
+    }
+
+    async function tryOnce() {
       try {
-        const res  = await fetch(STATUS_URL, { cache: 'no-store' });
-        const data = await res.json();
-        if (data.ok) {
-          showLogin();
-        } else {
-          document.getElementById('fail-reason').textContent =
-            data.reason || 'الخادم لا يستجيب، قد يكون في وضع الاستعداد';
-          setState('failed');
-        }
-      } catch (e) {
-        document.getElementById('fail-reason').textContent =
-          'تعذّر الوصول إلى الخادم — تحقق من الاتصال بالإنترنت';
-        setState('failed');
+        const ctrl = new AbortController();
+        const tid   = setTimeout(() => ctrl.abort(), 15000); // 15s per attempt
+        const res   = await fetch(STATUS_URL, { cache: 'no-store', signal: ctrl.signal });
+        clearTimeout(tid);
+        const data  = await res.json();
+        return data.ok === true;
+      } catch (_) {
+        return false;
       }
     }
 
+    async function startRetryLoop() {
+      _stopped = false;
+      setState('trying');
+      setProgress(1);
+
+      for (let i = 1; i <= MAX_ATTEMPTS; i++) {
+        if (_stopped) return;
+        setProgress(i);
+
+        const ok = await tryOnce();
+        if (ok) { showLogin(); return; }
+
+        if (i < MAX_ATTEMPTS) {
+          // wait 3s before next attempt
+          await new Promise(r => setTimeout(r, 3000));
+        }
+      }
+
+      // All attempts exhausted
+      setState('failed');
+    }
+
     {% if error %}
-    // Login already attempted and returned an error — skip connection check
+    // Already attempted login — skip connection check, go straight to form
     showLogin();
     {% else %}
-    // Start connection check on page load
-    startCheck();
+    startRetryLoop();
     {% endif %}
   </script>
 </body>

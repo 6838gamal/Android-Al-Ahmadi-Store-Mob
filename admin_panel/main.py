@@ -14,14 +14,8 @@ import httpx
 from urllib.parse import quote as _q
 from contextlib import asynccontextmanager
 
-# ── Backend API — يُقرأ من BACKEND_API_URL (أو API_BASE للتوافق القديم) ──────
-# لا تغيّر هذا المتغير في الكود — غيّر قيمة BACKEND_API_URL في متغيرات البيئة فقط
-_LOCKED_API_URL = "http://127.0.0.1:8000"
-API_BASE = (
-    os.getenv("BACKEND_API_URL")
-    or os.getenv("API_BASE")
-    or _LOCKED_API_URL
-)
+# ── Backend API — Render.com only ──────────────────────────────────────────────
+API_BASE = "https://android-al-ahmadi-store-api.onrender.com"
 
 
 async def _wake_up_api():
