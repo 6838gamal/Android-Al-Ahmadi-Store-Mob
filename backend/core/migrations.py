@@ -171,6 +171,20 @@ def run_migrations():
         conn.commit()
 
     # ── Indexes for performance ──────────────────────────────────────────────
+    # ── Drop old global-unique constraints on phone/email (allow same phone per role) ──
+    _drop_old_phone_email_unique(engine)
+
+    # ── Unique per (phone, role) and (email, role) ───────────────────────────
+    _partial = " WHERE phone IS NOT NULL" if _is_postgres() else ""
+    _create_index(engine, "uq_users_phone_role",
+                  "CREATE UNIQUE INDEX IF NOT EXISTS uq_users_phone_role "
+                  f"ON users (phone, role){_partial}")
+
+    _partial_e = " WHERE email IS NOT NULL" if _is_postgres() else ""
+    _create_index(engine, "uq_users_email_role",
+                  "CREATE UNIQUE INDEX IF NOT EXISTS uq_users_email_role "
+                  f"ON users (email, role){_partial_e}")
+
     _create_index(engine, "ix_users_referral_code_uniq",
                   "CREATE UNIQUE INDEX IF NOT EXISTS ix_users_referral_code_uniq "
                   "ON users (referral_code)" +
@@ -213,6 +227,42 @@ def run_migrations():
                       "ON inspection_requests (customer_id)")
 
     print("✅ Migrations applied successfully")
+
+
+def _drop_old_phone_email_unique(eng):
+    """
+    Drop the old global unique constraints on phone and email so the same
+    phone/email can be registered under different roles (customer vs staff).
+    Safe to call multiple times — all steps are wrapped in try/except.
+    """
+    if eng.dialect.name == "postgresql":
+        raw = create_engine(eng.url, isolation_level="AUTOCOMMIT", poolclass=NullPool)
+        try:
+            with raw.connect() as conn:
+                for stmt in [
+                    "ALTER TABLE users DROP CONSTRAINT IF EXISTS users_phone_key",
+                    "ALTER TABLE users DROP CONSTRAINT IF EXISTS users_email_key",
+                    "DROP INDEX IF EXISTS ix_users_phone",
+                    "DROP INDEX IF EXISTS ix_users_email",
+                ]:
+                    try:
+                        conn.execute(text(stmt))
+                    except Exception:
+                        pass
+        except Exception:
+            pass
+        finally:
+            raw.dispose()
+    else:
+        # SQLite — unique constraints live as implicit indexes
+        for idx in ("ix_users_phone", "ix_users_email",
+                    "users_phone_key", "users_email_key"):
+            try:
+                with eng.connect() as conn:
+                    conn.execute(text(f"DROP INDEX IF EXISTS {idx}"))
+                    conn.commit()
+            except Exception:
+                pass
 
 
 def _create_index(eng, name: str, sql: str):

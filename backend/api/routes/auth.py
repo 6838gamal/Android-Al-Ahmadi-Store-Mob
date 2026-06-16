@@ -88,24 +88,28 @@ def register(user_data: UserCreate, request: Request, db: Session = Depends(get_
         raise HTTPException(status_code=400, detail="البريد الإلكتروني أو رقم الهاتف مطلوب")
 
     if user_data.email:
-        existing_email = db.query(User).filter(User.email == user_data.email).first()
+        existing_email = db.query(User).filter(
+            User.email == user_data.email,
+            User.role == UserRole.customer,
+        ).first()
         if existing_email:
-            # Allow re-registration if the account is unverified (incomplete signup)
-            if existing_email.role == UserRole.customer and not existing_email.is_verified:
+            if not existing_email.is_verified:
                 db.delete(existing_email)
                 db.commit()
             else:
-                raise HTTPException(status_code=400, detail="البريد الإلكتروني مسجل مسبقاً")
+                raise HTTPException(status_code=400, detail="البريد الإلكتروني مسجل مسبقاً كعميل")
 
     if user_data.phone:
-        existing_phone = db.query(User).filter(User.phone == user_data.phone).first()
+        existing_phone = db.query(User).filter(
+            User.phone == user_data.phone,
+            User.role == UserRole.customer,
+        ).first()
         if existing_phone:
-            # Allow re-registration if the account is unverified (incomplete signup)
-            if existing_phone.role == UserRole.customer and not existing_phone.is_verified:
+            if not existing_phone.is_verified:
                 db.delete(existing_phone)
                 db.commit()
             else:
-                raise HTTPException(status_code=400, detail="رقم الهاتف مسجل مسبقاً")
+                raise HTTPException(status_code=400, detail="رقم الهاتف مسجل مسبقاً كعميل")
 
     referred_by_id = None
     if user_data.referral_code:
@@ -175,6 +179,10 @@ def _delete_user_cascade(user_id: int, db: Session):
 
 @router.post("/login", response_model=TokenResponse)
 def login(login_data: UserLogin, request: Request, db: Session = Depends(get_db)):
+    """
+    تسجيل دخول العملاء فقط.
+    الموظف الذي يريد التسجيل كعميل بنفس رقمه يمكنه ذلك من خلال إنشاء حساب عميل منفصل.
+    """
     client_ip = _get_client_ip(request)
     _check_rate_limit(f"login:{client_ip}", limit=10, window=60)
 
@@ -182,19 +190,41 @@ def login(login_data: UserLogin, request: Request, db: Session = Depends(get_db)
     user = None
 
     if "@" in identifier:
-        user = db.query(User).filter(User.email == identifier).first()
+        user = db.query(User).filter(
+            User.email == identifier,
+            User.role == UserRole.customer,
+        ).first()
     else:
-        user = db.query(User).filter(User.phone == identifier).first()
+        user = db.query(User).filter(
+            User.phone == identifier,
+            User.role == UserRole.customer,
+        ).first()
 
-    # Phone/email not registered at all
+    # Phone/email not found as customer — check if it belongs to a staff account
     if not user:
+        if "@" in identifier:
+            staff_exists = db.query(User).filter(
+                User.email == identifier,
+                User.role.in_(STAFF_ROLES),
+            ).first()
+        else:
+            staff_exists = db.query(User).filter(
+                User.phone == identifier,
+                User.role.in_(STAFF_ROLES),
+            ).first()
+
+        if staff_exists:
+            raise HTTPException(
+                status_code=401,
+                detail="هذا الرقم مسجّل كموظف — استخدم تاب «موظف» لتسجيل الدخول، أو أنشئ حساب عميل جديد بنفس الرقم",
+            )
         raise HTTPException(
             status_code=401,
             detail="رقم الجوال غير مسجّل — اضغط على «إنشاء حساب» في الأسفل للتسجيل",
         )
 
     # Unverified customer account → delete it so the user can re-register freely
-    if user.role == UserRole.customer and not user.is_verified:
+    if not user.is_verified:
         user_id = user.id
         _delete_user_cascade(user_id, db)
         raise HTTPException(

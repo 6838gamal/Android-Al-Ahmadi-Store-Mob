@@ -50,15 +50,6 @@ class _LoginPageState extends ConsumerState<LoginPage> {
 
     if (ok) {
       final auth = ref.read(authProvider);
-      if (!_isStaffMode && auth.isStaffOrAbove) {
-        // Staff/admin account logged in via the customer tab by mistake.
-        // Log them out and show a clear error so they switch to the staff tab.
-        await ref.read(authProvider.notifier).logout();
-        if (!mounted) return;
-        setState(() => _errorMsg =
-            'هذا الحساب مخصص للموظفين — اختر تاب «موظف» وسجّل الدخول من هناك');
-        return;
-      }
       if (auth.isStaffOrAbove) {
         context.go('/staff');
       } else {
