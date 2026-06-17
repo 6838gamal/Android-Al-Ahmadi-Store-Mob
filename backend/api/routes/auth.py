@@ -317,6 +317,7 @@ def logout(
 
 class OtpSendRequest(BaseModel):
     phone: str
+    resend: bool = False   # True → تجاوز الـ cooldown وأنشئ كوداً جديداً دائماً
 
 class OtpVerifyRequest(BaseModel):
     phone: str
@@ -375,16 +376,19 @@ def send_otp(body: OtpSendRequest, request: Request, db: Session = Depends(get_d
         raise HTTPException(status_code=400, detail="رقم الجوال مطلوب")
 
     # ── منع الإرسال المتكرر — الـ lock يمنع race condition عند طلبين متزامنين ──
+    # إذا كان resend=True نتجاوز الـ cooldown ونولّد كوداً جديداً دائماً
     with _otp_lock:
-        existing = _otp_store.get(phone)
-        if existing:
-            elapsed = time.time() - existing.get("sent_at", 0)
-            remaining = int(OTP_COOLDOWN_SECONDS - elapsed)
-            if remaining > 0:
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"الرجاء الانتظار {remaining} ثانية قبل إعادة الإرسال",
-                )
+        if not body.resend:
+            existing = _otp_store.get(phone)
+            if existing:
+                elapsed = time.time() - existing.get("sent_at", 0)
+                remaining = int(OTP_COOLDOWN_SECONDS - elapsed)
+                if remaining > 0:
+                    raise HTTPException(
+                        status_code=429,
+                        detail=f"الرجاء الانتظار {remaining} ثانية قبل إعادة الإرسال",
+                    )
+        # إنشاء كود جديد دائماً (يلغي أي كود سابق)
         code = _gen_otp()
         _otp_store[phone] = {
             "code": code,

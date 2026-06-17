@@ -147,18 +147,21 @@ class _PhoneOtpPageState extends ConsumerState<PhoneOtpPage> {
   Future<void> _sendOtp({bool isResend = false}) async {
     // حراسة متزامنة — تمنع الاستدعاء المزدوج حتى قبل تحديث setState
     if (_sendingGuard || _s.loading) return;
-    _sendingGuard = true;
     final raw = _phoneCtrl.text.trim();
     if (raw.isEmpty) {
       setState(() => _s = _s.copyWith(error: 'أدخل رقم الجوال'));
       return;
     }
+    _sendingGuard = true;
     final phone = _formatPhone(raw);
     setState(() => _s = _s.copyWith(loading: true, clearError: true));
 
     final api = ref.read(apiClientProvider);
     try {
-      final res = await api.post('/auth/send-otp', data: {'phone': phone});
+      final res = await api.post('/auth/send-otp', data: {
+        'phone': phone,
+        'resend': isResend,
+      });
       if (!mounted) return;
       _codeCtrl.clear();
       setState(() => _s = _s.copyWith(
