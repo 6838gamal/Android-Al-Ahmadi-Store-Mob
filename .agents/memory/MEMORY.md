@@ -1,4 +1,5 @@
 - [Flutter web API URL](flutter-web-api.md) — ApiClient uses Uri.base.origin on kIsWeb, Render.com URL for mobile; no static const baseUrl override needed
+- [Flutter compiled SW URL rewrite](flutter-sw-url-rewrite.md) — Pre-compiled build/web has Render.com URL baked in; fix by patching flutter_service_worker.js fetch handler + bumping CACHE_NAME
 - [Passlib bcrypt compat](passlib-bcrypt.md) — bcrypt must be pinned to 4.0.1; 5.x breaks passlib with AttributeError on __about__
 - [Node proxy redirects](node-proxy.md) — FastAPI 307-redirects bare paths to trailing-slash; proxy must follow redirects internally
 - [Replit HTTPS proxy POST redirect bug](replit-proxy-post-redirect.md) — Replit's HTTPS proxy re-POSTs 302/303 redirects instead of switching to GET; fix: return 200 + JS window.location.replace() with Set-Cookie forwarded

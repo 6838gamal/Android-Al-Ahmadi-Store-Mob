@@ -19,6 +19,35 @@
       });
     }
   </script>
+  <script>
+    // Intercept all fetch/XHR calls going to the external Render.com API
+    // and redirect them through the local server.js proxy instead.
+    (function() {
+      var REMOTE = 'https://android-al-ahmadi-store-api.onrender.com';
+
+      function rewrite(url) {
+        if (typeof url === 'string' && url.startsWith(REMOTE)) {
+          return url.slice(REMOTE.length) || '/';
+        }
+        if (url && url.href && url.href.startsWith(REMOTE)) {
+          return new URL(url.href.slice(REMOTE.length) || '/', location.origin);
+        }
+        return url;
+      }
+
+      // Patch fetch
+      var _fetch = window.fetch;
+      window.fetch = function(input, init) {
+        return _fetch.call(this, rewrite(input), init);
+      };
+
+      // Patch XMLHttpRequest
+      var _open = XMLHttpRequest.prototype.open;
+      XMLHttpRequest.prototype.open = function(method, url, async, user, pass) {
+        return _open.call(this, method, rewrite(url), async !== false, user, pass);
+      };
+    })();
+  </script>
 </head>
 <body>
   <script src="flutter_bootstrap.js" async></script>

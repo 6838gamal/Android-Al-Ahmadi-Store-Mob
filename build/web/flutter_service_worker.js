@@ -1,7 +1,7 @@
 'use strict';
 const MANIFEST = 'flutter-app-manifest';
 const TEMP = 'flutter-temp-cache';
-const CACHE_NAME = 'flutter-app-cache';
+const CACHE_NAME = 'flutter-app-cache-v2';
 
 const RESOURCES = {"assets/AssetManifest.bin": "2f5984f441567bb6bd7b6f500cb24861",
 "assets/AssetManifest.bin.json": "d323c8c44067cdcb8e13a821a9c0251c",
@@ -119,7 +119,23 @@ self.addEventListener("activate", function(event) {
 });
 // The fetch handler redirects requests for RESOURCE files to the service
 // worker cache.
+const REMOTE_API = 'https://android-al-ahmadi-store-api.onrender.com';
 self.addEventListener("fetch", (event) => {
+  // Rewrite external Render.com API calls → local proxy
+  if (event.request.url.startsWith(REMOTE_API)) {
+    var relativePath = event.request.url.slice(REMOTE_API.length) || '/';
+    var newUrl = self.location.origin + relativePath;
+    var newRequest = new Request(newUrl, {
+      method: event.request.method,
+      headers: event.request.headers,
+      body: event.request.method !== 'GET' && event.request.method !== 'HEAD' ? event.request.body : undefined,
+      mode: 'same-origin',
+      credentials: 'same-origin',
+      redirect: 'follow',
+    });
+    event.respondWith(fetch(newRequest));
+    return;
+  }
   if (event.request.method !== 'GET') {
     return;
   }
