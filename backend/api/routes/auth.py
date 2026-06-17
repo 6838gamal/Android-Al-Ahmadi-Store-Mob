@@ -23,8 +23,9 @@ STAFF_ROLES = [UserRole.staff, UserRole.branch_manager, UserRole.admin]
 _rate_store: dict = defaultdict(list)
 
 # ── Simple OTP store — no Firebase, no SMS (dev mode) ─────────────────────────
-# phone → {"code": "123456", "expires": float}
+# phone → {"code": "123456", "expires": float, "sent_at": float}
 _otp_store: dict = {}
+OTP_COOLDOWN_SECONDS = 60  # منع إعادة الإرسال لنفس الرقم قبل مرور هذه المدة
 
 
 def _gen_otp() -> str:
@@ -337,22 +338,26 @@ def _get_sms_config(db: Session) -> tuple[str | None, str]:
     return api_key or None, devices
 
 
-def _send_sms(phone: str, message: str, api_key: str, devices: str = "0") -> bool:
+def _send_sms(phone: str, message: str, api_key: str, devices: str = "") -> bool:
     """Send SMS via sms-gateway.app. Returns True on success."""
     import httpx
+    payload = {
+        "number": phone,
+        "message": message,
+        "key": api_key,
+        "type": "sms",
+    }
+    # أضف devices فقط لو كان معرّف جهاز حقيقي (ليس "0" أو فارغ)
+    # devices="0" يعني "أرسل من كل الأجهزة" → يسبب رسائل متعددة من أرقام مختلفة
+    if devices and devices.strip() not in ("", "0"):
+        payload["devices"] = devices.strip()
     try:
         resp = httpx.post(
             "https://app.sms-gateway.app/services/send.php",
-            data={
-                "number": phone,
-                "message": message,
-                "key": api_key,
-                "devices": devices,
-                "type": "sms",
-            },
+            data=payload,
             timeout=15,
         )
-        print(f"[SMS] {phone} → status={resp.status_code} body={resp.text[:120]}", flush=True)
+        print(f"[SMS] {phone} → status={resp.status_code} body={resp.text[:200]}", flush=True)
         return resp.status_code == 200
     except Exception as e:
         print(f"[SMS] Error sending to {phone}: {e}", flush=True)
@@ -368,8 +373,23 @@ def send_otp(body: OtpSendRequest, request: Request, db: Session = Depends(get_d
     if not phone:
         raise HTTPException(status_code=400, detail="رقم الجوال مطلوب")
 
+    # ── منع الإرسال المتكرر لنفس الرقم خلال فترة الـ cooldown ───────────────
+    existing = _otp_store.get(phone)
+    if existing:
+        elapsed = time.time() - existing.get("sent_at", 0)
+        remaining = int(OTP_COOLDOWN_SECONDS - elapsed)
+        if remaining > 0:
+            raise HTTPException(
+                status_code=429,
+                detail=f"الرجاء الانتظار {remaining} ثانية قبل إعادة الإرسال",
+            )
+
     code = _gen_otp()
-    _otp_store[phone] = {"code": code, "expires": time.time() + 600}
+    _otp_store[phone] = {
+        "code": code,
+        "expires": time.time() + 600,
+        "sent_at": time.time(),
+    }
 
     api_key, devices = _get_sms_config(db)
     if api_key:
