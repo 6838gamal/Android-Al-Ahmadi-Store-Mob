@@ -1,4 +1,4 @@
-import random, string, time, os, secrets
+import random, string, time, os, secrets, threading
 from datetime import datetime
 from collections import defaultdict
 from fastapi import APIRouter, Depends, HTTPException, Request, status
@@ -25,6 +25,7 @@ _rate_store: dict = defaultdict(list)
 # ── Simple OTP store — no Firebase, no SMS (dev mode) ─────────────────────────
 # phone → {"code": "123456", "expires": float, "sent_at": float}
 _otp_store: dict = {}
+_otp_lock = threading.Lock()          # يمنع race condition عند تزامن طلبين لنفس الرقم
 OTP_COOLDOWN_SECONDS = 60  # منع إعادة الإرسال لنفس الرقم قبل مرور هذه المدة
 
 
@@ -373,23 +374,23 @@ def send_otp(body: OtpSendRequest, request: Request, db: Session = Depends(get_d
     if not phone:
         raise HTTPException(status_code=400, detail="رقم الجوال مطلوب")
 
-    # ── منع الإرسال المتكرر لنفس الرقم خلال فترة الـ cooldown ───────────────
-    existing = _otp_store.get(phone)
-    if existing:
-        elapsed = time.time() - existing.get("sent_at", 0)
-        remaining = int(OTP_COOLDOWN_SECONDS - elapsed)
-        if remaining > 0:
-            raise HTTPException(
-                status_code=429,
-                detail=f"الرجاء الانتظار {remaining} ثانية قبل إعادة الإرسال",
-            )
-
-    code = _gen_otp()
-    _otp_store[phone] = {
-        "code": code,
-        "expires": time.time() + 600,
-        "sent_at": time.time(),
-    }
+    # ── منع الإرسال المتكرر — الـ lock يمنع race condition عند طلبين متزامنين ──
+    with _otp_lock:
+        existing = _otp_store.get(phone)
+        if existing:
+            elapsed = time.time() - existing.get("sent_at", 0)
+            remaining = int(OTP_COOLDOWN_SECONDS - elapsed)
+            if remaining > 0:
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"الرجاء الانتظار {remaining} ثانية قبل إعادة الإرسال",
+                )
+        code = _gen_otp()
+        _otp_store[phone] = {
+            "code": code,
+            "expires": time.time() + 600,
+            "sent_at": time.time(),
+        }
 
     api_key, devices = _get_sms_config(db)
     if api_key:

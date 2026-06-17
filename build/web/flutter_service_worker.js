@@ -1,7 +1,7 @@
 'use strict';
 const MANIFEST = 'flutter-app-manifest';
 const TEMP = 'flutter-temp-cache';
-const CACHE_NAME = 'flutter-app-cache-v4';
+const CACHE_NAME = 'flutter-app-cache-v5';
 const REMOTE_API = 'https://android-al-ahmadi-store-api.onrender.com';
 
 const RESOURCES = {"assets/AssetManifest.bin": "2f5984f441567bb6bd7b6f500cb24861",
@@ -129,9 +129,16 @@ self.addEventListener("fetch", (event) => {
     var hasBody = method !== 'GET' && method !== 'HEAD';
     event.respondWith(
       (hasBody ? event.request.arrayBuffer() : Promise.resolve(null)).then(function(body) {
+        // لا نُمرِّر event.request.headers مباشرةً — تحتوي على headers محظورة
+        // مثل Host وContent-Length تسبب استثناءً في fetch داخل الـ service worker
+        var safeHeaders = {};
+        var ct = event.request.headers.get('content-type');
+        if (ct) safeHeaders['Content-Type'] = ct;
+        var auth = event.request.headers.get('authorization');
+        if (auth) safeHeaders['Authorization'] = auth;
         return fetch(newUrl, {
           method: method,
-          headers: event.request.headers,
+          headers: safeHeaders,
           body: body && body.byteLength > 0 ? body : undefined,
           redirect: 'follow',
         });

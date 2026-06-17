@@ -78,6 +78,9 @@ class _PhoneOtpPageState extends ConsumerState<PhoneOtpPage> {
 
   Timer? _timer;
 
+  // حماية متزامنة (sync) ضد الاستدعاء المزدوج لـ _sendOtp قبل تحديث setState
+  bool _sendingGuard = false;
+
   @override
   void initState() {
     super.initState();
@@ -142,7 +145,9 @@ class _PhoneOtpPageState extends ConsumerState<PhoneOtpPage> {
   }
 
   Future<void> _sendOtp({bool isResend = false}) async {
-    if (_s.loading) return;
+    // حراسة متزامنة — تمنع الاستدعاء المزدوج حتى قبل تحديث setState
+    if (_sendingGuard || _s.loading) return;
+    _sendingGuard = true;
     final raw = _phoneCtrl.text.trim();
     if (raw.isEmpty) {
       setState(() => _s = _s.copyWith(error: 'أدخل رقم الجوال'));
@@ -186,6 +191,8 @@ class _PhoneOtpPageState extends ConsumerState<PhoneOtpPage> {
       final msg = _extractDetail(e) ?? 'تعذر إرسال الرمز — تحقق من رقم الجوال';
       if (!mounted) return;
       setState(() => _s = _s.copyWith(loading: false, error: msg));
+    } finally {
+      _sendingGuard = false;
     }
   }
 
