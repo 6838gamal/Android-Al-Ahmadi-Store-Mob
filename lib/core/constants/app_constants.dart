@@ -15,11 +15,9 @@ class AppConstants {
   };
 
   // API base URL — injected at build time via --dart-define=API_BASE_URL=...
-  // For Flutter Web the ApiClient overrides this with Uri.base.origin
-  static const String baseUrl = String.fromEnvironment(
-    'API_BASE_URL',
-    defaultValue: 'https://android-al-ahmadi-store-api.onrender.com',
-  );
+  // For Flutter Web the ApiClient overrides this with Uri.base.origin.
+  // No hardcoded default — value must come from --dart-define or runtime resolution.
+  static const String baseUrl = String.fromEnvironment('API_BASE_URL', defaultValue: '');
 
   static const String apiVersion = '/api';
 

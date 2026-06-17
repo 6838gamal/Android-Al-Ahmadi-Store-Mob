@@ -4,7 +4,12 @@ const fs = require('fs');
 const path = require('path');
 
 const PORT = 5000;
-const EXTERNAL_API = 'https://android-al-ahmadi-store-api.onrender.com';
+// URL الـ API الخارجي — يُقرأ من متغير البيئة BACKEND_API_URL فقط، لا قيمة افتراضية في الكود
+const EXTERNAL_API = (process.env.BACKEND_API_URL || '').replace(/\/$/, '');
+if (!EXTERNAL_API) {
+  console.error('[FATAL] متغير البيئة BACKEND_API_URL غير مضبوط — لن يعمل البروكسي');
+  process.exit(1);
+}
 const WEB_DIR = path.join(__dirname, 'build', 'web');
 
 const mimeTypes = {
@@ -136,13 +141,23 @@ const server = http.createServer((req, res) => {
       const ext = path.extname(filePath);
       const contentType = mimeTypes[ext] || 'application/octet-stream';
 
+      // حقن BACKEND_API_URL ديناميكياً في السيرفس وركر بدلاً من القيمة المُدمجة في الملف
+      const isServiceWorker = filePath.endsWith('flutter_service_worker.js');
+      let body = data;
+      if (isServiceWorker) {
+        body = data.toString('utf8').replace(
+          /const REMOTE_API\s*=\s*['"][^'"]*['"]\s*;/,
+          `const REMOTE_API = ${JSON.stringify(EXTERNAL_API)};`
+        );
+      }
+
       res.writeHead(200, {
         'Content-Type': contentType,
         'Cache-Control': 'no-cache, no-store, must-revalidate',
         'Pragma': 'no-cache',
         'Expires': '0',
       });
-      res.end(data);
+      res.end(body);
     });
   });
 });

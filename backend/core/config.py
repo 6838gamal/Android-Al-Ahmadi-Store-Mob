@@ -1,49 +1,46 @@
 from pydantic_settings import BaseSettings
 import os
 
-# ─────────────────────────────────────────────────────────────────────────────
-# قاعدة البيانات المقفولة — Render.com PostgreSQL
-# لا تُغيَّر إلا عبر متغير البيئة APP_DATABASE_URL في Replit Secrets.
-# DATABASE_URL مُتجاهَل عمداً (Replit يضبطه تلقائياً لقاعدته المُدارة).
-# ─────────────────────────────────────────────────────────────────────────────
-_LOCKED_DB_URL = (
-    "postgresql://gamalalmaqtary:QPg3qlwP31n4QNczLjG1C3XpdXdZj29D"
-    "@dpg-d8egmfv40ujc73dj2ggg-a.ohio-postgres.render.com"
-    "/android_al_ahmadi_store_db"
-)
-
-# ─────────────────────────────────────────────────────────────────────────────
-# رابط الـ API المقفول — Render.com
-# لا يُغيَّر إلا عبر متغير البيئة BACKEND_API_URL.
-# ─────────────────────────────────────────────────────────────────────────────
-_LOCKED_API_URL = "https://android-al-ahmadi-store-api.onrender.com"
-
 
 def _resolve_db_url() -> str:
-    """
-    يقرأ APP_DATABASE_URL فقط. يتجاهل DATABASE_URL (Replit managed).
-    لا تُمرَّر قيم من خارج هذه الدالة.
-    """
+    """يقرأ APP_DATABASE_URL من متغيرات البيئة فقط — لا قيمة مُضمَّنة في الكود."""
     url = os.getenv("APP_DATABASE_URL", "").strip()
-    if url:
-        # postgres:// → postgresql:// (SQLAlchemy 1.4+)
-        if url.startswith("postgres://"):
-            url = "postgresql://" + url[len("postgres://"):]
-        return url
-    return _LOCKED_DB_URL
+    if not url:
+        raise RuntimeError(
+            "[FATAL] متغير البيئة APP_DATABASE_URL غير مضبوط — "
+            "أضفه من لوحة متغيرات البيئة في Replit."
+        )
+    if url.startswith("postgres://"):
+        url = "postgresql://" + url[len("postgres://"):]
+    return url
 
 
 def _resolve_api_url() -> str:
-    url = os.getenv("BACKEND_API_URL", "").strip()
-    return url if url else _LOCKED_API_URL
+    """يقرأ BACKEND_API_URL من متغيرات البيئة فقط — لا قيمة مُضمَّنة في الكود."""
+    url = os.getenv("BACKEND_API_URL", "").strip().rstrip("/")
+    if not url:
+        raise RuntimeError(
+            "[FATAL] متغير البيئة BACKEND_API_URL غير مضبوط — "
+            "أضفه من لوحة متغيرات البيئة في Replit."
+        )
+    return url
+
+
+def _resolve_secret_key() -> str:
+    """يقرأ SECRET_KEY من متغيرات البيئة فقط — لا قيمة مُضمَّنة في الكود."""
+    key = os.getenv("SECRET_KEY", "").strip()
+    if not key:
+        raise RuntimeError(
+            "[FATAL] متغير البيئة SECRET_KEY غير مضبوط — "
+            "أضفه من لوحة متغيرات البيئة في Replit."
+        )
+    return key
 
 
 class Settings(BaseSettings):
     DATABASE_URL: str = _resolve_db_url()
     BACKEND_API_URL: str = _resolve_api_url()
-    SECRET_KEY: str = os.getenv(
-        "SECRET_KEY", "android-alahmadi-secret-key-2026-very-secure"
-    )
+    SECRET_KEY: str = _resolve_secret_key()
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7  # 7 days
     REFRESH_TOKEN_EXPIRE_DAYS: int = 30

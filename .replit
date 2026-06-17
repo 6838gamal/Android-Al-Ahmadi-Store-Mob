@@ -52,5 +52,7 @@ publicDir = "build/web"
 
 [userenv.shared]
 BACKEND_API_URL = "https://android-al-ahmadi-store-api.onrender.com"
+APP_DATABASE_URL = "postgresql://gamalalmaqtary:QPg3qlwP31n4QNczLjG1C3XpdXdZj29D@dpg-d8egmfv40ujc73dj2ggg-a.ohio-postgres.render.com/android_al_ahmadi_store_db"
+SECRET_KEY = "android-alahmadi-replit-secret-key-2026-very-secure-random-string"
 
 [userenv.development]
