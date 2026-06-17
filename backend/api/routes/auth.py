@@ -571,6 +571,65 @@ def verify_phone_login(
     return _build_token_response(user)
 
 
+# ── Forgot Password — reset via OTP ───────────────────────────────────────────
+
+class ResetPasswordRequest(BaseModel):
+    phone: str
+    code: str
+    new_password: str
+
+
+@router.post("/reset-password")
+def reset_password(body: ResetPasswordRequest, request: Request, db: Session = Depends(get_db)):
+    """
+    الخطوة 3 من تدفق "نسيت كلمة المرور":
+    - يتحقق من رمز OTP
+    - يجد المستخدم بالرقم
+    - يغيّر كلمة المرور ويلغي جميع الجلسات السابقة
+    - يُعيد {message, is_staff} لتحديد صفحة الدخول المناسبة
+    """
+    client_ip = _get_client_ip(request)
+    _check_rate_limit(f"reset_password:{client_ip}", limit=5, window=60)
+
+    phone = body.phone.strip()
+    code = body.code.strip()
+
+    if len(body.new_password) < 6:
+        raise HTTPException(status_code=400, detail="كلمة المرور يجب أن تكون 6 أحرف على الأقل")
+
+    # التحقق من رمز OTP
+    entry = _otp_store.get(phone)
+    if not entry:
+        raise HTTPException(status_code=400, detail="لم يتم إرسال رمز لهذا الرقم — اطلب رمزاً جديداً")
+    if time.time() > entry["expires"]:
+        _otp_store.pop(phone, None)
+        raise HTTPException(status_code=400, detail="انتهت صلاحية الرمز — اطلب رمزاً جديداً")
+    if entry["code"] != code:
+        raise HTTPException(status_code=400, detail="الرمز غير صحيح")
+
+    _otp_store.pop(phone, None)
+
+    # البحث عن المستخدم بمختلف صيغ الرقم
+    user = None
+    for variant in _normalise_phone(phone):
+        user = db.query(User).filter(User.phone == variant).first()
+        if user:
+            break
+
+    if not user:
+        raise HTTPException(status_code=404, detail="لا يوجد حساب مرتبط بهذا الرقم")
+    if not user.is_active:
+        raise HTTPException(status_code=403, detail="الحساب معطّل — تواصل مع الإدارة")
+
+    # تحديث كلمة المرور وإلغاء جميع الجلسات السابقة
+    user.hashed_password = get_password_hash(body.new_password)
+    user.tokens_invalidated_at = datetime.utcnow()
+    db.commit()
+
+    is_staff = user.role in STAFF_ROLES
+    return {"message": "تم تغيير كلمة المرور بنجاح", "is_staff": is_staff}
+
+
 @router.get("/me", response_model=UserResponse)
 def get_me(current_user: User = Depends(get_current_user)):
     return current_user

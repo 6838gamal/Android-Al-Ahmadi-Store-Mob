@@ -9,7 +9,8 @@ import '../providers/auth_provider.dart';
 import 'phone_otp_page.dart';
 
 class LoginPage extends ConsumerStatefulWidget {
-  const LoginPage({super.key});
+  final bool initialStaffMode;
+  const LoginPage({super.key, this.initialStaffMode = false});
 
   @override
   ConsumerState<LoginPage> createState() => _LoginPageState();
@@ -19,7 +20,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   final _form = GlobalKey<FormState>();
   final _idCtrl = TextEditingController();
   final _passCtrl = TextEditingController();
-  bool _isStaffMode = false;
+  late bool _isStaffMode = widget.initialStaffMode;
   String? _errorMsg;
 
   @override

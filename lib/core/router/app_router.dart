@@ -95,7 +95,9 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/splash',     builder: (ctx, state) => const SplashPage()),
       GoRoute(path: '/welcome',    builder: (ctx, state) => const WelcomePage()),
       GoRoute(path: '/onboarding', builder: (ctx, state) => const OnboardingPage()),
-      GoRoute(path: '/login',      builder: (ctx, state) => const LoginPage()),
+      GoRoute(path: '/login',      builder: (ctx, state) => LoginPage(
+        initialStaffMode: state.uri.queryParameters['staff'] == 'true',
+      )),
       GoRoute(path: '/register',   builder: (ctx, state) => const RegisterPage()),
       GoRoute(path: '/forgot-password', builder: (ctx, state) => const ForgotPasswordPage()),
       GoRoute(
