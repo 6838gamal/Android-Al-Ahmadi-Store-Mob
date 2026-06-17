@@ -70,8 +70,8 @@ app.add_middleware(
     SessionMiddleware,
     secret_key=os.getenv("SECRET_KEY", "admin-alahmadi-panel-secret-2026"),
     max_age=86400,
-    https_only=True,
-    same_site="none",
+    https_only=False,
+    same_site="lax",
 )
 
 UPLOAD_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "uploads")
