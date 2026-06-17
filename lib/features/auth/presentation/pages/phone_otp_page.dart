@@ -141,7 +141,8 @@ class _PhoneOtpPageState extends ConsumerState<PhoneOtpPage> {
     return null;
   }
 
-  Future<void> _sendOtp() async {
+  Future<void> _sendOtp({bool isResend = false}) async {
+    if (_s.loading) return;
     final raw = _phoneCtrl.text.trim();
     if (raw.isEmpty) {
       setState(() => _s = _s.copyWith(error: 'أدخل رقم الجوال'));
@@ -164,6 +165,17 @@ class _PhoneOtpPageState extends ConsumerState<PhoneOtpPage> {
       _startTimer();
       Future.delayed(const Duration(milliseconds: 300),
           () { if (mounted) _codeFocus.requestFocus(); });
+
+      if (isResend && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: const Text('✅ تم إرسال رمز تحقق جديد',
+              style: TextStyle(fontFamily: 'Cairo')),
+          backgroundColor: const Color(0xFF2E7D32),
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 3),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ));
+      }
 
       // Dev mode: show OTP in a copyable popup
       final devCode = res.data['dev_code'];
@@ -350,7 +362,7 @@ class _PhoneOtpPageState extends ConsumerState<PhoneOtpPage> {
                     error: _s.error,
                     resendSeconds: _s.resendSeconds,
                     onVerify: _verifyOtp,
-                    onResend: _sendOtp,
+                    onResend: () => _sendOtp(isResend: true),
                     onCodeChanged: (v) {
                       // Keep only digits, max 6
                       final digits = v.replaceAll(RegExp(r'\D'), '');
@@ -743,15 +755,37 @@ class _CodeStepState extends State<_CodeStep> {
         const SizedBox(height: 18),
 
         widget.resendSeconds > 0
-            ? Text('إعادة الإرسال بعد ${widget.resendSeconds}ث',
-                style: const TextStyle(
-                    fontFamily: 'Cairo',
-                    color: AppColors.textMuted,
-                    fontSize: 13))
+            ? Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  SizedBox(
+                    width: 14,
+                    height: 14,
+                    child: CircularProgressIndicator(
+                      value: widget.resendSeconds / 60,
+                      strokeWidth: 2,
+                      backgroundColor: AppColors.darkBorder,
+                      valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primary),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text('إعادة الإرسال بعد ${widget.resendSeconds}ث',
+                      style: const TextStyle(
+                          fontFamily: 'Cairo',
+                          color: AppColors.textMuted,
+                          fontSize: 13)),
+                ],
+              )
             : TextButton.icon(
-                onPressed: widget.onResend,
-                icon: const Icon(Icons.refresh,
-                    color: AppColors.primary, size: 16),
+                onPressed: widget.loading ? null : widget.onResend,
+                icon: widget.loading
+                    ? const SizedBox(
+                        width: 14,
+                        height: 14,
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2, color: AppColors.primary))
+                    : const Icon(Icons.refresh,
+                        color: AppColors.primary, size: 16),
                 label: const Text('إعادة إرسال الرمز',
                     style: TextStyle(
                         fontFamily: 'Cairo',
