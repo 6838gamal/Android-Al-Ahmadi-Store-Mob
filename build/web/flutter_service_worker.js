@@ -1,7 +1,7 @@
 'use strict';
 const MANIFEST = 'flutter-app-manifest';
 const TEMP = 'flutter-temp-cache';
-const CACHE_NAME = 'flutter-app-cache-v2';
+const CACHE_NAME = 'flutter-app-cache-v3';
 
 const RESOURCES = {"assets/AssetManifest.bin": "2f5984f441567bb6bd7b6f500cb24861",
 "assets/AssetManifest.bin.json": "d323c8c44067cdcb8e13a821a9c0251c",
@@ -125,15 +125,18 @@ self.addEventListener("fetch", (event) => {
   if (event.request.url.startsWith(REMOTE_API)) {
     var relativePath = event.request.url.slice(REMOTE_API.length) || '/';
     var newUrl = self.location.origin + relativePath;
-    var newRequest = new Request(newUrl, {
-      method: event.request.method,
-      headers: event.request.headers,
-      body: event.request.method !== 'GET' && event.request.method !== 'HEAD' ? event.request.body : undefined,
-      mode: 'same-origin',
-      credentials: 'same-origin',
-      redirect: 'follow',
-    });
-    event.respondWith(fetch(newRequest));
+    var method = event.request.method;
+    var hasBody = method !== 'GET' && method !== 'HEAD';
+    event.respondWith(
+      (hasBody ? event.request.arrayBuffer() : Promise.resolve(null)).then(function(body) {
+        return fetch(newUrl, {
+          method: method,
+          headers: event.request.headers,
+          body: body && body.byteLength > 0 ? body : undefined,
+          redirect: 'follow',
+        });
+      })
+    );
     return;
   }
   if (event.request.method !== 'GET') {
