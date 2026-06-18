@@ -350,9 +350,12 @@ def _send_sms(phone: str, message: str, api_key: str, devices: str = "") -> bool
         "type": "sms",
     }
     # أضف devices فقط لو كان معرّف جهاز حقيقي (ليس "0" أو فارغ)
+    # إذا كان هناك أكثر من جهاز (مفصولة بفاصلة) نأخذ الأول فقط لمنع إرسال رسائل متعددة
     # devices="0" يعني "أرسل من كل الأجهزة" → يسبب رسائل متعددة من أرقام مختلفة
     if devices and devices.strip() not in ("", "0"):
-        payload["devices"] = devices.strip()
+        first_device = devices.strip().split(",")[0].strip()
+        if first_device:
+            payload["devices"] = first_device
     try:
         resp = httpx.post(
             "https://app.sms-gateway.app/services/send.php",
