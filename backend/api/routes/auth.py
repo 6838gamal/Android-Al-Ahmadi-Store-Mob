@@ -409,9 +409,12 @@ def send_otp(body: OtpSendRequest, request: Request, db: Session = Depends(get_d
                     detail=f"الرجاء الانتظار {remaining} ثانية قبل إعادة الإرسال",
                 )
 
-    # إنشاء كود جديد (يُحدّث أو يُنشئ السجل في DB)
+    # إنشاء كود جديد (يُحدّث أو يُنشئ السجل في DB — بشكل اختياري)
     code = _gen_otp()
-    _db_otp_set(db, phone, code)
+    try:
+        _db_otp_set(db, phone, code)
+    except Exception as _e:
+        print(f"[OTP] DB save failed (non-fatal): {_e}", flush=True)
 
     api_key, devices = _get_sms_config(db)
     if api_key:

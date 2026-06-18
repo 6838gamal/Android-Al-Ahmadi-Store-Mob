@@ -2194,7 +2194,7 @@ async def settings_sms_test(request: Request, test_phone: str = Form(...)):
         return _redirect_login()
     phone = test_phone.strip()
     _, err = await api_ex("post", "/api/auth/send-otp", token=_token(request),
-                          json={"phone": phone})
+                          json={"phone": phone, "resend": True})
     from urllib.parse import quote as _q
     from fastapi.responses import HTMLResponse as _HR
     if err:
