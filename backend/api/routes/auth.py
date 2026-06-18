@@ -1,4 +1,4 @@
-import random, string, time, os, secrets, threading
+import random, string, time, os, secrets
 from datetime import datetime
 from collections import defaultdict
 from fastapi import APIRouter, Depends, HTTPException, Request, status
@@ -10,6 +10,7 @@ from backend.core.security import (
     create_access_token, create_refresh_token, decode_refresh_token,
 )
 from backend.models.user import User, UserRole
+from backend.models.otp_code import OtpCode
 from backend.schemas.auth import (
     UserCreate, UserLogin, UserResponse, TokenResponse,
     PasswordReset, ProfileUpdate, RefreshTokenRequest,
@@ -22,11 +23,29 @@ STAFF_ROLES = [UserRole.staff, UserRole.branch_manager, UserRole.admin]
 
 _rate_store: dict = defaultdict(list)
 
-# ── Simple OTP store — backend only (dev mode) ────────────────────────────────
-# phone → {"code": "123456", "expires": float, "sent_at": float}
-_otp_store: dict = {}
-_otp_lock = threading.Lock()          # يمنع race condition عند تزامن طلبين لنفس الرقم
 OTP_COOLDOWN_SECONDS = 60  # منع إعادة الإرسال لنفس الرقم قبل مرور هذه المدة
+
+
+def _db_otp_get(db: Session, phone: str) -> OtpCode | None:
+    return db.query(OtpCode).filter(OtpCode.phone == phone).first()
+
+
+def _db_otp_set(db: Session, phone: str, code: str):
+    now = time.time()
+    row = db.query(OtpCode).filter(OtpCode.phone == phone).first()
+    if row:
+        row.code = code
+        row.expires = now + 600
+        row.sent_at = now
+    else:
+        row = OtpCode(phone=phone, code=code, expires=now + 600, sent_at=now)
+        db.add(row)
+    db.commit()
+
+
+def _db_otp_delete(db: Session, phone: str):
+    db.query(OtpCode).filter(OtpCode.phone == phone).delete()
+    db.commit()
 
 
 def _gen_otp() -> str:
@@ -378,26 +397,21 @@ def send_otp(body: OtpSendRequest, request: Request, db: Session = Depends(get_d
     if not phone:
         raise HTTPException(status_code=400, detail="رقم الجوال مطلوب")
 
-    # ── منع الإرسال المتكرر — الـ lock يمنع race condition عند طلبين متزامنين ──
-    # إذا كان resend=True نتجاوز الـ cooldown ونولّد كوداً جديداً دائماً
-    with _otp_lock:
-        if not body.resend:
-            existing = _otp_store.get(phone)
-            if existing:
-                elapsed = time.time() - existing.get("sent_at", 0)
-                remaining = int(OTP_COOLDOWN_SECONDS - elapsed)
-                if remaining > 0:
-                    raise HTTPException(
-                        status_code=429,
-                        detail=f"الرجاء الانتظار {remaining} ثانية قبل إعادة الإرسال",
-                    )
-        # إنشاء كود جديد دائماً (يلغي أي كود سابق)
-        code = _gen_otp()
-        _otp_store[phone] = {
-            "code": code,
-            "expires": time.time() + 600,
-            "sent_at": time.time(),
-        }
+    # ── منع الإرسال المتكرر — يُراجع قاعدة البيانات ──────────────────────────
+    if not body.resend:
+        existing = _db_otp_get(db, phone)
+        if existing:
+            elapsed = time.time() - existing.sent_at
+            remaining = int(OTP_COOLDOWN_SECONDS - elapsed)
+            if remaining > 0:
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"الرجاء الانتظار {remaining} ثانية قبل إعادة الإرسال",
+                )
+
+    # إنشاء كود جديد (يُحدّث أو يُنشئ السجل في DB)
+    code = _gen_otp()
+    _db_otp_set(db, phone, code)
 
     api_key, devices = _get_sms_config(db)
     if api_key:
@@ -420,16 +434,16 @@ def verify_otp(body: OtpVerifyRequest, request: Request, db: Session = Depends(g
     phone = body.phone.strip()
     code = body.code.strip()
 
-    entry = _otp_store.get(phone)
+    entry = _db_otp_get(db, phone)
     if not entry:
         raise HTTPException(status_code=400, detail="لم يتم إرسال رمز لهذا الرقم — اطلب رمزاً جديداً")
-    if time.time() > entry["expires"]:
-        _otp_store.pop(phone, None)
+    if time.time() > entry.expires:
+        _db_otp_delete(db, phone)
         raise HTTPException(status_code=400, detail="انتهت صلاحية الرمز — اطلب رمزاً جديداً")
-    if entry["code"] != code:
+    if entry.code != code:
         raise HTTPException(status_code=400, detail="الرمز غير صحيح")
 
-    _otp_store.pop(phone, None)
+    _db_otp_delete(db, phone)
 
     # Find user by any phone variant
     user = None
@@ -476,16 +490,16 @@ def reset_password(body: ResetPasswordRequest, request: Request, db: Session = D
         raise HTTPException(status_code=400, detail="كلمة المرور يجب أن تكون 6 أحرف على الأقل")
 
     # التحقق من رمز OTP
-    entry = _otp_store.get(phone)
+    entry = _db_otp_get(db, phone)
     if not entry:
         raise HTTPException(status_code=400, detail="لم يتم إرسال رمز لهذا الرقم — اطلب رمزاً جديداً")
-    if time.time() > entry["expires"]:
-        _otp_store.pop(phone, None)
+    if time.time() > entry.expires:
+        _db_otp_delete(db, phone)
         raise HTTPException(status_code=400, detail="انتهت صلاحية الرمز — اطلب رمزاً جديداً")
-    if entry["code"] != code:
+    if entry.code != code:
         raise HTTPException(status_code=400, detail="الرمز غير صحيح")
 
-    _otp_store.pop(phone, None)
+    _db_otp_delete(db, phone)
 
     # البحث عن المستخدم بمختلف صيغ الرقم
     user = None

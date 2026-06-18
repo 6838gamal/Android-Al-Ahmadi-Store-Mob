@@ -16,6 +16,7 @@ from backend.models import (  # noqa
     inspection, wallet, notification, audit_log,
     loyalty, shortage_request, auction, secret_deal,
     eng_support, complaint, purchase_invoice, gallery,
+    otp_code,
 )
 from backend.models.announcement import Announcement  # noqa
 

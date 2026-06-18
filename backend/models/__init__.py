@@ -21,6 +21,7 @@ from backend.models.complaint import Complaint, ComplaintStatus, ComplaintType
 from backend.models.purchase_invoice import PurchaseInvoice, PurchaseInvoiceItem, InvoiceStatus
 from backend.models.gallery import GalleryFolder, GalleryImage
 from backend.models.app_setting import AppSetting
+from backend.models.otp_code import OtpCode
 
 __all__ = [
     "Branch", "Warehouse",
