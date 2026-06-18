@@ -2198,16 +2198,23 @@ async def settings_sms_clear(request: Request):
 
 
 @app.post("/settings/sms/test")
-async def settings_sms_test(request: Request, test_phone: str = Form(...)):
+async def settings_sms_test(request: Request):
+    """AJAX endpoint — returns JSON {ok, message}"""
     if not _logged(request):
-        return _redirect_login()
-    phone = test_phone.strip()
+        from fastapi.responses import JSONResponse
+        return JSONResponse({"ok": False, "message": "غير مصرَّح — سجّل دخولك"}, status_code=401)
+    try:
+        body = await request.json()
+        phone = (body.get("phone") or "").strip()
+    except Exception:
+        from fastapi.responses import JSONResponse
+        return JSONResponse({"ok": False, "message": "رقم الجوال مطلوب"}, status_code=400)
+    if not phone:
+        from fastapi.responses import JSONResponse
+        return JSONResponse({"ok": False, "message": "رقم الجوال مطلوب"}, status_code=400)
+    from fastapi.responses import JSONResponse
     _, err = await api_ex("post", "/api/auth/send-otp", token=_token(request),
                           json={"phone": phone, "resend": True})
-    from urllib.parse import quote as _q
-    from fastapi.responses import HTMLResponse as _HR
     if err:
-        dest = f"/settings?error={_q(err)}"
-    else:
-        dest = f"/settings?success={_q('تم إرسال رسالة تجريبية إلى ' + phone)}"
-    return _HR(f'<meta http-equiv="refresh" content="0;url={dest}"><script>location.replace({repr(dest)})</script>')
+        return JSONResponse({"ok": False, "message": err})
+    return JSONResponse({"ok": True, "message": f"تم إرسال رسالة تجريبية إلى {phone}"})

@@ -392,8 +392,20 @@ def _send_sms(phone: str, message: str, api_key: str, devices: str = "") -> bool
             data=payload,
             timeout=15,
         )
-        print(f"[SMS] {phone} → status={resp.status_code} body={resp.text[:200]}", flush=True)
-        return resp.status_code == 200
+        body_text = resp.text[:300]
+        print(f"[SMS] {phone} → status={resp.status_code} body={body_text}", flush=True)
+        if resp.status_code != 200:
+            return False
+        # البوابة ترجع {"success":true/false} حتى مع status=200
+        try:
+            body_json = resp.json()
+            success = body_json.get("success", True)
+            if success is False:
+                print(f"[SMS] Gateway returned success=false for {phone}: {body_text}", flush=True)
+                return False
+        except Exception:
+            pass  # إذا تعذّر تحليل JSON نفترض النجاح مع 200
+        return True
     except Exception as e:
         print(f"[SMS] Error sending to {phone}: {e}", flush=True)
         return False
@@ -433,6 +445,10 @@ def send_otp(body: OtpSendRequest, request: Request, db: Session = Depends(get_d
         sent = _send_sms(phone, message, api_key, devices)
         if not sent:
             print(f"[OTP] SMS failed — code for {phone}: {code}", flush=True)
+            raise HTTPException(
+                status_code=503,
+                detail="فشل إرسال رمز التحقق عبر SMS — تحقق من اتصال الجهاز أو حاول لاحقاً",
+            )
         return {"message": "تم إرسال رمز التحقق"}
     else:
         # Dev mode — no SMS key configured, print and return code in response

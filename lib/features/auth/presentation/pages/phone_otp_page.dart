@@ -929,25 +929,26 @@ class _ErrorBox extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
       decoration: BoxDecoration(
         color: AppColors.error.withOpacity(0.1),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: AppColors.error.withOpacity(0.3)),
+        border: Border.all(color: AppColors.error.withOpacity(0.4)),
       ),
       child: Row(
         children: [
-          const Icon(Icons.error_outline, color: AppColors.error, size: 16),
+          const Icon(Icons.error_outline, color: AppColors.error, size: 18),
           const SizedBox(width: 8),
           Expanded(
             child: Text(message,
                 style: const TextStyle(
                     fontFamily: 'Cairo',
-                    color: AppColors.error,
-                    fontSize: 13)),
+                    color: Color(0xFFFF6B6B),
+                    fontSize: 13,
+                    height: 1.4)),
           ),
         ],
       ),
-    );
+    ).animate().fadeIn().shake(hz: 2, offset: const Offset(4, 0));
   }
 }
