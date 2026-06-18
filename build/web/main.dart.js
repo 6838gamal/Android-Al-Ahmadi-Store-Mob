@@ -8104,7 +8104,7 @@ bjA(){var s=new A.q1()
 s.acI()
 return s},
 bjB(){var s=A.Bd(),r=s.glg(s)
-if(B.c.q(r,"netlify.app")||B.c.dW(r,".onrender.com")||B.c.q(r,"alahmadi."))return""
+if(B.c.q(r,"netlify.app")||B.c.dW(r,".onrender.com")||B.c.q(r,"alahmadi."))return"https://android-al-ahmadi-store-api.onrender.com"
 s=A.Bd()
 return s.gv_(s)},
 b_T:function b_T(){},

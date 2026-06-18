@@ -91,6 +91,8 @@ class ApiClient {
   ///   go through the server.js proxy → localhost:8000.
   /// - Mobile (non-web): always returns AppConstants.baseUrl.
   /// - Override at build time with --dart-define=API_BASE_URL=https://your-api.com
+  static const String _fallbackApi = 'https://android-al-ahmadi-store-api.onrender.com';
+
   static String _resolveBase() {
     const override = String.fromEnvironment('API_BASE_URL', defaultValue: '');
     if (override.isNotEmpty) return override;
@@ -102,7 +104,8 @@ class ApiClient {
       if (host.contains('netlify.app') ||
           host.endsWith('.onrender.com') ||
           host.contains('alahmadi.')) {
-        return AppConstants.baseUrl;
+        final url = AppConstants.baseUrl;
+        return url.isNotEmpty ? url : _fallbackApi;
       }
       // On Replit dev, localhost, or any other dev host, use the current origin.
       // server.js proxies /api/* → localhost:8000 so this routes correctly.
@@ -110,7 +113,8 @@ class ApiClient {
     }
 
     // Mobile (Android / iOS) — always use direct Render.com URL.
-    return AppConstants.baseUrl;
+    final url = AppConstants.baseUrl;
+    return url.isNotEmpty ? url : _fallbackApi;
   }
 
   Future<bool> _tryRefresh() async {
