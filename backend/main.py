@@ -194,24 +194,6 @@ def health_check():
     return {"status": "ok", "app": "اندرويد الاحمدي", "version": "2.0.0"}
 
 
-@app.get("/firebase-config")
-def firebase_config():
-    """
-    Serve Firebase client config to the Flutter web app.
-    Kept here (FastAPI) so it works from the Render.com API URL used in
-    production builds — not just from the local Node proxy.
-    Keys are read from environment variables, never hardcoded.
-    """
-    from fastapi.responses import JSONResponse
-    config = {
-        "apiKey":            os.getenv("FIREBASE_API_KEY", ""),
-        "authDomain":        "android-al-ahmadi-store.firebaseapp.com",
-        "projectId":         "android-al-ahmadi-store",
-        "storageBucket":     "android-al-ahmadi-store.firebasestorage.app",
-        "messagingSenderId": os.getenv("FIREBASE_MESSAGING_SENDER_ID", ""),
-        "appId":             os.getenv("FIREBASE_APP_ID", ""),
-    }
-    return JSONResponse(content=config, headers={"Cache-Control": "no-store"})
 
 
 # ── WebSocket real-time hub ────────────────────────────────────────────────────

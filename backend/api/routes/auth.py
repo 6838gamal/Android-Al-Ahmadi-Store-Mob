@@ -22,7 +22,7 @@ STAFF_ROLES = [UserRole.staff, UserRole.branch_manager, UserRole.admin]
 
 _rate_store: dict = defaultdict(list)
 
-# ── Simple OTP store — no Firebase, no SMS (dev mode) ─────────────────────────
+# ── Simple OTP store — backend only (dev mode) ────────────────────────────────
 # phone → {"code": "123456", "expires": float, "sent_at": float}
 _otp_store: dict = {}
 _otp_lock = threading.Lock()          # يمنع race condition عند تزامن طلبين لنفس الرقم
@@ -313,7 +313,7 @@ def logout(
     return {"message": "تم تسجيل الخروج بنجاح"}
 
 
-# ── Simple backend OTP (Firebase disabled temporarily) ────────────────────────
+# ── Simple backend OTP ────────────────────────────────────────────────────────
 
 class OtpSendRequest(BaseModel):
     phone: str
@@ -443,131 +443,6 @@ def verify_otp(body: OtpVerifyRequest, request: Request, db: Session = Depends(g
     user.is_verified = True
     db.commit()
     db.refresh(user)
-    return _build_token_response(user)
-
-
-# ── Firebase Phone OTP verification ──────────────────────────────────────────
-
-class PhoneVerifyRequest(BaseModel):
-    firebase_id_token: str
-
-
-@router.post("/verify-phone")
-def verify_phone(
-    body: PhoneVerifyRequest,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
-):
-    """
-    Verify a Firebase phone-auth ID token and mark the user's phone as verified.
-    Flutter sends the Firebase ID token after successful OTP confirmation.
-    We verify it against Firebase REST API then set is_verified=True.
-    """
-    import httpx as _httpx
-
-    project_id = os.getenv("FIREBASE_PROJECT_ID", "android-al-ahmadi-store")
-    url = (
-        f"https://identitytoolkit.googleapis.com/v1/accounts:lookup"
-        f"?key={os.getenv('FIREBASE_API_KEY', '')}"
-    )
-    try:
-        r = _httpx.post(url, json={"idToken": body.firebase_id_token}, timeout=10)
-        data = r.json()
-        if r.status_code != 200 or "users" not in data:
-            raise HTTPException(status_code=400, detail="رمز Firebase غير صالح")
-        firebase_phone = data["users"][0].get("phoneNumber", "")
-    except _httpx.RequestError:
-        raise HTTPException(status_code=503, detail="تعذر التواصل مع Firebase")
-
-    # Normalise phone: strip leading + and country code prefix for comparison
-    def _normalise(p: str) -> str:
-        p = p.strip().lstrip("+")
-        for prefix in ("967", "00967"):
-            if p.startswith(prefix):
-                p = p[len(prefix):]
-        return p.lstrip("0")
-
-    user_phone = _normalise(current_user.phone or "")
-    fb_phone   = _normalise(firebase_phone)
-
-    if not fb_phone or user_phone not in (fb_phone, firebase_phone.lstrip("+")):
-        if user_phone != fb_phone:
-            raise HTTPException(
-                status_code=400,
-                detail=f"رقم الهاتف غير مطابق ({firebase_phone})"
-            )
-
-    current_user.is_verified = True
-    db.commit()
-    db.refresh(current_user)
-    return {"message": "تم التحقق من رقم الهاتف بنجاح", "is_verified": True}
-
-
-@router.post("/verify-phone-login")
-def verify_phone_login(
-    body: PhoneVerifyRequest,
-    request: Request,
-    db: Session = Depends(get_db),
-):
-    """
-    Login via Firebase phone OTP (no password needed).
-    Finds user by Firebase-verified phone number and returns app token.
-    """
-    import httpx as _httpx
-
-    client_ip = _get_client_ip(request)
-    _check_rate_limit(f"phone_login:{client_ip}", limit=10, window=60)
-
-    url = (
-        f"https://identitytoolkit.googleapis.com/v1/accounts:lookup"
-        f"?key={os.getenv('FIREBASE_API_KEY', '')}"
-    )
-    try:
-        r = _httpx.post(url, json={"idToken": body.firebase_id_token}, timeout=10)
-        data = r.json()
-        if r.status_code != 200 or "users" not in data:
-            raise HTTPException(status_code=400, detail="رمز Firebase غير صالح")
-        firebase_phone = data["users"][0].get("phoneNumber", "")
-    except _httpx.RequestError:
-        raise HTTPException(status_code=503, detail="تعذر التواصل مع Firebase")
-
-    if not firebase_phone:
-        raise HTTPException(status_code=400, detail="رقم الهاتف غير موجود في Firebase")
-
-    # Try to find user by phone (various formats)
-    def _variants(phone: str):
-        phone = phone.strip()
-        variants = {phone}
-        p = phone.lstrip("+")
-        variants.add(p)
-        for prefix in ("967", "00967"):
-            if p.startswith(prefix):
-                local = p[len(prefix):]
-                variants.add(local)
-                variants.add("0" + local)
-        return variants
-
-    user = None
-    for variant in _variants(firebase_phone):
-        user = db.query(User).filter(User.phone == variant).first()
-        if user:
-            break
-
-    if not user:
-        raise HTTPException(
-            status_code=404,
-            detail="لا يوجد حساب مرتبط بهذا الرقم. يرجى التسجيل أولاً."
-        )
-
-    if not user.is_active:
-        raise HTTPException(status_code=403, detail="الحساب معطّل")
-
-    # Mark as verified automatically
-    if not user.is_verified:
-        user.is_verified = True
-        db.commit()
-        db.refresh(user)
-
     return _build_token_response(user)
 
 

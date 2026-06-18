@@ -93,23 +93,6 @@ function proxyRequest(req, res, urlOverride) {
 }
 
 const server = http.createServer((req, res) => {
-  // Firebase config endpoint — serves keys from env vars (never hardcoded)
-  if (req.url === '/firebase-config') {
-    res.writeHead(200, {
-      'Content-Type': 'application/json',
-      'Cache-Control': 'no-store',
-    });
-    res.end(JSON.stringify({
-      apiKey:            process.env.FIREBASE_API_KEY || '',
-      authDomain:        'android-al-ahmadi-store.firebaseapp.com',
-      projectId:         'android-al-ahmadi-store',
-      storageBucket:     'android-al-ahmadi-store.firebasestorage.app',
-      messagingSenderId: process.env.FIREBASE_MESSAGING_SENDER_ID || '',
-      appId:             process.env.FIREBASE_APP_ID || '',
-    }));
-    return;
-  }
-
   // Proxy /api/* and /uploads/* to backend (port 8000)
   if (req.url.startsWith('/api') || req.url.startsWith('/uploads')) {
     return proxyRequest(req, res);

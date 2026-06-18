@@ -298,7 +298,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
-  /// Called after Firebase OTP login — token + user already fetched from backend
+  /// Called after phone OTP login — token + user already fetched from backend
   void setUserFromData(UserModel user, String token) {
     state = state.copyWith(user: user, isLoading: false);
   }
