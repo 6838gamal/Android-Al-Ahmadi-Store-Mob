@@ -27,11 +27,16 @@
       <div style="color:white;font-weight:700;font-size:15px">بوابة الرسائل النصية (SMS Gateway)</div>
       <div style="color:#6B7280;font-size:12px">خدمة إرسال رموز التحقق عبر sms-gateway.app</div>
     </div>
-    <div style="margin-right:auto">
+    <div style="margin-right:auto;display:flex;gap:8px;align-items:center">
       {% if sms_configured %}
       <span style="padding:4px 12px;border-radius:20px;background:rgba(34,197,94,0.12);border:1px solid rgba(34,197,94,0.25);color:#22C55E;font-size:12px;font-weight:700">
         <i class="fa-solid fa-circle-check" style="font-size:10px"></i> مُفعَّلة
       </span>
+      {% if sms_key_via_env %}
+      <span style="padding:4px 10px;border-radius:20px;background:rgba(99,102,241,0.12);border:1px solid rgba(99,102,241,0.3);color:#818CF8;font-size:11px;font-weight:600">
+        <i class="fa-solid fa-shield-halved" style="font-size:9px"></i> env
+      </span>
+      {% endif %}
       {% else %}
       <span style="padding:4px 12px;border-radius:20px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.2);color:#EF4444;font-size:12px;font-weight:700">
         <i class="fa-solid fa-circle-xmark" style="font-size:10px"></i> غير مفعّلة
@@ -47,6 +52,13 @@
       <div style="color:#D97706;font-size:13px;line-height:1.6">
         لم يتم ضبط مفتاح SMS بعد. رموز التحقق تُعرض حالياً على الشاشة (وضع التطوير فقط).
         أدخل المفتاح أدناه لتفعيل الإرسال الفعلي للرسائل.
+      </div>
+    </div>
+    {% elif sms_key_via_env %}
+    <div style="background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.2);border-radius:10px;padding:12px 16px;margin-bottom:20px;display:flex;gap:10px">
+      <i class="fa-solid fa-shield-halved" style="color:#818CF8;font-size:14px;margin-top:1px;flex-shrink:0"></i>
+      <div style="color:#A5B4FC;font-size:13px;line-height:1.6">
+        مفتاح SMS مُعيَّن عبر متغير البيئة <code style="background:rgba(255,255,255,0.1);padding:1px 6px;border-radius:4px;font-size:12px">SMS_API_KEY</code> — لا حاجة لإعداد يدوي.
       </div>
     </div>
     {% endif %}
@@ -177,6 +189,7 @@
         type="text"
         name="test_phone"
         placeholder="+9677XXXXXXXX"
+        value="{{ sms_test_phone or '' }}"
         class="input-field"
         style="direction:ltr;margin-bottom:16px"
       >

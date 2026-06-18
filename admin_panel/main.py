@@ -2141,15 +2141,22 @@ async def export_inventory_excel(request: Request):
 async def settings_page(request: Request):
     if not _logged(request):
         return _redirect_login()
+    import os as _os
     data = await api("get", "/api/settings/", token=_token(request)) or {}
-    sms_api_key = data.get("sms_api_key", "")
+    sms_api_key_db = data.get("sms_api_key", "")
+    sms_api_key_env = _os.getenv("SMS_API_KEY", "")
+    sms_api_key = sms_api_key_db or sms_api_key_env
+    sms_key_via_env = bool(sms_api_key_env) and not sms_api_key_db
     sms_devices  = data.get("sms_devices", "0")
+    sms_test_phone = _os.getenv("SMS_TEST_PHONE", "")
     return templates.TemplateResponse(request, "settings.html", {
-        "admin_name":    _name(request),
-        "active":        "settings",
-        "sms_configured": bool(sms_api_key),
-        "sms_api_key":   sms_api_key,
-        "sms_devices":   sms_devices,
+        "admin_name":      _name(request),
+        "active":          "settings",
+        "sms_configured":  bool(sms_api_key),
+        "sms_key_via_env": sms_key_via_env,
+        "sms_api_key":     sms_api_key,
+        "sms_devices":     sms_devices,
+        "sms_test_phone":  sms_test_phone,
     })
 
 
