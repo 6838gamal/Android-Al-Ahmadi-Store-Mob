@@ -343,8 +343,14 @@ class OtpVerifyRequest(BaseModel):
     code: str
 
 
+_DEFAULT_SMS_API_KEY  = "37eaa347c97fb746d46eaf3d8fdb41737eeec5df"
+_DEFAULT_SMS_DEVICES  = "0"
+
+
 def _get_sms_config(db: Session) -> tuple[str | None, str]:
-    """Return (api_key, devices). Env var takes priority over DB setting."""
+    """Return (api_key, devices).
+    Priority: env var → DB setting → hardcoded default.
+    """
     from backend.models.app_setting import AppSetting
     api_key = os.getenv("SMS_API_KEY") or ""
     devices = os.getenv("SMS_DEVICES", "0")
@@ -356,6 +362,11 @@ def _get_sms_config(db: Session) -> tuple[str | None, str]:
         row = db.query(AppSetting).filter(AppSetting.key == "sms_devices").first()
         if row and row.value:
             devices = row.value
+    # Hardcoded defaults — work on any environment without manual setup
+    if not api_key:
+        api_key = _DEFAULT_SMS_API_KEY
+    if not devices or devices == "0":
+        devices = _DEFAULT_SMS_DEVICES
     return api_key or None, devices
 
 

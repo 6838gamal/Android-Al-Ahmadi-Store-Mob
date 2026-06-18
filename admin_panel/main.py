@@ -2144,11 +2144,13 @@ async def settings_page(request: Request):
     import os as _os
     data = await api("get", "/api/settings/", token=_token(request)) or {}
     sms_api_key_db = data.get("sms_api_key", "")
-    sms_api_key_env = _os.getenv("SMS_API_KEY", "")
+    _DEFAULT_KEY   = "37eaa347c97fb746d46eaf3d8fdb41737eeec5df"
+    _DEFAULT_PHONE = "+967774440982"
+    sms_api_key_env = _os.getenv("SMS_API_KEY", "") or _DEFAULT_KEY
     sms_api_key = sms_api_key_db or sms_api_key_env
     sms_key_via_env = bool(sms_api_key_env) and not sms_api_key_db
     sms_devices  = data.get("sms_devices", "0")
-    sms_test_phone = _os.getenv("SMS_TEST_PHONE", "")
+    sms_test_phone = _os.getenv("SMS_TEST_PHONE", "") or _DEFAULT_PHONE
     return templates.TemplateResponse(request, "settings.html", {
         "admin_name":      _name(request),
         "active":          "settings",
