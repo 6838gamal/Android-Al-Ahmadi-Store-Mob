@@ -1,40 +1,24 @@
 from pydantic_settings import BaseSettings
 import os
 
+_DEFAULT_DB_URL    = "postgresql://gamalalmaqtary:QPg3qlwP31n4QNczLjG1C3XpdXdZj29D@dpg-d8egmfv40ujc73dj2ggg-a.ohio-postgres.render.com/android_al_ahmadi_store_db"
+_DEFAULT_API_URL   = "https://android-al-ahmadi-store-api.onrender.com"
+_DEFAULT_SECRET    = "android-alahmadi-replit-secret-key-2026-very-secure-random-string"
+
 
 def _resolve_db_url() -> str:
-    """يقرأ APP_DATABASE_URL من متغيرات البيئة فقط — لا قيمة مُضمَّنة في الكود."""
-    url = os.getenv("APP_DATABASE_URL", "").strip()
-    if not url:
-        raise RuntimeError(
-            "[FATAL] متغير البيئة APP_DATABASE_URL غير مضبوط — "
-            "أضفه من لوحة متغيرات البيئة في Replit."
-        )
+    url = os.getenv("APP_DATABASE_URL", _DEFAULT_DB_URL).strip()
     if url.startswith("postgres://"):
         url = "postgresql://" + url[len("postgres://"):]
     return url
 
 
 def _resolve_api_url() -> str:
-    """يقرأ BACKEND_API_URL من متغيرات البيئة فقط — لا قيمة مُضمَّنة في الكود."""
-    url = os.getenv("BACKEND_API_URL", "").strip().rstrip("/")
-    if not url:
-        raise RuntimeError(
-            "[FATAL] متغير البيئة BACKEND_API_URL غير مضبوط — "
-            "أضفه من لوحة متغيرات البيئة في Replit."
-        )
-    return url
+    return os.getenv("BACKEND_API_URL", _DEFAULT_API_URL).strip().rstrip("/")
 
 
 def _resolve_secret_key() -> str:
-    """يقرأ SECRET_KEY من متغيرات البيئة فقط — لا قيمة مُضمَّنة في الكود."""
-    key = os.getenv("SECRET_KEY", "").strip()
-    if not key:
-        raise RuntimeError(
-            "[FATAL] متغير البيئة SECRET_KEY غير مضبوط — "
-            "أضفه من لوحة متغيرات البيئة في Replit."
-        )
-    return key
+    return os.getenv("SECRET_KEY", _DEFAULT_SECRET).strip()
 
 
 class Settings(BaseSettings):

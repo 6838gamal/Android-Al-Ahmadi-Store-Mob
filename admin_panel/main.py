@@ -14,9 +14,8 @@ import httpx
 from urllib.parse import quote as _q
 from contextlib import asynccontextmanager
 
-# ── Backend API — local backend (port 8000) ────────────────────────────────────
-# Uses BACKEND_API_URL env var if set; otherwise defaults to the local backend.
-API_BASE = os.getenv("BACKEND_API_URL", "http://127.0.0.1:8000").rstrip("/")
+# ── Backend API URL — يُقرأ من BACKEND_API_URL أو يستخدم القيمة الافتراضية ────
+API_BASE = os.getenv("BACKEND_API_URL", "https://android-al-ahmadi-store-api.onrender.com").rstrip("/")
 
 
 @asynccontextmanager
@@ -68,7 +67,7 @@ async def global_exception_handler(request: Request, exc: Exception):
 
 app.add_middleware(
     SessionMiddleware,
-    secret_key=os.getenv("SECRET_KEY", "admin-alahmadi-panel-secret-2026"),
+    secret_key=os.getenv("SECRET_KEY", "android-alahmadi-replit-secret-key-2026-very-secure-random-string"),
     max_age=86400,
     https_only=False,
     same_site="lax",

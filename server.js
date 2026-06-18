@@ -4,12 +4,8 @@ const fs = require('fs');
 const path = require('path');
 
 const PORT = 5000;
-// URL الـ API الخارجي — يُقرأ من متغير البيئة BACKEND_API_URL فقط، لا قيمة افتراضية في الكود
-const EXTERNAL_API = (process.env.BACKEND_API_URL || '').replace(/\/$/, '');
-if (!EXTERNAL_API) {
-  console.error('[FATAL] متغير البيئة BACKEND_API_URL غير مضبوط — لن يعمل البروكسي');
-  process.exit(1);
-}
+// URL الـ API الخارجي — يُقرأ من BACKEND_API_URL أو يستخدم القيمة الافتراضية
+const EXTERNAL_API = (process.env.BACKEND_API_URL || 'https://android-al-ahmadi-store-api.onrender.com').replace(/\/$/, '');
 const WEB_DIR = path.join(__dirname, 'build', 'web');
 
 const mimeTypes = {
