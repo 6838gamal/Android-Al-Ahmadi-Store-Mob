@@ -70,3 +70,16 @@ python-jose[cryptography]
 python-multipart
 SQLAlchemy
 uvicorn[standard]
+aiofiles
+alembic
+fastapi
+passlib[bcrypt]
+pillow
+psycopg2-binary
+pydantic[email]
+pydantic-settings
+python-dotenv
+python-jose[cryptography]
+python-multipart
+sqlalchemy
+uvicorn[standard]

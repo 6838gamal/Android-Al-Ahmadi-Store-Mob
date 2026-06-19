@@ -1,24 +1,26 @@
 from pydantic_settings import BaseSettings
 import os
-
-_DEFAULT_DB_URL    = "postgresql://gamalalmaqtary:QPg3qlwP31n4QNczLjG1C3XpdXdZj29D@dpg-d8egmfv40ujc73dj2ggg-a.ohio-postgres.render.com/android_al_ahmadi_store_db"
-_DEFAULT_API_URL   = "https://android-al-ahmadi-store-api.onrender.com"
-_DEFAULT_SECRET    = "android-alahmadi-replit-secret-key-2026-very-secure-random-string"
+import secrets
 
 
 def _resolve_db_url() -> str:
-    url = os.getenv("APP_DATABASE_URL", _DEFAULT_DB_URL).strip()
+    url = os.getenv("DATABASE_URL", os.getenv("APP_DATABASE_URL", "")).strip()
+    if not url:
+        raise RuntimeError("DATABASE_URL environment variable is not set")
     if url.startswith("postgres://"):
         url = "postgresql://" + url[len("postgres://"):]
     return url
 
 
 def _resolve_api_url() -> str:
-    return os.getenv("BACKEND_API_URL", _DEFAULT_API_URL).strip().rstrip("/")
+    return os.getenv("BACKEND_API_URL", "http://localhost:8000").strip().rstrip("/")
 
 
 def _resolve_secret_key() -> str:
-    return os.getenv("SECRET_KEY", _DEFAULT_SECRET).strip()
+    key = os.getenv("SECRET_KEY", "").strip()
+    if not key:
+        key = secrets.token_hex(32)
+    return key
 
 
 class Settings(BaseSettings):

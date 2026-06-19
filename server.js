@@ -4,8 +4,8 @@ const fs = require('fs');
 const path = require('path');
 
 const PORT = 5000;
-// URL الـ API الخارجي — يُقرأ من BACKEND_API_URL أو يستخدم القيمة الافتراضية
-const EXTERNAL_API = (process.env.BACKEND_API_URL || 'https://android-al-ahmadi-store-api.onrender.com').replace(/\/$/, '');
+// Proxy to local backend by default; override with BACKEND_API_URL env var
+const EXTERNAL_API = (process.env.BACKEND_API_URL || 'http://localhost:8000').replace(/\/$/, '');
 const WEB_DIR = path.join(__dirname, 'build', 'web');
 
 const mimeTypes = {
@@ -28,6 +28,7 @@ const mimeTypes = {
 function proxyRequest(req, res, urlOverride) {
   const proxyPath = urlOverride || req.url;
   const target = new URL(EXTERNAL_API);
+  const isHttps = target.protocol === 'https:';
 
   const clientIp = req.headers['x-real-ip']
     || (req.headers['x-forwarded-for'] || '').split(',')[0].trim()
@@ -36,19 +37,20 @@ function proxyRequest(req, res, urlOverride) {
 
   const options = {
     hostname: target.hostname,
-    port: 443,
+    port: target.port || (isHttps ? 443 : 80),
     path: proxyPath,
     method: req.method,
     headers: {
       ...req.headers,
-      host: target.hostname,
+      host: target.host,
       'x-real-ip': clientIp,
       'x-forwarded-for': clientIp,
     },
   };
 
-  const proxyReq = https.request(options, (proxyRes) => {
-    // Follow 307/308 redirects internally
+  const transport = isHttps ? https : http;
+
+  const proxyReq = transport.request(options, (proxyRes) => {
     if ((proxyRes.statusCode === 307 || proxyRes.statusCode === 308) && proxyRes.headers.location) {
       proxyRes.resume();
       const loc = new URL(proxyRes.headers.location);
@@ -58,7 +60,6 @@ function proxyRequest(req, res, urlOverride) {
     proxyRes.pipe(res, { end: true });
   });
 
-  // 45-second timeout for API requests — prevents hanging when backend is slow
   proxyReq.setTimeout(45000, () => {
     proxyReq.destroy();
     if (!res.headersSent) {
@@ -80,7 +81,7 @@ function proxyRequest(req, res, urlOverride) {
         'Access-Control-Allow-Origin': '*',
       });
       res.end(JSON.stringify({
-        detail: 'تعذّر الاتصال بالخادم الخارجي — تأكد من اتصالك بالإنترنت وأعد المحاولة'
+        detail: 'تعذّر الاتصال بالخادم — تأكد من تشغيل الـ Backend وأعد المحاولة'
       }));
     }
   });
@@ -120,13 +121,20 @@ const server = http.createServer((req, res) => {
       const ext = path.extname(filePath);
       const contentType = mimeTypes[ext] || 'application/octet-stream';
 
-      // حقن BACKEND_API_URL ديناميكياً في السيرفس وركر بدلاً من القيمة المُدمجة في الملف
       const isServiceWorker = filePath.endsWith('flutter_service_worker.js');
+      const isBootstrap = filePath.endsWith('flutter_bootstrap.js');
       let body = data;
       if (isServiceWorker) {
         body = data.toString('utf8').replace(
           /const REMOTE_API\s*=\s*['"][^'"]*['"]\s*;/,
           `const REMOTE_API = ${JSON.stringify(EXTERNAL_API)};`
+        );
+      } else if (isBootstrap) {
+        // Remove serviceWorkerSettings so Flutter loads without requiring a service worker
+        // This prevents blank screen in non-HTTPS (Replit preview) contexts
+        body = data.toString('utf8').replace(
+          /_flutter\.loader\.load\(\{[\s\S]*?\}\);/,
+          `_flutter.loader.load({});`
         );
       }
 

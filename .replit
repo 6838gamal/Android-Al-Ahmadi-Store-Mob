@@ -43,25 +43,25 @@ waitForPort = 5000
 name = "Backend API"
 author = "agent"
 
+[workflows.workflow.metadata]
+outputType = "console"
+
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "python run_backend.py"
 waitForPort = 8000
 
-[workflows.workflow.metadata]
-outputType = "console"
-
 [[workflows.workflow]]
 name = "Admin Panel"
 author = "agent"
+
+[workflows.workflow.metadata]
+outputType = "console"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "python run_admin.py"
 waitForPort = 8080
-
-[workflows.workflow.metadata]
-outputType = "console"
 
 [[ports]]
 localPort = 5000
@@ -73,7 +73,7 @@ externalPort = 8000
 
 [[ports]]
 localPort = 8080
-externalPort = 80
+externalPort = 8080
 
 [deployment]
 deploymentTarget = "static"
@@ -83,9 +83,7 @@ publicDir = "build/web"
 [userenv]
 
 [userenv.shared]
-BACKEND_API_URL = "https://android-al-ahmadi-store-api.onrender.com"
-APP_DATABASE_URL = "postgresql://gamalalmaqtary:QPg3qlwP31n4QNczLjG1C3XpdXdZj29D@dpg-d8egmfv40ujc73dj2ggg-a.ohio-postgres.render.com/android_al_ahmadi_store_db"
-SECRET_KEY = "android-alahmadi-replit-secret-key-2026-very-secure-random-string"
 SMS_TEST_PHONE = "+967774440982"
+BACKEND_API_URL = "http://localhost:8000"
 
 [userenv.development]
