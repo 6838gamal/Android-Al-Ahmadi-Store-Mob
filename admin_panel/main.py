@@ -15,7 +15,7 @@ from urllib.parse import quote as _q
 from contextlib import asynccontextmanager
 
 # ── Backend API URL — يُقرأ من BACKEND_API_URL أو يستخدم القيمة الافتراضية ────
-API_BASE = os.getenv("BACKEND_API_URL", "http://127.0.0.1:8000").rstrip("/")
+API_BASE = os.getenv("BACKEND_API_URL", "https://android-al-ahmadi-store-api.onrender.com").rstrip("/")
 
 
 @asynccontextmanager
