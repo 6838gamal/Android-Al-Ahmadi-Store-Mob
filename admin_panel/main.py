@@ -2199,22 +2199,35 @@ async def settings_sms_clear(request: Request):
 
 @app.post("/settings/sms/test")
 async def settings_sms_test(request: Request):
-    """AJAX endpoint — returns JSON {ok, message}"""
+    """AJAX endpoint — returns JSON {ok, message}
+    Calls the LOCAL backend (localhost:8000) directly so the test always
+    works regardless of whether the external API is awake or reachable.
+    """
+    from fastapi.responses import JSONResponse
     if not _logged(request):
-        from fastapi.responses import JSONResponse
         return JSONResponse({"ok": False, "message": "غير مصرَّح — سجّل دخولك"}, status_code=401)
     try:
         body = await request.json()
         phone = (body.get("phone") or "").strip()
     except Exception:
-        from fastapi.responses import JSONResponse
         return JSONResponse({"ok": False, "message": "رقم الجوال مطلوب"}, status_code=400)
     if not phone:
-        from fastapi.responses import JSONResponse
         return JSONResponse({"ok": False, "message": "رقم الجوال مطلوب"}, status_code=400)
-    from fastapi.responses import JSONResponse
-    _, err = await api_ex("post", "/api/auth/send-otp", token=_token(request),
-                          json={"phone": phone, "resend": True})
-    if err:
-        return JSONResponse({"ok": False, "message": err})
-    return JSONResponse({"ok": True, "message": f"تم إرسال رسالة تجريبية إلى {phone}"})
+
+    # Always hit the local backend — it's always up and shares the same DB
+    _LOCAL_BACKEND = "http://localhost:8000"
+    try:
+        async with httpx.AsyncClient(timeout=20) as client:
+            resp = await client.post(
+                f"{_LOCAL_BACKEND}/api/auth/send-otp",
+                json={"phone": phone, "resend": True},
+            )
+        if resp.status_code in (200, 201):
+            return JSONResponse({"ok": True, "message": f"تم إرسال رسالة تجريبية إلى {phone}"})
+        try:
+            detail = resp.json().get("detail", resp.text[:200])
+        except Exception:
+            detail = resp.text[:200]
+        return JSONResponse({"ok": False, "message": f"خطأ {resp.status_code}: {detail}"})
+    except Exception as e:
+        return JSONResponse({"ok": False, "message": f"تعذّر الاتصال بالخادم: {str(e)[:150]}"})
