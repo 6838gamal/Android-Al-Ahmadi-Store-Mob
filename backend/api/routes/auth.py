@@ -410,6 +410,40 @@ def _send_sms(phone: str, message: str, api_key: str, devices: str = "") -> bool
     return False
 
 
+@router.get("/sms-gateway-status")
+def sms_gateway_status(db: Session = Depends(get_db)):
+    """فحص حالة بوابة SMS — يتحقق من صلاحية المفتاح ورصيد الكريدت واتصال الجهاز."""
+    import httpx
+    api_key, devices = _get_sms_config(db)
+    if not api_key:
+        return {"ok": False, "reason": "no_key", "message": "لم يُضبَط مفتاح SMS", "credits": None, "device_online": None}
+    try:
+        resp = httpx.post(
+            "https://app.sms-gateway.app/services/send.php",
+            data={"key": api_key, "action": "info"},
+            timeout=15,
+        )
+        if resp.status_code != 200:
+            return {"ok": False, "reason": "http_error", "message": f"البوابة أعادت HTTP {resp.status_code}", "credits": None, "device_online": None}
+        data = resp.json()
+        if not data.get("success"):
+            err = data.get("error") or "مفتاح API غير صالح"
+            return {"ok": False, "reason": "invalid_key", "message": err, "credits": None, "device_online": None}
+        credits = data.get("data", {}).get("credits")
+        # sms-gateway.app لا يكشف حالة الجهاز عبر API العام — نُبلِّغ بذلك صراحةً
+        return {
+            "ok": True,
+            "reason": "connected",
+            "message": "البوابة متصلة والمفتاح صالح",
+            "credits": credits,
+            "device_online": None,  # غير متاح عبر API
+        }
+    except httpx.TimeoutException:
+        return {"ok": False, "reason": "timeout", "message": "انتهت مهلة الاتصال بالبوابة (15 ث)", "credits": None, "device_online": None}
+    except Exception as e:
+        return {"ok": False, "reason": "exception", "message": str(e)[:120], "credits": None, "device_online": None}
+
+
 @router.post("/send-otp")
 def send_otp(body: OtpSendRequest, request: Request, db: Session = Depends(get_db)):
     client_ip = _get_client_ip(request)

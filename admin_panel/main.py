@@ -2197,9 +2197,21 @@ async def settings_sms_clear(request: Request):
     return RedirectResponse("/settings?success=تم+حذف+مفتاح+SMS", status_code=302)
 
 
+@app.get("/settings/sms/status")
+async def settings_sms_status(request: Request):
+    """AJAX — يفحص حالة بوابة SMS ويعيد JSON {ok, message, credits, device_online}"""
+    from fastapi.responses import JSONResponse
+    if not _logged(request):
+        return JSONResponse({"ok": False, "message": "غير مصرَّح"}, status_code=401)
+    data, err = await api_ex("get", "/api/auth/sms-gateway-status", token=_token(request))
+    if err or not data:
+        return JSONResponse({"ok": False, "message": err or "تعذّر الاتصال بالخادم"})
+    return JSONResponse(data)
+
+
 @app.post("/settings/sms/test")
 async def settings_sms_test(request: Request):
-    """AJAX endpoint — returns JSON {ok, message}"""
+    """AJAX endpoint — returns JSON {ok, message, queued}"""
     from fastapi.responses import JSONResponse
     if not _logged(request):
         return JSONResponse({"ok": False, "message": "غير مصرَّح — سجّل دخولك"}, status_code=401)
@@ -2215,4 +2227,5 @@ async def settings_sms_test(request: Request):
                           json={"phone": phone, "resend": True})
     if err:
         return JSONResponse({"ok": False, "message": err})
-    return JSONResponse({"ok": True, "message": f"تم إرسال رسالة تجريبية إلى {phone}"})
+    # queued=True يعني الرسالة قُبِلت في queue — ليس ضماناً بوصولها للجوال
+    return JSONResponse({"ok": True, "queued": True, "message": f"تم قبول الرسالة في queue إلى {phone}"})

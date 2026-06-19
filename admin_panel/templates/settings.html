@@ -173,20 +173,38 @@
 
 <!-- ── Test SMS Modal ────────────────────────────────────── -->
 <div id="test-modal" style="display:none;position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,.8);backdrop-filter:blur(6px);align-items:center;justify-content:center">
-  <div style="background:#161B22;border:1px solid #2D3748;border-radius:18px;padding:28px;width:92%;max-width:440px;box-shadow:0 24px 64px rgba(0,0,0,.6)">
+  <div style="background:#161B22;border:1px solid #2D3748;border-radius:18px;padding:28px;width:92%;max-width:460px;box-shadow:0 24px 64px rgba(0,0,0,.6)">
 
     <!-- Header -->
-    <div style="display:flex;align-items:center;gap:10px;margin-bottom:22px">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px">
       <div style="width:40px;height:40px;border-radius:12px;background:rgba(26,115,232,0.15);border:1px solid rgba(26,115,232,0.25);display:flex;align-items:center;justify-content:center;flex-shrink:0">
         <i class="fa-solid fa-paper-plane" style="color:#1A73E8;font-size:15px"></i>
       </div>
       <div>
         <div style="color:white;font-weight:700;font-size:15px">اختبار إرسال SMS</div>
-        <div style="color:#6B7280;font-size:11px;margin-top:2px">التحقق من اتصال بوابة الرسائل</div>
+        <div style="color:#6B7280;font-size:11px;margin-top:2px">فحص الحالة أولاً ثم الإرسال</div>
       </div>
-      <button onclick="closeTestModal()" style="margin-right:auto;background:none;border:none;color:#6B7280;font-size:18px;cursor:pointer;padding:4px 8px;border-radius:6px;transition:color .2s" onmouseover="this.style.color='#EF4444'" onmouseout="this.style.color='#6B7280'">
+      <button onclick="closeTestModal()" style="margin-right:auto;background:none;border:none;color:#6B7280;font-size:18px;cursor:pointer;padding:4px 8px;border-radius:6px" onmouseover="this.style.color='#EF4444'" onmouseout="this.style.color='#6B7280'">
         <i class="fa-solid fa-xmark"></i>
       </button>
+    </div>
+
+    <!-- ── Gateway Status Row ── -->
+    <div style="border:1px solid #2D3748;border-radius:10px;padding:12px 14px;margin-bottom:16px;background:#0D1117">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
+        <div style="display:flex;align-items:center;gap:8px">
+          <i class="fa-solid fa-satellite-dish" style="color:#6B7280;font-size:13px"></i>
+          <span style="color:#9CA3AF;font-size:12px;font-weight:600">حالة البوابة</span>
+        </div>
+        <div id="gw-status-badge" style="display:flex;align-items:center;gap:6px">
+          <span style="color:#6B7280;font-size:12px">لم يُفحص بعد</span>
+        </div>
+        <button id="gw-check-btn" onclick="checkGatewayStatus()" style="background:rgba(26,115,232,0.12);border:1px solid rgba(26,115,232,0.25);color:#60A5FA;font-size:11px;font-weight:700;padding:5px 12px;border-radius:7px;cursor:pointer;white-space:nowrap;transition:opacity .2s">
+          <i class="fa-solid fa-rotate" id="gw-check-icon"></i> فحص الحالة
+        </button>
+      </div>
+      <!-- Credits & device note -->
+      <div id="gw-detail" style="display:none;margin-top:10px;padding-top:10px;border-top:1px solid #2D3748;font-size:11px;color:#6B7280;line-height:1.7"></div>
     </div>
 
     <!-- Phone input -->
@@ -201,44 +219,54 @@
       onkeydown="if(event.key==='Enter') sendSmsTest()"
     >
 
-    <!-- ── Status Panel (hidden by default, shows one state at a time) ── -->
-
-    <!-- WAITING state -->
-    <div id="sms-state-waiting" style="display:none;border-radius:12px;padding:16px 18px;margin-bottom:16px;background:rgba(26,115,232,0.08);border:1px solid rgba(26,115,232,0.25)">
+    <!-- ── Status Panel ── -->
+    <!-- WAITING -->
+    <div id="sms-state-waiting" style="display:none;border-radius:12px;padding:14px 16px;margin-bottom:16px;background:rgba(26,115,232,0.08);border:1px solid rgba(26,115,232,0.25)">
       <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
-        <i class="fa-solid fa-spinner fa-spin" style="color:#1A73E8;font-size:20px;flex-shrink:0"></i>
+        <i class="fa-solid fa-spinner fa-spin" style="color:#1A73E8;font-size:18px;flex-shrink:0"></i>
         <div>
-          <div style="color:#60A5FA;font-weight:700;font-size:14px">جارٍ الإرسال...</div>
-          <div style="color:#4B5563;font-size:12px;margin-top:2px">يرجى الانتظار حتى يستجيب الخادم</div>
+          <div style="color:#60A5FA;font-weight:700;font-size:13px">جارٍ الإرسال...</div>
+          <div style="color:#4B5563;font-size:11px;margin-top:2px">يرجى الانتظار</div>
         </div>
+        <span id="sms-elapsed" style="margin-right:auto;color:#60A5FA;font-size:12px;font-weight:700;font-variant-numeric:tabular-nums">0 ث</span>
       </div>
-      <!-- Progress bar -->
-      <div style="background:rgba(26,115,232,0.15);border-radius:99px;height:4px;overflow:hidden">
+      <div style="background:rgba(26,115,232,0.15);border-radius:99px;height:3px;overflow:hidden">
         <div id="sms-progress-bar" style="height:100%;width:0%;background:linear-gradient(90deg,#1A73E8,#60A5FA);border-radius:99px;transition:width 0.3s linear"></div>
       </div>
-      <div style="display:flex;justify-content:space-between;margin-top:6px">
-        <span style="color:#4B5563;font-size:11px">مرسَل إلى: <span id="sms-wait-phone" style="color:#60A5FA;direction:ltr;display:inline-block"></span></span>
-        <span id="sms-elapsed" style="color:#60A5FA;font-size:12px;font-weight:700;font-variant-numeric:tabular-nums">0 ث</span>
+    </div>
+
+    <!-- QUEUED (success but device status unknown) -->
+    <div id="sms-state-queued" style="display:none;border-radius:12px;padding:16px;margin-bottom:16px;background:rgba(245,158,11,0.07);border:1px solid rgba(245,158,11,0.3)">
+      <div style="display:flex;align-items:flex-start;gap:12px;margin-bottom:10px">
+        <div style="width:38px;height:38px;border-radius:50%;background:rgba(245,158,11,0.15);border:1px solid rgba(245,158,11,0.3);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+          <i class="fa-solid fa-clock" style="color:#F59E0B;font-size:16px"></i>
+        </div>
+        <div>
+          <div style="color:#F59E0B;font-weight:700;font-size:14px;margin-bottom:2px">📬 مُقبَّل في Queue — في انتظار الجهاز</div>
+          <div id="sms-queued-detail" style="color:#9CA3AF;font-size:12px;line-height:1.6"></div>
+        </div>
+      </div>
+      <div style="background:rgba(0,0,0,0.3);border-radius:8px;padding:10px 12px;font-size:11px;color:#6B7280;line-height:1.8">
+        <strong style="color:#D97706">⚠️ ملاحظة مهمة:</strong><br>
+        البوابة <strong style="color:#F59E0B">قبلت الرسالة وخزّنتها</strong>، لكن الإرسال الفعلي يعتمد على:<br>
+        • جهاز Android مشغَّل ومتصل بالإنترنت<br>
+        • تطبيق <span style="color:#60A5FA">SMS Gateway</span> يعمل في الخلفية<br>
+        إذا كان الجهاز online → ستصل الرسالة خلال ثوانٍ<br>
+        إذا كان offline → ستُرسَل فور اتصاله
+      </div>
+      <div style="margin-top:10px;display:flex;align-items:center;justify-content:space-between">
+        <span style="color:#4B5563;font-size:11px">وقت الاستجابة: <span id="sms-queued-time" style="color:#F59E0B;font-weight:700"></span></span>
+        <a href="https://app.sms-gateway.app" target="_blank" style="font-size:11px;color:#60A5FA;text-decoration:none">
+          <i class="fa-solid fa-arrow-up-right-from-square" style="font-size:9px"></i> تحقق من لوحة sms-gateway.app
+        </a>
       </div>
     </div>
 
-    <!-- SUCCESS state -->
-    <div id="sms-state-success" style="display:none;border-radius:12px;padding:18px;margin-bottom:16px;background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.3);text-align:center">
-      <div style="width:52px;height:52px;border-radius:50%;background:rgba(34,197,94,0.15);border:2px solid rgba(34,197,94,0.4);display:flex;align-items:center;justify-content:center;margin:0 auto 12px">
-        <i class="fa-solid fa-circle-check" style="color:#22C55E;font-size:24px"></i>
-      </div>
-      <div style="color:#22C55E;font-weight:700;font-size:15px;margin-bottom:4px">✅ تم الإرسال بنجاح</div>
-      <div id="sms-success-detail" style="color:#6B7280;font-size:12px;line-height:1.6"></div>
-      <div style="margin-top:12px;padding-top:12px;border-top:1px solid rgba(34,197,94,0.2)">
-        <div style="color:#4B5563;font-size:11px">وقت الاستجابة: <span id="sms-success-time" style="color:#22C55E;font-weight:700"></span></div>
-      </div>
-    </div>
-
-    <!-- FAILURE state -->
-    <div id="sms-state-failure" style="display:none;border-radius:12px;padding:18px;margin-bottom:16px;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.3)">
+    <!-- FAILURE -->
+    <div id="sms-state-failure" style="display:none;border-radius:12px;padding:16px;margin-bottom:16px;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.3)">
       <div style="display:flex;align-items:flex-start;gap:12px;margin-bottom:12px">
-        <div style="width:40px;height:40px;border-radius:50%;background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.35);display:flex;align-items:center;justify-content:center;flex-shrink:0">
-          <i class="fa-solid fa-triangle-exclamation" style="color:#EF4444;font-size:18px"></i>
+        <div style="width:38px;height:38px;border-radius:50%;background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.35);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+          <i class="fa-solid fa-triangle-exclamation" style="color:#EF4444;font-size:16px"></i>
         </div>
         <div>
           <div style="color:#EF4444;font-weight:700;font-size:14px;margin-bottom:4px">❌ فشل الإرسال</div>
@@ -247,9 +275,9 @@
       </div>
       <div style="background:rgba(0,0,0,0.3);border-radius:8px;padding:10px 12px;font-size:11px;color:#6B7280;line-height:1.7">
         <strong style="color:#9CA3AF">تحقق من:</strong><br>
-        • أن جهاز Android متصل بالإنترنت وتطبيق SMS Gateway يعمل<br>
+        • أن جهاز Android متصل وتطبيق SMS Gateway يعمل<br>
         • أن مفتاح API صحيح في إعدادات SMS<br>
-        • أن الرقم بصيغة دولية مثل: <span style="color:#60A5FA;direction:ltr;display:inline">+9677XXXXXXXX</span>
+        • أن الرقم بصيغة دولية: <span style="color:#60A5FA;direction:ltr;display:inline">+9677XXXXXXXX</span>
       </div>
     </div>
 
@@ -269,16 +297,16 @@
 
 {% block scripts %}
 <script>
-var _smsElapsedTimer  = null;   // interval for the live counter
-var _smsStartTime     = null;   // when the current send started
-var _smsProgressTimer = null;   // interval for progress bar animation
-var _SMS_TIMEOUT      = 20;     // expected max seconds (progress bar reference)
+var _smsElapsedTimer  = null;
+var _smsStartTime     = null;
+var _smsProgressTimer = null;
+var _SMS_TIMEOUT      = 35;
 
-/* ── helpers ── */
+/* ── state helpers ── */
 function _smsState(state) {
-  /* state: 'idle' | 'waiting' | 'success' | 'failure' */
+  /* state: 'idle' | 'waiting' | 'queued' | 'failure' */
   document.getElementById('sms-state-waiting').style.display = state === 'waiting' ? 'block' : 'none';
-  document.getElementById('sms-state-success').style.display = state === 'success' ? 'block' : 'none';
+  document.getElementById('sms-state-queued').style.display  = state === 'queued'  ? 'block' : 'none';
   document.getElementById('sms-state-failure').style.display = state === 'failure' ? 'block' : 'none';
 }
 
@@ -287,21 +315,16 @@ function _smsStopTimers() {
   if (_smsProgressTimer) { clearInterval(_smsProgressTimer); _smsProgressTimer = null; }
 }
 
-function _smsStartWaiting(phone) {
+function _smsStartWaiting() {
   _smsStopTimers();
   _smsStartTime = Date.now();
-  document.getElementById('sms-wait-phone').textContent = phone;
-  document.getElementById('sms-elapsed').textContent    = '0 ث';
+  document.getElementById('sms-elapsed').textContent = '0 ث';
   document.getElementById('sms-progress-bar').style.width = '0%';
   _smsState('waiting');
-
-  /* live elapsed counter every 100ms */
   _smsElapsedTimer = setInterval(function() {
     var s = ((Date.now() - _smsStartTime) / 1000).toFixed(1);
     document.getElementById('sms-elapsed').textContent = s + ' ث';
   }, 100);
-
-  /* smooth progress bar — reaches ~90% at _SMS_TIMEOUT seconds */
   _smsProgressTimer = setInterval(function() {
     var elapsed = (Date.now() - _smsStartTime) / 1000;
     var pct = Math.min(90, (elapsed / _SMS_TIMEOUT) * 90);
@@ -310,7 +333,6 @@ function _smsStartWaiting(phone) {
 }
 
 function _smsFinishWaiting() {
-  /* snap progress bar to 100% then stop */
   document.getElementById('sms-progress-bar').style.transition = 'width 0.2s linear';
   document.getElementById('sms-progress-bar').style.width = '100%';
   _smsStopTimers();
@@ -326,9 +348,12 @@ function toggleKey() {
 function openTestModal() {
   _smsStopTimers();
   _smsState('idle');
+  /* reset gateway badge */
+  document.getElementById('gw-status-badge').innerHTML = '<span style="color:#6B7280;font-size:12px">لم يُفحص بعد</span>';
+  document.getElementById('gw-detail').style.display = 'none';
+  document.getElementById('gw-detail').innerHTML = '';
   document.getElementById('test-modal').style.display = 'flex';
   document.getElementById('test-phone-input').focus();
-  /* reset button */
   var btn = document.getElementById('test-send-btn');
   btn.disabled = false; btn.style.opacity = '1';
   document.getElementById('test-btn-label').textContent = 'إرسال رسالة تجريبية';
@@ -340,6 +365,46 @@ function closeTestModal() {
   document.getElementById('test-modal').style.display = 'none';
 }
 
+/* ── فحص حالة البوابة ── */
+async function checkGatewayStatus() {
+  var btn  = document.getElementById('gw-check-btn');
+  var icon = document.getElementById('gw-check-icon');
+  var badge = document.getElementById('gw-status-badge');
+  var detail = document.getElementById('gw-detail');
+
+  btn.disabled = true; btn.style.opacity = '0.6';
+  icon.className = 'fa-solid fa-spinner fa-spin';
+  badge.innerHTML = '<span style="color:#60A5FA;font-size:12px">جارٍ الفحص...</span>';
+  detail.style.display = 'none';
+
+  try {
+    var resp = await fetch('/settings/sms/status');
+    var data = await resp.json();
+
+    if (data.ok) {
+      var credits = data.credits != null ? data.credits : '—';
+      badge.innerHTML = '<i class="fa-solid fa-circle-check" style="color:#22C55E;font-size:12px"></i><span style="color:#22C55E;font-size:12px;font-weight:700">متصلة</span>';
+      detail.innerHTML =
+        '<span style="color:#22C55E">✓ المفتاح صالح</span> &nbsp;|&nbsp; ' +
+        '<span style="color:#60A5FA">رصيد الكريدت: <strong>' + credits + '</strong></span>' +
+        '<br><span style="color:#D97706">⚠️ حالة الجهاز (Android) لا تظهر في API — تأكد أن التطبيق يعمل على الجوال</span>';
+      detail.style.display = 'block';
+    } else {
+      badge.innerHTML = '<i class="fa-solid fa-circle-xmark" style="color:#EF4444;font-size:12px"></i><span style="color:#EF4444;font-size:12px;font-weight:700">خطأ</span>';
+      detail.innerHTML = '<span style="color:#F87171">' + (data.message || 'تعذّر الاتصال') + '</span>';
+      detail.style.display = 'block';
+    }
+  } catch(e) {
+    badge.innerHTML = '<span style="color:#EF4444;font-size:12px">فشل الفحص</span>';
+    detail.innerHTML = '<span style="color:#F87171">' + (e.message || e.toString()) + '</span>';
+    detail.style.display = 'block';
+  } finally {
+    btn.disabled = false; btn.style.opacity = '1';
+    icon.className = 'fa-solid fa-rotate';
+  }
+}
+
+/* ── إرسال رسالة تجريبية ── */
 async function sendSmsTest() {
   var phone = document.getElementById('test-phone-input').value.trim();
   if (!phone) {
@@ -352,18 +417,16 @@ async function sendSmsTest() {
   var label = document.getElementById('test-btn-label');
   var icon  = document.getElementById('test-btn-icon');
 
-  /* disable button + show waiting state */
-  btn.disabled = true;
-  btn.style.opacity = '0.6';
+  btn.disabled = true; btn.style.opacity = '0.6';
   icon.className = 'fa-solid fa-spinner fa-spin';
   label.textContent = 'جارٍ الإرسال...';
-  _smsStartWaiting(phone);
+  _smsStartWaiting();
 
   try {
     var resp = await fetch('/settings/sms/test', {
-      method:  'POST',
+      method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ phone: phone })
+      body: JSON.stringify({ phone: phone })
     });
 
     _smsFinishWaiting();
@@ -371,27 +434,26 @@ async function sendSmsTest() {
 
     var data;
     try { data = await resp.json(); }
-    catch(e) { data = { ok: false, message: 'استجابة غير صالحة من الخادم (status ' + resp.status + ')' }; }
+    catch(e) { data = { ok: false, message: 'استجابة غير صالحة (status ' + resp.status + ')' }; }
 
     if (data.ok) {
-      _smsState('success');
-      document.getElementById('sms-success-detail').textContent =
-        'تم إرسال رسالة OTP تجريبية إلى ' + phone;
-      document.getElementById('sms-success-time').textContent = elapsed + ' ث';
+      /* دائماً "queued" — البوابة تقبل وتُخزّن، لا نعرف إن وصلت */
+      _smsState('queued');
+      document.getElementById('sms-queued-detail').textContent =
+        'الرسالة قُبِلت للإرسال إلى ' + phone;
+      document.getElementById('sms-queued-time').textContent = elapsed + ' ث';
     } else {
       _smsState('failure');
       document.getElementById('sms-error-msg').textContent =
         data.message || 'فشل الإرسال — لا تفاصيل متاحة';
     }
-
   } catch(e) {
     _smsFinishWaiting();
     _smsState('failure');
     document.getElementById('sms-error-msg').textContent =
       'خطأ في الاتصال: ' + (e.message || e.toString());
   } finally {
-    btn.disabled = false;
-    btn.style.opacity = '1';
+    btn.disabled = false; btn.style.opacity = '1';
     icon.className = 'fa-solid fa-paper-plane';
     label.textContent = 'إرسال مرة أخرى';
   }
