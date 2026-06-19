@@ -371,7 +371,7 @@ def _get_sms_config(db: Session) -> tuple[str | None, str]:
 
 
 def _send_sms(phone: str, message: str, api_key: str, devices: str = "") -> bool:
-    """Send SMS via sms-gateway.app. Returns True on success."""
+    """Send SMS via sms-gateway.app. Returns True on success. Retries once on failure."""
     import httpx
     payload = {
         "number": phone,
@@ -380,35 +380,34 @@ def _send_sms(phone: str, message: str, api_key: str, devices: str = "") -> bool
         "type": "sms",
     }
     # أضف devices فقط لو كان معرّف جهاز حقيقي (ليس "0" أو فارغ)
-    # إذا كان هناك أكثر من جهاز (مفصولة بفاصلة) نأخذ الأول فقط لمنع إرسال رسائل متعددة
-    # devices="0" يعني "أرسل من كل الأجهزة" → يسبب رسائل متعددة من أرقام مختلفة
     if devices and devices.strip() not in ("", "0"):
         first_device = devices.strip().split(",")[0].strip()
         if first_device:
             payload["devices"] = first_device
-    try:
-        resp = httpx.post(
-            "https://app.sms-gateway.app/services/send.php",
-            data=payload,
-            timeout=15,
-        )
-        body_text = resp.text[:300]
-        print(f"[SMS] {phone} → status={resp.status_code} body={body_text}", flush=True)
-        if resp.status_code != 200:
-            return False
-        # البوابة ترجع {"success":true/false} حتى مع status=200
+
+    for attempt in range(2):  # محاولتان — الأولى + retry واحد
         try:
-            body_json = resp.json()
-            success = body_json.get("success", True)
-            if success is False:
-                print(f"[SMS] Gateway returned success=false for {phone}: {body_text}", flush=True)
-                return False
-        except Exception:
-            pass  # إذا تعذّر تحليل JSON نفترض النجاح مع 200
-        return True
-    except Exception as e:
-        print(f"[SMS] Error sending to {phone}: {e}", flush=True)
-        return False
+            resp = httpx.post(
+                "https://app.sms-gateway.app/services/send.php",
+                data=payload,
+                timeout=30,  # رُفع من 15 إلى 30 ثانية لاستيعاب cold-start
+            )
+            body_text = resp.text[:300]
+            print(f"[SMS] attempt={attempt+1} {phone} → status={resp.status_code} body={body_text}", flush=True)
+            if resp.status_code != 200:
+                continue
+            try:
+                body_json = resp.json()
+                success = body_json.get("success", True)
+                if success is False:
+                    print(f"[SMS] Gateway success=false attempt={attempt+1} {phone}: {body_text}", flush=True)
+                    continue
+            except Exception:
+                pass
+            return True
+        except Exception as e:
+            print(f"[SMS] Error attempt={attempt+1} {phone}: {e}", flush=True)
+    return False
 
 
 @router.post("/send-otp")
