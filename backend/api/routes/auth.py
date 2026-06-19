@@ -475,13 +475,21 @@ def send_otp(body: OtpSendRequest, request: Request, db: Session = Depends(get_d
     api_key, devices = _get_sms_config(db)
     if api_key:
         message = f"رمز التحقق الخاص بك في أندرويد الأحمدي هو: {code}\nصالح لمدة 10 دقائق"
-        sent = _send_sms(phone, message, api_key, devices)
-        if not sent:
-            print(f"[OTP] SMS failed — code for {phone}: {code}", flush=True)
-            raise HTTPException(
-                status_code=503,
-                detail="فشل إرسال رمز التحقق عبر SMS — تحقق من اتصال الجهاز أو حاول لاحقاً",
-            )
+
+        # ─── إرسال في الخلفية (fire-and-forget) ───────────────────────────────
+        # لا ننتظر sms-gateway — نرد على Flutter فوراً ثم يُرسَل الـ SMS
+        # في thread منفصل. هذا يحل مشكلة timeout عند النشر خارج Replit.
+        import threading
+        def _bg_send():
+            sent = _send_sms(phone, message, api_key, devices)
+            if not sent:
+                print(f"[OTP] ⚠️ SMS BG-failed — code={code} phone={phone}", flush=True)
+            else:
+                print(f"[OTP] ✅ SMS BG-sent — phone={phone}", flush=True)
+
+        threading.Thread(target=_bg_send, daemon=True).start()
+        print(f"[OTP] 🚀 SMS dispatched to BG thread — phone={phone}", flush=True)
+
         return {"message": "تم إرسال رمز التحقق"}
     else:
         # Dev mode — no SMS key configured, print and return code in response
