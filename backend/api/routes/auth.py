@@ -54,14 +54,29 @@ def _gen_otp() -> str:
 
 def _normalise_phone(p: str) -> list[str]:
     """Return all plausible local/international variants of a phone string."""
-    p = p.strip().lstrip("+")
+    p = p.strip()
     variants = [p]
+    stripped = p.lstrip("+")
+    if stripped != p:
+        variants.append(stripped)
+    else:
+        variants.append("+" + p)
+
+    # Already has country code 967 / 00967
     for prefix in ("967", "00967"):
-        if p.startswith(prefix):
-            local = p[len(prefix):]
-            variants += [local, "0" + local]
-    if not p.startswith("0") and len(p) == 9:
-        variants += ["0" + p, "967" + p, "+967" + p]
+        if stripped.startswith(prefix):
+            local = stripped[len(prefix):]
+            variants += [local, "0" + local, "967" + local, "+967" + local]
+
+    # 9-digit local (7XXXXXXXX)
+    if not stripped.startswith("0") and len(stripped) == 9:
+        variants += ["0" + stripped, "967" + stripped, "+967" + stripped]
+
+    # 10-digit with leading 0 (07XXXXXXXX → strip 0, add 967)
+    if stripped.startswith("0") and len(stripped) == 10:
+        local = stripped[1:]  # remove leading 0
+        variants += [local, "967" + local, "+967" + local]
+
     return list(dict.fromkeys(variants))
 
 
@@ -585,8 +600,10 @@ def reset_password(body: ResetPasswordRequest, request: Request, db: Session = D
         raise HTTPException(status_code=403, detail="الحساب معطّل — تواصل مع الإدارة")
 
     # تحديث كلمة المرور وإلغاء جميع الجلسات السابقة
+    # تفعيل الحساب أيضاً — إثبات ملكية الرقم يكفي للتفعيل
     user.hashed_password = get_password_hash(body.new_password)
     user.tokens_invalidated_at = datetime.utcnow()
+    user.is_verified = True
     db.commit()
 
     is_staff = user.role in STAFF_ROLES

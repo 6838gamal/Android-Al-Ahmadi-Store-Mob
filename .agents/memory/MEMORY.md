@@ -16,3 +16,5 @@
 - [Referral link frontend URL](referral-link-url.md) — FRONTEND_BASE hardcoded to https://android-alahmadi-mob.netlify.app in backend/api/routes/referrals.py; referral link = FRONTEND_BASE + /register?ref=CODE
 - [Admin panel json= param](admin-panel-json.md) — admin_panel/main.py api() uses `json=` kwarg (httpx), NOT `json_data=`; always use json= for POST/PUT bodies in admin routes
 - [New features batch](new-features-batch.md) — 7 new models+routes added (loyalty, shortage_request, auction, secret_deal, eng_support, complaint, purchase_invoice); reservation enhanced with deposit/penalty/extension; all in backend/main.py + migrations.py
+- [Replit DATABASE_URL conflict](replit-db-url-conflict.md) — Replit sets DATABASE_URL env var (local PostgreSQL); Pydantic BaseSettings auto-injects it overriding APP_DATABASE_URL; fix: database.py must call _resolve_db_url() directly, NOT use settings.DATABASE_URL
+- [OTP phone normalise bug](otp-phone-normalise.md) — _normalise_phone() must include +967XXXXXXXXX variant; users stored with + prefix weren't found; also handle 0XXXXXXXXX (10-digit) → strip 0, add 967

@@ -1,10 +1,12 @@
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
-from backend.core.config import settings
-import os
+from backend.core.config import _resolve_db_url
 
-DATABASE_URL = settings.DATABASE_URL
+# Use _resolve_db_url() directly so APP_DATABASE_URL (Render) always takes priority
+# over Replit's own DATABASE_URL env-var which Pydantic BaseSettings would otherwise
+# auto-inject into settings.DATABASE_URL.
+DATABASE_URL = _resolve_db_url()
 
 if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
