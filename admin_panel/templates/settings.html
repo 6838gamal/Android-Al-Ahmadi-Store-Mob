@@ -219,6 +219,8 @@
 
 {% block scripts %}
 <script>
+var _smsCloseTimer = null;
+
 function toggleKey() {
   var inp = document.getElementById('sms-key-input');
   var ico = document.getElementById('eye-icon');
@@ -227,6 +229,7 @@ function toggleKey() {
 }
 
 function openTestModal() {
+  if (_smsCloseTimer) { clearTimeout(_smsCloseTimer); _smsCloseTimer = null; }
   document.getElementById('test-modal').style.display = 'flex';
   document.getElementById('test-result').style.display = 'none';
   document.getElementById('test-result').innerHTML = '';
@@ -234,6 +237,7 @@ function openTestModal() {
 }
 
 function closeTestModal() {
+  if (_smsCloseTimer) { clearTimeout(_smsCloseTimer); _smsCloseTimer = null; }
   document.getElementById('test-modal').style.display = 'none';
 }
 
@@ -243,6 +247,9 @@ async function sendSmsTest() {
     showTestResult(false, 'أدخل رقم الجوال أولاً');
     return;
   }
+
+  // Cancel any pending auto-close from a previous successful send
+  if (_smsCloseTimer) { clearTimeout(_smsCloseTimer); _smsCloseTimer = null; }
 
   var btn   = document.getElementById('test-send-btn');
   var label = document.getElementById('test-btn-label');
@@ -264,8 +271,8 @@ async function sendSmsTest() {
     showTestResult(data.ok, data.message || (data.ok ? 'تم الإرسال بنجاح' : 'فشل الإرسال'));
 
     if (data.ok) {
-      // Close modal after 2.5s on success
-      setTimeout(function() { closeTestModal(); }, 2500);
+      // Close modal after 4s on success — long enough to read the result
+      _smsCloseTimer = setTimeout(function() { closeTestModal(); }, 4000);
     }
   } catch(e) {
     showTestResult(false, 'خطأ في الاتصال بالخادم — تأكد من تشغيل الـ Backend');
