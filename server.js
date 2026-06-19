@@ -4,8 +4,8 @@ const fs = require('fs');
 const path = require('path');
 
 const PORT = 5000;
-// URL الـ API الخارجي — يُقرأ من BACKEND_API_URL أو يستخدم القيمة الافتراضية
-const EXTERNAL_API = (process.env.BACKEND_API_URL || 'https://android-al-ahmadi-store-api.onrender.com').replace(/\/$/, '');
+// Proxy to the local backend running on port 8000
+const EXTERNAL_API = 'http://127.0.0.1:8000';
 const WEB_DIR = path.join(__dirname, 'build', 'web');
 
 const mimeTypes = {
