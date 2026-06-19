@@ -4,9 +4,7 @@ const fs = require('fs');
 const path = require('path');
 
 const PORT = 5000;
-// الـ backend المحلي — يعمل دائماً على نفس الـ container
-const LOCAL_BACKEND = (process.env.LOCAL_BACKEND_URL || 'http://localhost:8000').replace(/\/$/, '');
-// الـ API الخارجي — يُستخدم فقط لتصحيح Service Worker على موبايل
+// URL الـ API الخارجي — يُقرأ من BACKEND_API_URL أو يستخدم القيمة الافتراضية
 const EXTERNAL_API = (process.env.BACKEND_API_URL || 'https://android-al-ahmadi-store-api.onrender.com').replace(/\/$/, '');
 const WEB_DIR = path.join(__dirname, 'build', 'web');
 
@@ -29,7 +27,7 @@ const mimeTypes = {
 
 function proxyRequest(req, res, urlOverride) {
   const proxyPath = urlOverride || req.url;
-  const target = new URL(LOCAL_BACKEND);
+  const target = new URL(EXTERNAL_API);
   const isHttps = target.protocol === 'https:';
 
   const clientIp = req.headers['x-real-ip']
@@ -153,5 +151,5 @@ const server = http.createServer((req, res) => {
 
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`Flutter web app running at http://0.0.0.0:${PORT}`);
-  console.log(`Proxying /api/* and /uploads/* → ${LOCAL_BACKEND} (local)`);
+  console.log(`Proxying /api/* and /uploads/* → ${EXTERNAL_API}`);
 });
