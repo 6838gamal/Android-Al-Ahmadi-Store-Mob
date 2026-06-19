@@ -1,9 +1,21 @@
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
 from typing import List as _WsList
 import os
+import logging
+import traceback
+import time
+
+# ── Logging setup ──────────────────────────────────────────────────────────────
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s — %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+)
+logger = logging.getLogger("alahmadi")
 
 from backend.core.database import engine, Base, SessionLocal
 from backend.core.migrations import run_migrations
@@ -56,7 +68,7 @@ async def _keep_alive_task():
     await asyncio.sleep(60)  # انتظر دقيقة بعد الإطلاق
     while True:
         try:
-            async with httpx.AsyncClient(timeout=10) as client:
+            async with httpx.AsyncClient(timeout=10, verify=False) as client:
                 r = await client.get(ping_url)
             print(f"[KeepAlive] ping → {r.status_code}", flush=True)
         except Exception as e:
@@ -80,6 +92,48 @@ app = FastAPI(
     redoc_url="/api/redoc",
     lifespan=lifespan,
 )
+
+
+# ── Global error & timing middleware ───────────────────────────────────────────
+@app.middleware("http")
+async def _error_and_timing_middleware(request: Request, call_next):
+    t0 = time.time()
+    try:
+        response = await call_next(request)
+        ms = int((time.time() - t0) * 1000)
+        if response.status_code >= 400:
+            logger.warning("HTTP %s — %s %s (%dms)",
+                           response.status_code, request.method, request.url.path, ms)
+        else:
+            logger.info("HTTP %s — %s %s (%dms)",
+                        response.status_code, request.method, request.url.path, ms)
+        return response
+    except Exception as exc:
+        ms = int((time.time() - t0) * 1000)
+        tb = traceback.format_exc()
+        logger.error(
+            "💥 UNHANDLED EXCEPTION — %s %s (%dms)\n%s",
+            request.method, request.url.path, ms, tb
+        )
+        return JSONResponse(
+            status_code=500,
+            content={"detail": "خطأ داخلي في الخادم — تحقق من الكونسول"},
+        )
+
+
+# ── Exception handler for 500 errors ──────────────────────────────────────────
+@app.exception_handler(Exception)
+async def _global_exception_handler(request: Request, exc: Exception):
+    tb = traceback.format_exc()
+    logger.error(
+        "💥 EXCEPTION — %s %s\n%s",
+        request.method, request.url.path, tb
+    )
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "خطأ داخلي في الخادم — تحقق من الكونسول"},
+    )
+
 
 # Run safe migrations first (adds new columns to existing tables)
 run_migrations()

@@ -252,6 +252,13 @@
               style="background:#161B22;border-bottom:1px solid #2D3748;padding:12px 24px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0">
         <div style="color:white;font-weight:700;font-size:15px">{% block page_title %}{% endblock %}</div>
         <div style="display:flex;align-items:center;gap:12px;font-size:13px;color:#9CA3AF">
+          <!-- Server status badge -->
+          <div id="srv-badge-desktop" title="حالة الخادم" onclick="checkServerStatus()"
+               style="display:flex;align-items:center;gap:6px;background:#1C2230;border:1px solid #2D3748;border-radius:20px;padding:4px 10px;cursor:pointer;transition:border-color .2s;user-select:none"
+               onmouseover="this.style.borderColor='#1A73E8'" onmouseout="this.style.borderColor='#2D3748'">
+            <span id="srv-dot-desktop" style="width:8px;height:8px;border-radius:50%;background:#6B7280;display:inline-block;transition:background .4s"></span>
+            <span id="srv-label-desktop" style="font-size:11px;font-weight:700;color:#6B7280;transition:color .4s">جاري الفحص…</span>
+          </div>
           <i class="fa-solid fa-user-circle" style="color:#1A73E8;font-size:18px"></i>
           <span>{{ admin_name }}</span>
           <a href="/logout" class="btn-danger" style="font-size:12px;padding:5px 12px">
@@ -269,6 +276,12 @@
         </button>
         <div style="color:white;font-weight:700;font-size:15px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
           {% block page_title_mobile %}{% endblock %}
+        </div>
+        <!-- Server status badge (mobile) -->
+        <div id="srv-badge-mobile" title="حالة الخادم" onclick="checkServerStatus()"
+             style="display:flex;align-items:center;gap:5px;background:#1C2230;border:1px solid #2D3748;border-radius:20px;padding:4px 9px;cursor:pointer;flex-shrink:0">
+          <span id="srv-dot-mobile" style="width:7px;height:7px;border-radius:50%;background:#6B7280;display:inline-block;transition:background .4s"></span>
+          <span id="srv-label-mobile" style="font-size:10px;font-weight:700;color:#6B7280;transition:color .4s">…</span>
         </div>
         <a href="/notifications"
            style="width:38px;height:38px;border-radius:10px;background:#1C2230;display:flex;align-items:center;justify-content:center;color:#9CA3AF;font-size:17px;flex-shrink:0">
@@ -306,6 +319,79 @@
       <i class="fa-solid fa-grid-2" style="font-size:19px"></i><span>المزيد</span>
     </button>
   </nav>
+
+  <!-- ════ SERVER STATUS CHECKER ════ -->
+  <script>
+  (function(){
+    var CHECK_INTERVAL = 30000; // كل 30 ثانية
+    var _timer = null;
+
+    function _setStatus(ok, label, checking) {
+      var color   = checking ? '#6B7280' : (ok ? '#22C55E' : '#EF4444');
+      var border  = checking ? '#2D3748' : (ok ? 'rgba(34,197,94,.35)' : 'rgba(239,68,68,.35)');
+      ['desktop','mobile'].forEach(function(t){
+        var dot   = document.getElementById('srv-dot-'+t);
+        var lbl   = document.getElementById('srv-label-'+t);
+        var badge = document.getElementById('srv-badge-'+t);
+        if(!dot) return;
+        dot.style.background  = color;
+        lbl.style.color       = color;
+        if(badge) badge.style.borderColor = border;
+        lbl.textContent = (t==='desktop') ? label : (ok&&!checking?'يقظ':checking?'…':'نائم');
+      });
+      // نبضة خضراء عند الاتصال
+      if(ok && !checking){
+        ['desktop','mobile'].forEach(function(t){
+          var dot = document.getElementById('srv-dot-'+t);
+          if(!dot) return;
+          dot.style.boxShadow = '0 0 0 0 rgba(34,197,94,.6)';
+          dot.animate([
+            {boxShadow:'0 0 0 0 rgba(34,197,94,.6)'},
+            {boxShadow:'0 0 0 6px rgba(34,197,94,0)'}
+          ],{duration:800,iterations:1});
+        });
+      }
+    }
+
+    function checkServerStatus() {
+      _setStatus(false, 'جاري الفحص…', true);
+      var t0 = Date.now();
+      fetch('/api-status', {cache:'no-store'})
+        .then(function(r){ return r.json(); })
+        .then(function(d){
+          var ms = Date.now() - t0;
+          if(d.ok){
+            _setStatus(true, 'يقظ (' + ms + 'ms)', false);
+            console.log('[Server] ✅ يقظ — استجاب في ' + ms + 'ms');
+          } else {
+            _setStatus(false, 'لا يستجيب', false);
+            console.warn('[Server] ⚠️ لا يستجيب — السبب: ' + (d.reason||'مجهول'));
+          }
+        })
+        .catch(function(e){
+          _setStatus(false, 'خطأ في الاتصال', false);
+          console.error('[Server] ❌ خطأ في الاتصال:', e.message||e);
+        });
+    }
+
+    // تصيد الأخطاء العامة في الكونسول
+    window.addEventListener('error', function(e){
+      console.error('[GlobalError] ❌', e.message, '—', e.filename, 'سطر', e.lineno);
+    });
+    window.addEventListener('unhandledrejection', function(e){
+      console.error('[UnhandledPromise] ❌', e.reason);
+    });
+
+    // فحص فوري عند تحميل الصفحة ثم كل 30 ثانية
+    document.addEventListener('DOMContentLoaded', function(){
+      checkServerStatus();
+      _timer = setInterval(checkServerStatus, CHECK_INTERVAL);
+    });
+
+    // أتاحه عاماً
+    window.checkServerStatus = checkServerStatus;
+  })();
+  </script>
 
   <script>
     var _sidebarOpen = false;
