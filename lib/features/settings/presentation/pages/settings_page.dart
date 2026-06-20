@@ -64,11 +64,10 @@ class SettingsPage extends ConsumerWidget {
           _SettingsTile(
             icon: Icons.dark_mode_outlined,
             title: 'الوضع الداكن',
-            subtitle: 'مفعّل حالياً',
-            trailing: Switch(
-              value: true,
-              onChanged: (_) {},
-              activeColor: AppColors.primary,
+            subtitle: 'مفعّل دائماً',
+            trailing: const Padding(
+              padding: EdgeInsets.only(left: 4),
+              child: Icon(Icons.check_circle, color: AppColors.primary, size: 22),
             ),
             onTap: null,
           ),
@@ -76,7 +75,11 @@ class SettingsPage extends ConsumerWidget {
             icon: Icons.language_outlined,
             title: 'اللغة',
             subtitle: 'العربية',
-            onTap: () {},
+            trailing: const Padding(
+              padding: EdgeInsets.only(left: 4),
+              child: Icon(Icons.check_circle, color: AppColors.primary, size: 22),
+            ),
+            onTap: null,
           ),
 
           const SizedBox(height: 16),

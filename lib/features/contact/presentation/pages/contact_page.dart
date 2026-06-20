@@ -1,14 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/constants/app_constants.dart';
+import '../../../../core/network/api_client.dart';
 import '../../../home/presentation/pages/main_shell.dart';
+import '../../../auth/presentation/providers/auth_provider.dart';
 
-class ContactPage extends StatelessWidget {
+class ContactPage extends ConsumerWidget {
   const ContactPage({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
       backgroundColor: AppColors.darkBg,
       appBar: AppBar(
@@ -22,7 +25,6 @@ class ContactPage extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
         children: [
-          // Header card
           Container(
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
@@ -206,19 +208,63 @@ class _ContactTile extends StatelessWidget {
   }
 }
 
-class _FeedbackSection extends StatefulWidget {
+class _FeedbackSection extends ConsumerStatefulWidget {
   @override
-  State<_FeedbackSection> createState() => _FeedbackSectionState();
+  ConsumerState<_FeedbackSection> createState() => _FeedbackSectionState();
 }
 
-class _FeedbackSectionState extends State<_FeedbackSection> {
-  final _ctrl = TextEditingController();
+class _FeedbackSectionState extends ConsumerState<_FeedbackSection> {
+  final _nameCtrl = TextEditingController();
+  final _phoneCtrl = TextEditingController();
+  final _msgCtrl = TextEditingController();
   bool _sent = false;
+  bool _sending = false;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    final user = ref.read(authProvider).user;
+    if (user != null) {
+      _nameCtrl.text = user.name;
+      _phoneCtrl.text = user.phone ?? '';
+    }
+  }
 
   @override
   void dispose() {
-    _ctrl.dispose();
+    _nameCtrl.dispose();
+    _phoneCtrl.dispose();
+    _msgCtrl.dispose();
     super.dispose();
+  }
+
+  Future<void> _submit() async {
+    final name = _nameCtrl.text.trim();
+    final msg = _msgCtrl.text.trim();
+    if (name.isEmpty || msg.isEmpty) {
+      setState(() => _error = 'يرجى إدخال الاسم والرسالة');
+      return;
+    }
+    setState(() { _sending = true; _error = null; });
+    try {
+      final api = ref.read(apiClientProvider);
+      final isLoggedIn = ref.read(authProvider).isAuthenticated;
+      final endpoint = isLoggedIn ? '/complaints/' : '/complaints/guest';
+      await api.post(endpoint, data: {
+        'customer_name': name,
+        'customer_phone': _phoneCtrl.text.trim().isEmpty ? null : _phoneCtrl.text.trim(),
+        'subject': 'رسالة من التطبيق',
+        'content': msg,
+        'complaint_type': 'suggestion',
+      });
+      setState(() { _sent = true; _sending = false; });
+    } catch (e) {
+      setState(() {
+        _error = 'فشل الإرسال، حاول مجدداً';
+        _sending = false;
+      });
+    }
   }
 
   @override
@@ -253,36 +299,53 @@ class _FeedbackSectionState extends State<_FeedbackSection> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          TextField(
-            controller: _ctrl,
-            maxLines: 4,
-            style: const TextStyle(fontFamily: 'Cairo', color: Colors.white, fontSize: 14),
-            decoration: InputDecoration(
-              hintText: 'اكتب رسالتك هنا...',
-              hintStyle: const TextStyle(fontFamily: 'Cairo', color: AppColors.textMuted),
-              filled: true,
-              fillColor: AppColors.darkBg,
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-            ),
-          ),
+          _buildField(_nameCtrl, 'الاسم', Icons.person_outline, maxLines: 1),
+          const SizedBox(height: 10),
+          _buildField(_phoneCtrl, 'رقم الهاتف (اختياري)', Icons.phone_outlined, maxLines: 1, keyboardType: TextInputType.phone),
+          const SizedBox(height: 10),
+          _buildField(_msgCtrl, 'اكتب رسالتك هنا...', Icons.message_outlined, maxLines: 4),
+          if (_error != null) ...[
+            const SizedBox(height: 8),
+            Text(_error!, style: const TextStyle(fontFamily: 'Cairo', color: AppColors.error, fontSize: 12)),
+          ],
           const SizedBox(height: 12),
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
-              onPressed: () {
-                if (_ctrl.text.trim().isNotEmpty) {
-                  setState(() => _sent = true);
-                }
-              },
+              onPressed: _sending ? null : _submit,
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primary,
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),
-              child: const Text('إرسال', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.w700, fontSize: 15)),
+              child: _sending
+                  ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                  : const Text('إرسال', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.w700, fontSize: 15)),
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildField(TextEditingController ctrl, String hint, IconData icon, {int maxLines = 1, TextInputType? keyboardType}) {
+    return TextField(
+      controller: ctrl,
+      maxLines: maxLines,
+      keyboardType: keyboardType,
+      style: const TextStyle(fontFamily: 'Cairo', color: Colors.white, fontSize: 14),
+      decoration: InputDecoration(
+        hintText: hint,
+        hintStyle: const TextStyle(fontFamily: 'Cairo', color: AppColors.textMuted),
+        prefixIcon: maxLines == 1 ? Icon(icon, color: AppColors.textMuted, size: 18) : null,
+        filled: true,
+        fillColor: AppColors.darkBg,
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: AppColors.primary.withOpacity(0.5)),
+        ),
+        contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: maxLines > 1 ? 12 : 0),
       ),
     );
   }
