@@ -265,6 +265,10 @@ def _drop_old_phone_email_unique(eng):
                 pass
 
 
+    # ── stored_images table (new — created by create_all if missing) ───────
+    # No ALTER TABLE needed; create_all handles new tables automatically.
+
+
 def _create_index(eng, name: str, sql: str):
     try:
         with eng.connect() as conn:

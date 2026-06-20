@@ -22,6 +22,7 @@ from backend.models.purchase_invoice import PurchaseInvoice, PurchaseInvoiceItem
 from backend.models.gallery import GalleryFolder, GalleryImage
 from backend.models.app_setting import AppSetting
 from backend.models.otp_code import OtpCode
+from backend.models.stored_image import StoredImage
 
 __all__ = [
     "Branch", "Warehouse",

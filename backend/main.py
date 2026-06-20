@@ -31,6 +31,7 @@ from backend.models import (  # noqa
     otp_code,
 )
 from backend.models.announcement import Announcement  # noqa
+from backend.models.stored_image import StoredImage  # noqa
 
 from backend.api.routes import (
     auth, products, orders, reservations, maintenance,
