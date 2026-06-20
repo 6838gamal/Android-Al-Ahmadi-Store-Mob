@@ -90,7 +90,6 @@ def get_post(post_id: int, db: Session = Depends(get_db)):
         "images": p.images,
         "status": p.status,
         "author_name": p.author_name,
-        "author_phone": p.author_phone,
         "views": p.views,
         "is_subscription_required": p.is_subscription_required,
         "price_per_consult": p.price_per_consult,
@@ -144,13 +143,19 @@ def add_response(post_id: int, data: ResponseCreate, db: Session = Depends(get_d
 
 @router.put("/{post_id}/accept-response/{response_id}")
 def accept_response(post_id: int, response_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    p = db.query(EngSupportPost).filter(EngSupportPost.id == post_id).first()
+    if not p:
+        raise HTTPException(status_code=404, detail="المنشور غير موجود")
+    # Only the post author or admin/staff can accept a response
+    from backend.models.user import UserRole
+    is_staff = current_user.role in (UserRole.admin, UserRole.staff, UserRole.branch_manager)
+    if not is_staff and p.author_id != current_user.id:
+        raise HTTPException(status_code=403, detail="غير مصرح: فقط صاحب المنشور يمكنه قبول الرد")
     resp = db.query(EngSupportResponse).filter(EngSupportResponse.id == response_id, EngSupportResponse.post_id == post_id).first()
     if not resp:
         raise HTTPException(status_code=404, detail="الرد غير موجود")
     resp.is_accepted = True
-    p = db.query(EngSupportPost).filter(EngSupportPost.id == post_id).first()
-    if p:
-        p.status = EngPostStatus.closed
+    p.status = EngPostStatus.closed
     db.commit()
     return {"message": "تم قبول الرد وإغلاق الاستفسار"}
 

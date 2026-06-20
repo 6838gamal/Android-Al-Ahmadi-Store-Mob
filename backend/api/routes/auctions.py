@@ -102,6 +102,32 @@ def list_auctions(
     return result
 
 
+@router.get("/my")
+def my_auctions(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    """Customer sees only their own submitted auctions."""
+    auctions = db.query(Auction).filter(
+        Auction.seller_id == current_user.id
+    ).order_by(Auction.created_at.desc()).all()
+    result = []
+    for a in auctions:
+        bid_count = db.query(AuctionBid).filter(AuctionBid.auction_id == a.id).count()
+        result.append({
+            "id": a.id,
+            "auction_number": a.auction_number,
+            "seller_name": a.seller_name,
+            "device_type": a.device_type,
+            "problem_description": a.problem_description,
+            "images": a.images,
+            "starting_bid": a.starting_bid,
+            "current_bid": a.current_bid,
+            "status": a.status,
+            "bid_count": bid_count,
+            "ends_at": a.ends_at,
+            "created_at": a.created_at,
+        })
+    return result
+
+
 @router.get("/admin/all")
 def list_all_auctions(
     status: Optional[str] = None,
@@ -136,7 +162,7 @@ def get_auction(auction_id: int, db: Session = Depends(get_db)):
         "ends_at": a.ends_at,
         "admin_notes": a.admin_notes,
         "commission_amount": a.commission_amount,
-        "bids": [{"id": b.id, "bidder_name": b.bidder_name, "bidder_phone": b.bidder_phone, "amount": b.amount, "notes": b.notes, "is_winning": b.is_winning, "created_at": b.created_at} for b in bids],
+        "bids": [{"id": b.id, "bidder_name": b.bidder_name, "amount": b.amount, "notes": b.notes, "is_winning": b.is_winning, "created_at": b.created_at} for b in bids],
         "created_at": a.created_at,
     }
 
