@@ -317,13 +317,15 @@ class _ForgotPasswordPageState extends ConsumerState<ForgotPasswordPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return Directionality(
+      textDirection: TextDirection.rtl,
+      child: Scaffold(
       backgroundColor: AppColors.darkBg,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
+          icon: const Icon(Icons.arrow_forward_ios, color: Colors.white),
           onPressed: _handleBack,
         ),
         title: const Text('استعادة كلمة المرور',
@@ -386,7 +388,7 @@ class _ForgotPasswordPageState extends ConsumerState<ForgotPasswordPage> {
           ),
         ),
       ),
-    );
+    ));
   }
 }
 
@@ -440,39 +442,43 @@ class _PhoneStep extends StatelessWidget {
 
         const SizedBox(height: 32),
 
-        Container(
-          decoration: BoxDecoration(
-              color: AppColors.darkCard,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: AppColors.darkBorder)),
-          child: Row(children: [
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
-              decoration: const BoxDecoration(
-                  border: Border(right: BorderSide(color: AppColors.darkBorder))),
-              child: const Text('+967',
-                  style: TextStyle(fontFamily: 'Cairo',
-                      color: AppColors.primary, fontWeight: FontWeight.w700, fontSize: 15)),
-            ),
-            Expanded(
-              child: TextField(
-                controller: ctrl,
-                keyboardType: TextInputType.phone,
-                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                style: const TextStyle(
-                    fontFamily: 'Cairo', color: Colors.white, fontSize: 16),
-                decoration: const InputDecoration(
-                  hintText: '77XXXXXXX',
-                  hintStyle: TextStyle(
-                      fontFamily: 'Cairo', color: AppColors.textMuted, fontSize: 15),
-                  border: InputBorder.none,
-                  contentPadding:
-                      EdgeInsets.symmetric(horizontal: 14, vertical: 16),
-                ),
-                onSubmitted: (_) => onSend(),
+        Directionality(
+          textDirection: TextDirection.ltr,
+          child: Container(
+            decoration: BoxDecoration(
+                color: AppColors.darkCard,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: AppColors.darkBorder)),
+            child: Row(children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
+                decoration: const BoxDecoration(
+                    border: Border(right: BorderSide(color: AppColors.darkBorder))),
+                child: const Text('+967',
+                    style: TextStyle(fontFamily: 'Cairo',
+                        color: AppColors.primary, fontWeight: FontWeight.w700, fontSize: 15)),
               ),
-            ),
-          ]),
+              Expanded(
+                child: TextField(
+                  controller: ctrl,
+                  keyboardType: TextInputType.phone,
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                  textDirection: TextDirection.ltr,
+                  style: const TextStyle(
+                      fontFamily: 'Cairo', color: Colors.white, fontSize: 16),
+                  decoration: const InputDecoration(
+                    hintText: '77XXXXXXX',
+                    hintStyle: TextStyle(
+                        fontFamily: 'Cairo', color: AppColors.textMuted, fontSize: 15),
+                    border: InputBorder.none,
+                    contentPadding:
+                        EdgeInsets.symmetric(horizontal: 14, vertical: 16),
+                  ),
+                  onSubmitted: (_) => onSend(),
+                ),
+              ),
+            ]),
+          ),
         ).animate(delay: 180.ms).fadeIn().slideY(begin: 0.2, end: 0),
 
         if (error != null) ...[
