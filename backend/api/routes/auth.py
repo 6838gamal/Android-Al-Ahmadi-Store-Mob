@@ -385,43 +385,78 @@ def _get_sms_config(db: Session) -> tuple[str | None, str]:
     return api_key or None, devices
 
 
+def _normalise_phone_for_gateway(phone: str) -> str:
+    """Convert any phone format to the format accepted by sms-gateway.app (no + prefix).
+    +967XXXXXXXXX  → 00967XXXXXXXXX
+    967XXXXXXXXX   → 967XXXXXXXXX  (unchanged)
+    0XXXXXXXXX     → 0XXXXXXXXX    (unchanged — let gateway handle local)
+    """
+    p = phone.strip()
+    if p.startswith("+"):
+        p = "00" + p[1:]
+    return p
+
+
 def _send_sms(phone: str, message: str, api_key: str, devices: str = "") -> bool:
-    """Send SMS via sms-gateway.app. Returns True on success. Retries once on failure."""
-    import httpx
-    payload = {
-        "number": phone,
-        "message": message,
-        "key": api_key,
-        "type": "sms",
-    }
+    """Send SMS via sms-gateway.app using subprocess curl.
+    curl bypasses Cloudflare TLS fingerprinting that blocks Python HTTP clients.
+    Returns True on success. Retries once on failure."""
+    import subprocess
+    import json as _json
+
+    gw_phone = _normalise_phone_for_gateway(phone)
+
+    # استبدل السطر الجديد بمسافة — sms-gateway.app يتوقع single-line message
+    clean_message = message.replace("\n", " ").replace("\r", " ")
+
+    # نمرر كل field بـ -d منفصل (raw UTF-8 بدون URL-encoding) — هذا هو التنسيق
+    # الوحيد المؤكد أنه يعمل مع sms-gateway.app استناداً لاختبارات curl المباشرة
+    cmd = [
+        "curl", "-s", "-X", "POST",
+        "https://app.sms-gateway.app/services/send.php",
+        "-d", f"key={api_key}",
+        "-d", f"number={gw_phone}",
+        "-d", f"message={clean_message}",
+        "-d", "type=sms",
+        "--max-time", "30",
+    ]
     # أضف devices فقط لو كان معرّف جهاز حقيقي (ليس "0" أو فارغ)
     if devices and devices.strip() not in ("", "0"):
         first_device = devices.strip().split(",")[0].strip()
         if first_device:
-            payload["devices"] = first_device
+            cmd += ["-d", f"devices={first_device}"]
 
     for attempt in range(2):  # محاولتان — الأولى + retry واحد
         try:
-            resp = httpx.post(
-                "https://app.sms-gateway.app/services/send.php",
-                data=payload,
-                timeout=30,  # رُفع من 15 إلى 30 ثانية لاستيعاب cold-start
-            )
-            body_text = resp.text[:300]
-            print(f"[SMS] attempt={attempt+1} {phone} → status={resp.status_code} body={body_text}", flush=True)
-            if resp.status_code != 200:
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=35)
+            raw = result.stdout
+            body_text = raw[:400]
+            rc = result.returncode
+            print(f"[SMS] attempt={attempt+1} gw_phone={gw_phone} → rc={rc} body={body_text}", flush=True)
+
+            if rc != 0:
+                print(f"[SMS] curl stderr: {result.stderr[:200]}", flush=True)
                 continue
+
+            # استخرج الـ JSON من أول { إلى آخر } (الـ gateway يُلحق PHP exception أحياناً)
             try:
-                body_json = resp.json()
-                success = body_json.get("success", True)
-                if success is False:
-                    print(f"[SMS] Gateway success=false attempt={attempt+1} {phone}: {body_text}", flush=True)
-                    continue
+                json_end = raw.rfind("}") + 1
+                body_json = _json.loads(raw[:json_end]) if json_end > 0 else {}
             except Exception:
-                pass
+                body_json = {}
+
+            success = body_json.get("success", None)
+            if success is False:
+                err_msg = (body_json.get("error") or {}).get("message", "")
+                print(f"[SMS] ❌ Gateway rejected attempt={attempt+1} gw_phone={gw_phone}: {err_msg}", flush=True)
+                continue
+
+            # success=true أو لا يوجد حقل success → اعتبرها نجاحاً
             return True
+
         except Exception as e:
-            print(f"[SMS] Error attempt={attempt+1} {phone}: {e}", flush=True)
+            print(f"[SMS] Error attempt={attempt+1} gw_phone={gw_phone}: {e}", flush=True)
+
     return False
 
 
