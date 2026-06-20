@@ -4,8 +4,6 @@ const fs = require('fs');
 const path = require('path');
 
 const PORT = 5000;
-// Proxy to local backend on port 8000 when running on Replit,
-// falling back to BACKEND_API_URL env var for external deployments.
 const EXTERNAL_API = (process.env.BACKEND_API_URL || 'http://localhost:8000').replace(/\/$/, '');
 const WEB_DIR = path.join(__dirname, 'build', 'web');
 
@@ -26,7 +24,16 @@ const mimeTypes = {
   '.svg': 'image/svg+xml',
 };
 
-function proxyRequest(req, res, urlOverride) {
+function readBody(req) {
+  return new Promise((resolve) => {
+    const chunks = [];
+    req.on('data', (chunk) => chunks.push(chunk));
+    req.on('end', () => resolve(Buffer.concat(chunks)));
+    req.on('error', () => resolve(Buffer.alloc(0)));
+  });
+}
+
+function proxyWithBody(req, res, bodyBuffer, urlOverride) {
   const proxyPath = urlOverride || req.url;
   const target = new URL(EXTERNAL_API);
   const isHttps = target.protocol === 'https:';
@@ -36,17 +43,23 @@ function proxyRequest(req, res, urlOverride) {
     || req.socket.remoteAddress
     || '127.0.0.1';
 
+  const headers = {
+    ...req.headers,
+    host: target.host,
+    'x-real-ip': clientIp,
+    'x-forwarded-for': clientIp,
+  };
+
+  if (bodyBuffer.length > 0) {
+    headers['content-length'] = bodyBuffer.length;
+  }
+
   const options = {
     hostname: target.hostname,
     port: target.port || (isHttps ? 443 : 80),
     path: proxyPath,
     method: req.method,
-    headers: {
-      ...req.headers,
-      host: target.host,
-      'x-real-ip': clientIp,
-      'x-forwarded-for': clientIp,
-    },
+    headers,
   };
 
   const transport = isHttps ? https : http;
@@ -55,7 +68,7 @@ function proxyRequest(req, res, urlOverride) {
     if ((proxyRes.statusCode === 307 || proxyRes.statusCode === 308) && proxyRes.headers.location) {
       proxyRes.resume();
       const loc = new URL(proxyRes.headers.location);
-      return proxyRequest(req, res, loc.pathname + loc.search);
+      return proxyWithBody(req, res, bodyBuffer, loc.pathname + loc.search);
     }
     res.writeHead(proxyRes.statusCode, proxyRes.headers);
     proxyRes.pipe(res, { end: true });
@@ -87,16 +100,18 @@ function proxyRequest(req, res, urlOverride) {
     }
   });
 
-  req.pipe(proxyReq, { end: true });
+  if (bodyBuffer.length > 0) {
+    proxyReq.write(bodyBuffer);
+  }
+  proxyReq.end();
 }
 
-const server = http.createServer((req, res) => {
-  // Proxy /api/* and /uploads/* to backend (port 8000)
+const server = http.createServer(async (req, res) => {
   if (req.url.startsWith('/api') || req.url.startsWith('/uploads')) {
-    return proxyRequest(req, res);
+    const bodyBuffer = await readBody(req);
+    return proxyWithBody(req, res, bodyBuffer);
   }
 
-  // Serve static Flutter web files
   let urlPath = req.url.split('?')[0];
   let filePath = path.join(WEB_DIR, urlPath === '/' ? 'index.html' : urlPath);
 
@@ -108,7 +123,6 @@ const server = http.createServer((req, res) => {
 
   fs.stat(filePath, (err, stat) => {
     if (err || !stat.isFile()) {
-      // SPA fallback
       filePath = path.join(WEB_DIR, 'index.html');
     }
 
@@ -131,8 +145,6 @@ const server = http.createServer((req, res) => {
           `const REMOTE_API = ${JSON.stringify(EXTERNAL_API)};`
         );
       } else if (isBootstrap) {
-        // Remove serviceWorkerSettings so Flutter loads without requiring a service worker
-        // This prevents blank screen in non-HTTPS (Replit preview) contexts
         body = data.toString('utf8').replace(
           /_flutter\.loader\.load\(\{[\s\S]*?\}\);/,
           `_flutter.loader.load({});`
