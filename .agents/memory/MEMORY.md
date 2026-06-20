@@ -1,4 +1,5 @@
 - [Flutter web API URL](flutter-web-api.md) — ApiClient uses Uri.base.origin on kIsWeb, Render.com URL for mobile; no static const baseUrl override needed
+- [Flutter image URL fix](image-url-fix.md) — AppConstants.baseUrl is baked into main.dart.js as Render.com URL; server.js must strip it at serve time so images resolve as relative /uploads/* paths via local proxy
 - [Flutter compiled SW URL rewrite](flutter-sw-url-rewrite.md) — Pre-compiled build/web has Render.com URL baked in; fix by patching flutter_service_worker.js fetch handler + bumping CACHE_NAME
 - [Passlib bcrypt compat](passlib-bcrypt.md) — bcrypt must be pinned to 4.0.1; 5.x breaks passlib with AttributeError on __about__
 - [Node proxy redirects](node-proxy.md) — FastAPI 307-redirects bare paths to trailing-slash; proxy must follow redirects internally

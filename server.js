@@ -124,6 +124,7 @@ const server = http.createServer((req, res) => {
 
       const isServiceWorker = filePath.endsWith('flutter_service_worker.js');
       const isBootstrap = filePath.endsWith('flutter_bootstrap.js');
+      const isMainDart = filePath.endsWith('main.dart.js');
       let body = data;
       if (isServiceWorker) {
         body = data.toString('utf8').replace(
@@ -137,6 +138,12 @@ const server = http.createServer((req, res) => {
           /_flutter\.loader\.load\(\{[\s\S]*?\}\);/,
           `_flutter.loader.load({});`
         );
+      } else if (isMainDart) {
+        // Replace baked-in Render.com base URL with empty string so that
+        // AppConstants.baseUrl becomes '' and image URLs become relative paths
+        // (e.g. /uploads/uuid.jpg) that get proxied through this server to the local backend.
+        const BAKED_URL = 'https://android-al-ahmadi-store-api.onrender.com';
+        body = data.toString('utf8').split(BAKED_URL).join('');
       }
 
       res.writeHead(200, {
