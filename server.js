@@ -4,8 +4,9 @@ const fs = require('fs');
 const path = require('path');
 
 const PORT = 5000;
-// URL الـ API الخارجي — يُقرأ من BACKEND_API_URL أو يستخدم القيمة الافتراضية
-const EXTERNAL_API = (process.env.BACKEND_API_URL || 'https://android-al-ahmadi-store-api.onrender.com').replace(/\/$/, '');
+// Proxy to local backend on port 8000 when running on Replit,
+// falling back to BACKEND_API_URL env var for external deployments.
+const EXTERNAL_API = (process.env.BACKEND_API_URL || 'http://localhost:8000').replace(/\/$/, '');
 const WEB_DIR = path.join(__dirname, 'build', 'web');
 
 const mimeTypes = {
