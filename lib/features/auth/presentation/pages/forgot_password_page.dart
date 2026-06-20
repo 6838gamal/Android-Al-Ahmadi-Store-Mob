@@ -590,58 +590,62 @@ class _CodeStepState extends State<_CodeStep> {
 
         const SizedBox(height: 32),
 
-        // 6-box OTP display
-        Stack(
-          alignment: Alignment.center,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: List.generate(6, (i) {
-                final filled = i < digits.length;
-                final active = _isFocused && i == digits.length.clamp(0, 5);
-                return Container(
-                  width: 44, height: 54,
-                  margin: const EdgeInsets.symmetric(horizontal: 4),
-                  decoration: BoxDecoration(
-                    color: filled
-                        ? AppColors.primary.withOpacity(0.12)
-                        : AppColors.darkCard,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: active
-                          ? AppColors.primary
-                          : filled
-                              ? AppColors.primary.withOpacity(0.5)
-                              : AppColors.darkBorder,
-                      width: active ? 2 : 1.5,
+        // 6-box OTP display — always LTR (digits read left→right)
+        Directionality(
+          textDirection: TextDirection.ltr,
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: List.generate(6, (i) {
+                  final filled = i < digits.length;
+                  final active = _isFocused && i == digits.length.clamp(0, 5);
+                  return Container(
+                    width: 44, height: 54,
+                    margin: const EdgeInsets.symmetric(horizontal: 4),
+                    decoration: BoxDecoration(
+                      color: filled
+                          ? AppColors.primary.withOpacity(0.12)
+                          : AppColors.darkCard,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: active
+                            ? AppColors.primary
+                            : filled
+                                ? AppColors.primary.withOpacity(0.5)
+                                : AppColors.darkBorder,
+                        width: active ? 2 : 1.5,
+                      ),
                     ),
-                  ),
-                  alignment: Alignment.center,
-                  child: filled
-                      ? Text(digits[i],
-                          style: const TextStyle(
-                              fontFamily: 'Cairo', fontSize: 22,
-                              fontWeight: FontWeight.w800, color: Colors.white))
-                      : active
-                          ? Container(width: 2, height: 24,
-                              color: AppColors.primary)
-                          : null,
-                );
-              }),
-            ),
-            Opacity(
-              opacity: 0,
-              child: TextField(
-                controller: widget.codeCtrl,
-                focusNode: widget.codeFocus,
-                keyboardType: TextInputType.number,
-                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                maxLength: 6,
-                decoration: const InputDecoration(counterText: ''),
-                onChanged: widget.onCodeChanged,
+                    alignment: Alignment.center,
+                    child: filled
+                        ? Text(digits[i],
+                            style: const TextStyle(
+                                fontFamily: 'Cairo', fontSize: 22,
+                                fontWeight: FontWeight.w800, color: Colors.white))
+                        : active
+                            ? Container(width: 2, height: 24,
+                                color: AppColors.primary)
+                            : null,
+                  );
+                }),
               ),
-            ),
-          ],
+              Opacity(
+                opacity: 0,
+                child: TextField(
+                  controller: widget.codeCtrl,
+                  focusNode: widget.codeFocus,
+                  keyboardType: TextInputType.number,
+                  textDirection: TextDirection.ltr,
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                  maxLength: 6,
+                  decoration: const InputDecoration(counterText: ''),
+                  onChanged: widget.onCodeChanged,
+                ),
+              ),
+            ],
+          ),
         ).animate(delay: 160.ms).fadeIn().slideY(begin: 0.2, end: 0),
 
         const SizedBox(height: 8),
