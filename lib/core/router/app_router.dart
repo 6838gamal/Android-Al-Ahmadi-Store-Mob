@@ -15,6 +15,7 @@ import '../../features/orders/presentation/pages/orders_page.dart';
 import '../../features/orders/presentation/pages/order_tracking_page.dart';
 import '../../features/orders/presentation/pages/create_order_page.dart';
 import '../../features/reservations/presentation/pages/reservations_page.dart';
+import '../../features/reservations/presentation/pages/create_reservation_page.dart';
 import '../../features/maintenance/presentation/pages/maintenance_page.dart';
 import '../../features/notifications/presentation/pages/notifications_page.dart';
 import '../../features/profile/presentation/pages/profile_page.dart';
@@ -130,6 +131,17 @@ final routerProvider = Provider<GoRouter>((ref) {
           ),
           GoRoute(path: '/orders/create',  builder: (ctx, state) => const CreateOrderPage()),
           GoRoute(path: '/reservations',   builder: (ctx, state) => const ReservationsPage()),
+          GoRoute(
+            path: '/reservations/create',
+            builder: (ctx, state) {
+              final extra = state.extra as Map<String, dynamic>? ?? {};
+              return CreateReservationPage(
+                productId: extra['productId'] as int? ?? 0,
+                productName: extra['productName'] as String? ?? '',
+                price: extra['price'] as double? ?? 0.0,
+              );
+            },
+          ),
           GoRoute(path: '/maintenance',    builder: (ctx, state) => const MaintenancePage()),
           GoRoute(path: '/notifications',  builder: (ctx, state) => const NotificationsPage()),
           GoRoute(path: '/profile',        builder: (ctx, state) => const ProfilePage()),

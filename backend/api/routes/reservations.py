@@ -49,6 +49,12 @@ class ReservationResponse(BaseModel):
         from_attributes = True
 
 
+class CustomerReservationCreate(BaseModel):
+    product_id: int
+    notes: Optional[str] = None
+    deposit_amount: Optional[float] = 0.0
+
+
 class CancelRequest(BaseModel):
     cancellation_type: str
     reason: Optional[str] = None
@@ -57,6 +63,81 @@ class CancelRequest(BaseModel):
 def gen_res_number(db):
     count = db.query(Reservation).count() + 1
     return f"RES-{datetime.now().year}-{count:04d}"
+
+
+@router.post("/request", response_model=ReservationResponse)
+def request_reservation(
+    data: CustomerReservationCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Customer self-service reservation request."""
+    product = db.query(Product).filter(Product.id == data.product_id).first()
+    if not product:
+        raise HTTPException(status_code=404, detail="المنتج غير موجود")
+    if product.status != ProductStatus.available:
+        raise HTTPException(status_code=400, detail="المنتج غير متوفر حالياً للحجز")
+
+    existing = db.query(Reservation).filter(
+        Reservation.customer_id == current_user.id,
+        Reservation.product_id == data.product_id,
+        Reservation.status.in_([ReservationStatus.pending, ReservationStatus.confirmed]),
+    ).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="لديك حجز نشط بالفعل لهذا المنتج")
+
+    product.status = ProductStatus.reserved
+    expires = datetime.utcnow() + timedelta(days=DEFAULT_RESERVATION_DAYS)
+    deposit = data.deposit_amount or 0.0
+
+    res = Reservation(
+        reservation_number=gen_res_number(db),
+        customer_id=current_user.id,
+        customer_name=current_user.name,
+        customer_phone=current_user.phone or '',
+        product_id=data.product_id,
+        product_name=product.name,
+        price=product.price,
+        notes=data.notes,
+        expires_at=expires,
+        deposit_amount=deposit,
+        deposit_paid=False,
+        remaining_amount=max(0.0, product.price - deposit),
+        penalty_amount=DEFAULT_PENALTY,
+    )
+    db.add(res)
+    db.commit()
+    db.refresh(res)
+    return res
+
+
+@router.put("/my/{res_id}/cancel")
+def cancel_own_reservation(
+    res_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Customer cancels their own pending reservation."""
+    res = db.query(Reservation).filter(
+        Reservation.id == res_id,
+        Reservation.customer_id == current_user.id,
+    ).first()
+    if not res:
+        raise HTTPException(status_code=404, detail="الحجز غير موجود")
+    if res.status != ReservationStatus.pending:
+        raise HTTPException(status_code=400, detail="لا يمكن إلغاء هذا الحجز — تواصل مع المتجر")
+
+    res.status = ReservationStatus.cancelled
+    res.cancelled_at = datetime.utcnow()
+    res.cancel_reason = "إلغاء من قبل العميل"
+    res.cancellation_type = CancellationType.full_return
+
+    product = db.query(Product).filter(Product.id == res.product_id).first()
+    if product:
+        product.status = ProductStatus.available
+
+    db.commit()
+    return {"message": "تم إلغاء الحجز بنجاح"}
 
 
 @router.get("/my", response_model=List[ReservationResponse])

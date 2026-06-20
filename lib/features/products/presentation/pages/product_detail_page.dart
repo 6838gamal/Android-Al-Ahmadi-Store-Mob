@@ -283,8 +283,20 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
   }
 
   void _reserve(BuildContext context) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('سيتم إضافة الحجز قريباً', style: TextStyle(fontFamily: 'Cairo')), backgroundColor: AppColors.primary),
+    final auth = ref.read(authProvider);
+    if (!auth.isAuthenticated) {
+      AppUtils.showSnackBar(context, 'يجب تسجيل الدخول أولاً لحجز المنتج');
+      context.push('/login');
+      return;
+    }
+    final p = _product!;
+    context.push(
+      '/reservations/create',
+      extra: {
+        'productId': p['id'] as int,
+        'productName': p['name'] as String,
+        'price': (p['price'] as num?)?.toDouble() ?? 0.0,
+      },
     );
   }
 }
