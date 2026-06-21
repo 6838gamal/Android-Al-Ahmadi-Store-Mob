@@ -7,6 +7,8 @@ from backend.core.database import get_db
 from backend.models.capital import CapitalTransaction, CapitalTransactionType
 from backend.api.dependencies import get_admin_user
 from pydantic import BaseModel
+from backend.api.routes.audit import log_action
+from backend.models.audit_log import AuditAction
 
 router = APIRouter()
 
@@ -50,6 +52,11 @@ def record_capital_transaction(
         recorded_by_id=admin.id,
     )
     db.add(tx)
+    db.flush()
+    log_action(db, admin, AuditAction.create, entity_type="capital_transaction", entity_id=tx.id,
+               after={"type": str(data.transaction_type), "amount": data.amount,
+                      "reason": data.reason},
+               description=f"رأس مال — {data.transaction_type.value}: {data.amount:,.0f} ريال | {data.reason or ''}")
     db.commit()
     db.refresh(tx)
     return tx
@@ -99,6 +106,9 @@ def delete_capital_transaction(
     tx = db.query(CapitalTransaction).filter(CapitalTransaction.id == tx_id).first()
     if not tx:
         raise HTTPException(404, "السجل غير موجود")
+    log_action(db, admin, AuditAction.delete, entity_type="capital_transaction", entity_id=tx.id,
+               before={"type": str(tx.transaction_type), "amount": tx.amount, "reason": tx.reason},
+               description=f"حذف معاملة رأس مال: {tx.transaction_type.value} {tx.amount:,.0f} ريال")
     db.delete(tx)
     db.commit()
     return {"message": "تم حذف السجل"}

@@ -122,6 +122,9 @@ def mark_sold(
             reference_type="inventory_item",
         )
 
+    log_action(db, current_user, AuditAction.update, entity_type="inventory_item", entity_id=item.id,
+               after={"status": "sold", "customer_id": customer_id, "order_id": order_id},
+               description=f"بيع شاشة: {item.brand or ''} {item.model or ''} — سيريال: {item.serial_number or str(item.id)}")
     db.commit()
     return {"message": "Item marked as sold"}
 
@@ -152,6 +155,9 @@ def return_to_stock(
             reference_type="inventory_item",
         )
 
+    log_action(db, current_user, AuditAction.update, entity_type="inventory_item", entity_id=item.id,
+               after={"status": "available", "customer_id": customer_id},
+               description=f"مرتجع للمخزون: {item.brand or ''} {item.model or ''} — سيريال: {item.serial_number or str(item.id)}")
     db.commit()
     return {"message": "Item returned to stock"}
 

@@ -9,6 +9,8 @@ from backend.api.dependencies import get_admin_user, require_staff_or_above, get
 from backend.models.user import User
 from backend.models.wallet import WalletTransaction, TransactionType, WalletCurrency
 from pydantic import BaseModel
+from backend.api.routes.audit import log_action
+from backend.models.audit_log import AuditAction
 
 router = APIRouter()
 
@@ -106,6 +108,12 @@ def request_reservation(
         penalty_amount=DEFAULT_PENALTY,
     )
     db.add(res)
+    db.flush()
+    log_action(db, admin, AuditAction.create, entity_type="reservation", entity_id=res.id,
+               after={"reservation_number": res.reservation_number, "product_id": data.product_id,
+                      "customer_name": data.customer_name, "customer_phone": data.customer_phone,
+                      "deposit_amount": deposit, "days": data.days},
+               description=f"حجز جديد رقم {res.reservation_number} للعميل {data.customer_name}")
     db.commit()
     db.refresh(res)
     return res
@@ -280,6 +288,10 @@ def cancel_reservation(
         res.customer_credit_amount = 0.0
         message = "تم إلغاء الحجز"
 
+    log_action(db, admin, AuditAction.update, entity_type="reservation", entity_id=res.id,
+               after={"status": "cancelled", "cancellation_type": str(cancel_type),
+                      "reservation_number": res.reservation_number},
+               description=f"إلغاء حجز {res.reservation_number} — {data.reason or 'بدون سبب'}")
     db.commit()
     return {"message": message, "reservation_number": res.reservation_number}
 

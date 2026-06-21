@@ -49,13 +49,14 @@ def create_shortage_request(
     current_user: User = Depends(get_current_user),
 ):
     existing = db.query(ShortageRequest).filter(
-        ShortageRequest.customer_id == current_user.id,
         ShortageRequest.brand.ilike(data.brand),
         ShortageRequest.model.ilike(data.model),
         ShortageRequest.status == ShortageRequestStatus.pending,
+        (ShortageRequest.customer_id == current_user.id) |
+        (ShortageRequest.customer_phone == data.customer_phone),
     ).first()
     if existing:
-        raise HTTPException(400, "لديك طلب مماثل قيد الانتظار بالفعل لهذا الجهاز")
+        raise HTTPException(409, "يوجد طلب مماثل قيد الانتظار لهذا الجهاز بالفعل")
 
     req = ShortageRequest(
         customer_id=current_user.id,
@@ -82,7 +83,9 @@ def create_shortage_request_guest(data: ShortageRequestCreate, db: Session = Dep
         ShortageRequest.status == ShortageRequestStatus.pending,
     ).first()
     if existing:
-        return {"message": "لديك طلب مماثل قيد الانتظار بالفعل لهذا الجهاز. سيتم إعلامك عند توفره.", "id": existing.id}
+        raise HTTPException(status_code=409,
+                            detail={"message": "يوجد طلب مماثل قيد الانتظار لهذا الجهاز. سيتم إعلامك عند توفره.",
+                                    "id": existing.id})
 
     req = ShortageRequest(
         customer_name=data.customer_name,

@@ -7,7 +7,9 @@ from backend.models.purchase_invoice import PurchaseInvoice, PurchaseInvoiceItem
 from backend.models.capital import CapitalTransaction, CapitalTransactionType
 from backend.models.user import User
 from backend.api.dependencies import get_admin_user, require_staff_or_above
-from pydantic import BaseModel
+from pydantic import BaseModel, validator
+from backend.api.routes.audit import log_action
+from backend.models.audit_log import AuditAction
 
 router = APIRouter()
 
@@ -35,6 +37,12 @@ class PurchaseInvoiceCreate(BaseModel):
     capital_from_owner: float = 0.0
     notes: Optional[str] = None
     items: List[InvoiceItemCreate]
+
+    @validator('items')
+    def items_not_empty(cls, v):
+        if not v or len(v) == 0:
+            raise ValueError('يجب أن تحتوي الفاتورة على عنصر واحد على الأقل')
+        return v
 
 
 class InvoiceItemResponse(BaseModel):
@@ -117,6 +125,11 @@ def create_invoice(data: PurchaseInvoiceCreate, db: Session = Depends(get_db), a
         )
         db.add(cap_tx)
 
+    log_action(db, admin, AuditAction.create, entity_type="purchase_invoice", entity_id=invoice.id,
+               after={"invoice_number": invoice.invoice_number, "supplier": data.supplier_name,
+                      "total_amount": total, "cash_from_drawer": data.cash_from_drawer,
+                      "capital_from_owner": data.capital_from_owner, "items_count": len(data.items)},
+               description=f"فاتورة مشتريات {invoice.invoice_number} — {data.supplier_name} — الإجمالي: {total:,.0f} ريال")
     db.commit()
     db.refresh(invoice)
     return {
