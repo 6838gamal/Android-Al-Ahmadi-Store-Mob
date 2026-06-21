@@ -47,8 +47,9 @@
           <!-- Cover image -->
           <div style="height:100px;background:#1C2230;overflow:hidden;position:relative">
             {% if folder.cover_image_url %}
-              <img src="{{ folder.cover_image_url }}" alt="{{ folder.label_ar }}"
-                   style="width:100%;height:100%;object-fit:cover">
+              <img src="{{ folder.cover_image_url|bu }}" alt="{{ folder.label_ar }}"
+                   style="width:100%;height:100%;object-fit:cover"
+                   onerror="this.style.display='none'">
             {% else %}
               <div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center">
                 <i class="fa-solid fa-image" style="color:#4B5563;font-size:30px"></i>

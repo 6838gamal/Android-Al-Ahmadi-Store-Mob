@@ -4,6 +4,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/constants/app_constants.dart';
+import '../../../../core/network/api_client.dart';
 import '../../../../core/utils/app_utils.dart';
 import '../../../../shared/widgets/loading_widget.dart';
 import '../../../home/presentation/pages/main_shell.dart';
@@ -138,7 +139,7 @@ class _AnnouncementCard extends StatelessWidget {
               child: AspectRatio(
                 aspectRatio: 16 / 7,
                 child: CachedNetworkImage(
-                  imageUrl: '${AppConstants.baseUrl}$imageUrl',
+                  imageUrl: ApiClient.img(imageUrl),
                   fit: BoxFit.cover,
                   placeholder: (_, __) => Container(
                     color: AppColors.darkSurface,

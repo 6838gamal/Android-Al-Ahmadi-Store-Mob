@@ -202,7 +202,7 @@ class _FolderCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final cover = folder['cover_image_url'] as String?;
     final fullCover = cover != null && cover.isNotEmpty
-        ? (cover.startsWith('http') ? cover : '${AppConstants.baseUrl}$cover')
+        ? ApiClient.img(cover)
         : null;
     final count = folder['image_count'] as int? ?? 0;
 
@@ -447,9 +447,7 @@ class _GalleryImage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final url = image['image_url'] as String? ?? '';
-    final fullUrl = url.startsWith('http')
-        ? url
-        : '${AppConstants.baseUrl}$url';
+    final fullUrl = ApiClient.img(url);
     final watermark = image['watermark_number'] as String?;
     final title = image['title'] as String?;
 
@@ -620,9 +618,7 @@ class _FullScreenViewerState extends State<_FullScreenViewer> {
             itemBuilder: (ctx, i) {
               final p = widget.images[i];
               final imgUrl = p['image_url'] as String? ?? '';
-              final fullUrl = imgUrl.startsWith('http')
-                  ? imgUrl
-                  : '${AppConstants.baseUrl}$imgUrl';
+              final fullUrl = ApiClient.img(imgUrl);
               return InteractiveViewer(
                 minScale: 0.8,
                 maxScale: 4.0,

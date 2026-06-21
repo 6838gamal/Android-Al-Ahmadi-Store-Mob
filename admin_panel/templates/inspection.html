@@ -34,7 +34,7 @@
 
     {% if req.images %}
     <div class="flex gap-2 mb-3 flex-wrap">
-      {% for img in req.images %}<img src="{{ img }}" class="w-16 h-16 rounded-lg object-cover border border-dark-border">{% endfor %}
+      {% for img in req.images %}<img src="{{ img|bu }}" class="w-16 h-16 rounded-lg object-cover border border-dark-border" onerror="this.style.display='none'">{% endfor %}
     </div>
     {% endif %}
 

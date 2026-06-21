@@ -41,7 +41,7 @@
   {% if post.images %}
   <div style="display:flex;flex-wrap:wrap;gap:8px">
     {% for img in post.images %}
-    <a href="{{ img }}" target="_blank"><img src="{{ img }}" style="width:100px;height:100px;object-fit:cover;border-radius:8px;border:1px solid #2D3748"></a>
+    <a href="{{ img|bu }}" target="_blank"><img src="{{ img|bu }}" style="width:100px;height:100px;object-fit:cover;border-radius:8px;border:1px solid #2D3748" onerror="this.style.display='none'"></a>
     {% endfor %}
   </div>
   {% endif %}

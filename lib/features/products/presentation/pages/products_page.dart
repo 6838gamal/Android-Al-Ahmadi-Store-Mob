@@ -5,6 +5,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../home/presentation/pages/main_shell.dart';
 import '../../../../core/constants/app_constants.dart';
+import '../../../../core/network/api_client.dart';
 import '../../../../core/utils/app_utils.dart';
 import '../../../../shared/widgets/loading_widget.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -288,7 +289,7 @@ class _ProductCard extends StatelessWidget {
                 aspectRatio: 1.15,
                 child: product['image_url'] != null
                     ? CachedNetworkImage(
-                        imageUrl: '${AppConstants.baseUrl}${product['image_url']}',
+                        imageUrl: ApiClient.img(product['image_url'] as String?),
                         fit: BoxFit.cover,
                         placeholder: (_, __) => _placeholder(),
                         errorWidget: (_, __, ___) => _placeholder(),

@@ -84,6 +84,18 @@ templates = Jinja2Templates(directory=os.path.join(os.path.dirname(__file__), "t
 # Safe enum/string value: {{ item.status|v }} works for both plain str and enum-like object
 templates.env.filters['v'] = lambda x: (getattr(x, 'value', x) if x is not None else '')
 
+# Backend URL builder: {{ path|bu }} converts a relative /api/... or /uploads/... path to
+# a full URL using API_BASE. Already-absolute URLs are returned unchanged.
+def _bu(path):
+    if not path:
+        return ''
+    s = str(path)
+    if s.startswith('http'):
+        return s
+    return f"{API_BASE}{s}"
+templates.env.filters['bu'] = _bu
+templates.env.globals['bu'] = _bu
+
 # ── Helpers ────────────────────────────────────────────────────────────────────
 
 _DT_KEYS = frozenset({

@@ -76,7 +76,7 @@
           <!-- Image preview -->
           {% if a.image_url %}
           <div style="margin-bottom:10px">
-            <img src="{{ a.image_url }}" alt="صورة الإعلان"
+            <img src="{{ a.image_url|bu }}" alt="صورة الإعلان"
                  style="max-height:140px;max-width:300px;object-fit:cover;border-radius:10px;border:1px solid #2D3748">
           </div>
           {% endif %}

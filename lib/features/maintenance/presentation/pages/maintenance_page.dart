@@ -1038,7 +1038,7 @@ class _MediaStrip extends StatelessWidget {
                     color: AppColors.darkSurface,
                     image: DecorationImage(
                       image: NetworkImage(
-                          '${AppConstants.baseUrl}$url'),
+                          ApiClient.img(url)),
                       fit: BoxFit.cover,
                     ),
                   ),
@@ -1139,7 +1139,7 @@ class _MediaViewDialogState extends State<_MediaViewDialog> {
               }
               return InteractiveViewer(
                 child: Image.network(
-                  '${AppConstants.baseUrl}$url',
+                  ApiClient.img(url),
                   fit: BoxFit.contain,
                   errorBuilder: (_, __, ___) =>
                       const Icon(Icons.broken_image, color: Colors.white38, size: 64),

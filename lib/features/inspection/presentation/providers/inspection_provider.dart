@@ -75,7 +75,7 @@ class InspectionNotifier extends StateNotifier<InspectionState> {
             final formData = FormData.fromMap({
               'file': MultipartFile.fromBytes(bytes, filename: img.name),
             });
-            final uploadRes = await _api.postForm('/uploads/', formData);
+            final uploadRes = await _api.postForm('/uploads/media', formData);
             final url = uploadRes.data['url'] as String?;
             if (url != null) imageUrls.add(url);
           } catch (_) {

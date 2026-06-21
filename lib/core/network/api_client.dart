@@ -10,6 +10,21 @@ class ApiClient {
   late final Dio _dio;
   bool _isRefreshing = false;
 
+  /// Resolved API origin computed once at first instantiation.
+  static final String _staticOrigin = _resolveBase();
+
+  /// Build a full image/media URL from a relative path or absolute URL.
+  ///
+  /// - Already-absolute URLs (http/https) are returned as-is.
+  /// - Relative paths like `/api/uploads/image/uuid` or `/uploads/filename`
+  ///   are prefixed with the runtime-resolved origin so they work on both
+  ///   Replit dev (through the server.js proxy) and production (Render.com).
+  static String img(String? path) {
+    if (path == null || path.isEmpty) return '';
+    if (path.startsWith('http')) return path;
+    return '$_staticOrigin$path';
+  }
+
   ApiClient() {
     // Always use the configured base URL (Render.com API).
     // Never use Uri.base.origin — on Netlify/APK that resolves to the wrong
@@ -161,6 +176,7 @@ class ApiClient {
   /// Expose the configured base API URL (used for image URL construction etc.)
   String get baseUrl => _dio.options.baseUrl;
 
-  /// The API origin (without /api suffix) for direct asset URLs
-  String get origin => AppConstants.baseUrl;
+  /// The API origin (without /api suffix) for direct asset URLs.
+  /// Uses the runtime-resolved base (Replit proxy or Render.com) — not AppConstants.baseUrl.
+  String get origin => _staticOrigin;
 }

@@ -5,6 +5,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/app_utils.dart';
 import '../../../../core/constants/app_constants.dart';
+import '../../../../core/network/api_client.dart';
 import '../../../../shared/widgets/app_button.dart';
 import '../../../../shared/widgets/status_badge.dart';
 import '../../../../shared/widgets/loading_widget.dart';
@@ -72,11 +73,11 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
               children: [
                 p['image_url'] != null
                     ? GestureDetector(
-                        onTap: () => _showImageZoom(context, '${AppConstants.baseUrl}${p['image_url']}'),
+                        onTap: () => _showImageZoom(context, ApiClient.img(p['image_url'] as String?)),
                         child: Hero(
                           tag: 'product_img_${widget.productId}',
                           child: CachedNetworkImage(
-                              imageUrl: '${AppConstants.baseUrl}${p['image_url']}',
+                              imageUrl: ApiClient.img(p['image_url'] as String?),
                               fit: BoxFit.cover,
                               placeholder: (_, __) => _imagePlaceholder(),
                               errorWidget: (_, __, ___) => _imagePlaceholder()),

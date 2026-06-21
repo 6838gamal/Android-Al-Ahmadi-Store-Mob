@@ -127,7 +127,7 @@
       <div class="card p-6 space-y-4">
         <h2 class="text-white font-bold border-b border-dark-border pb-3">صورة المنتج</h2>
         {% if product and product.image_url %}
-        <img src="{{ product.image_url }}" class="w-full h-40 object-cover rounded-xl mb-3">
+        <img src="{{ product.image_url|bu }}" class="w-full h-40 object-cover rounded-xl mb-3" onerror="this.style.display='none'">
         {% endif %}
         <label class="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-dark-border rounded-xl cursor-pointer hover:border-primary/50 transition">
           <i class="fa-solid fa-cloud-arrow-up text-gray-500 text-2xl mb-2"></i>
