@@ -154,7 +154,7 @@ def invoice_summary(db: Session = Depends(get_db), admin=Depends(get_admin_user)
 
 
 @router.get("/{invoice_id}")
-def get_invoice(invoice_id: int, db: Session = Depends(get_db), admin=Depends(require_staff_or_above)):
+def get_invoice(invoice_id: int, db: Session = Depends(get_db), admin=Depends(get_admin_user)):
     inv = db.query(PurchaseInvoice).filter(PurchaseInvoice.id == invoice_id).first()
     if not inv:
         raise HTTPException(status_code=404, detail="الفاتورة غير موجودة")
@@ -175,7 +175,7 @@ def get_invoice(invoice_id: int, db: Session = Depends(get_db), admin=Depends(re
 
 
 @router.put("/{invoice_id}/mark-printed")
-def mark_printed(invoice_id: int, db: Session = Depends(get_db), admin=Depends(require_staff_or_above)):
+def mark_printed(invoice_id: int, db: Session = Depends(get_db), admin=Depends(get_admin_user)):
     inv = db.query(PurchaseInvoice).filter(PurchaseInvoice.id == invoice_id).first()
     if not inv:
         raise HTTPException(status_code=404, detail="الفاتورة غير موجودة")

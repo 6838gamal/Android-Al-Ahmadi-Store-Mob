@@ -5,6 +5,7 @@ from datetime import datetime
 from backend.core.database import get_db
 from backend.models.order import Order, OrderUpdate, OrderStatus, OrderType
 from backend.models.notification import Notification, NotificationType
+from backend.models.loyalty import LoyaltyAccount, LoyaltyTransaction, LoyaltyTransactionType
 from backend.schemas.order import OrderCreate, OrderUpdateStatus, OrderResponse
 from backend.api.dependencies import get_admin_user, get_current_user, get_current_user_optional, require_staff_or_above
 from backend.models.user import User, UserRole
@@ -182,13 +183,26 @@ def get_order(
     return order
 
 
-@router.get("/track/{order_number}", response_model=OrderResponse)
+@router.get("/track/{order_number}")
 def track_order(order_number: str, db: Session = Depends(get_db)):
-    """Public order tracking by order number."""
+    """Public order tracking by order number — returns safe fields only (no PII)."""
     order = db.query(Order).filter(Order.order_number == order_number).first()
     if not order:
-        raise HTTPException(status_code=404, detail="Order not found")
-    return order
+        raise HTTPException(status_code=404, detail="الطلب غير موجود")
+    masked_phone = ""
+    if order.customer_phone:
+        p = order.customer_phone
+        masked_phone = p[:3] + "****" + p[-3:] if len(p) >= 6 else "***"
+    return {
+        "order_number": order.order_number,
+        "status": order.status,
+        "maintenance_status": order.maintenance_status,
+        "order_type": order.order_type,
+        "created_at": order.created_at,
+        "customer_name_masked": order.customer_name[:2] + "***" if order.customer_name else "",
+        "customer_phone_masked": masked_phone,
+        "estimated_time": order.estimated_time,
+    }
 
 
 @router.put("/{order_id}/status", response_model=OrderResponse)
@@ -225,6 +239,25 @@ def update_order_status(
     # Auto-notify customer on order status change
     if update_data.status:
         _create_order_notification(db, order, update_data.status.value)
+
+    # ── خصم نقاط الولاء تلقائياً عند الإلغاء ──
+    if update_data.status == OrderStatus.cancelled and order.customer_id:
+        acc = db.query(LoyaltyAccount).filter(LoyaltyAccount.user_id == order.customer_id).first()
+        if acc and acc.total_points > 0:
+            deduct = min(acc.total_points, 1)
+            acc.total_points = max(0, acc.total_points - deduct)
+            if acc.total_points < 25:
+                acc.is_locked = False
+            revoke_tx = LoyaltyTransaction(
+                user_id=order.customer_id,
+                points=-deduct,
+                transaction_type=LoyaltyTransactionType.redeem,
+                reason=f"خصم نقاط بسبب إلغاء الطلب {order.order_number}",
+                reference_id=order.id,
+                reference_type="order",
+                balance_after=acc.total_points,
+            )
+            db.add(revoke_tx)
 
     db.commit()
     db.refresh(order)

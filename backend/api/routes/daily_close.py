@@ -184,6 +184,12 @@ def create_daily_close(
     )
     total_maintenance = maint_q.scalar() or 0.0
 
+    # ── جمع المرتجعات (الطلبات الملغاة بعد التسليم) ──
+    total_returns = db.query(func.sum(Order.total)).filter(
+        Order.status == OrderStatus.cancelled,
+        Order.created_at.between(start_dt, end_dt),
+    ).scalar() or 0.0
+
     # ── جمع المصروفات ──
     total_expenses = db.query(func.sum(DailyExpense.amount)).filter(
         DailyExpense.expense_date == target_date,
@@ -216,12 +222,19 @@ def create_daily_close(
         + total_sales
         + total_maintenance
         + cap_deposits
+        - total_returns
         - total_expenses
         - total_awards
         - total_purchases
         - cap_withdrawals
     )
-    net_profit = total_sales + total_maintenance - total_expenses - total_awards - total_purchases
+    net_profit = (
+        total_sales + total_maintenance
+        - total_returns
+        - total_expenses
+        - total_awards
+        - total_purchases
+    )
 
     if existing:
         dc = existing
@@ -232,6 +245,7 @@ def create_daily_close(
     dc.opening_balance = data.opening_balance
     dc.total_sales = round(total_sales, 2)
     dc.total_maintenance = round(total_maintenance, 2)
+    dc.total_returns = round(total_returns, 2)
     dc.total_expenses = round(total_expenses, 2)
     dc.total_awards = round(total_awards, 2)
     dc.total_purchases = round(total_purchases, 2)
@@ -253,6 +267,7 @@ def create_daily_close(
         "opening_balance": dc.opening_balance,
         "total_sales": dc.total_sales,
         "total_maintenance": dc.total_maintenance,
+        "total_returns": dc.total_returns,
         "total_expenses": dc.total_expenses,
         "total_awards": dc.total_awards,
         "total_purchases": dc.total_purchases,
@@ -330,6 +345,11 @@ def preview_daily_close(
         PurchaseInvoice.created_at.between(start_dt, end_dt),
     ).scalar() or 0.0
 
+    total_returns_preview = db.query(func.sum(Order.total)).filter(
+        Order.status == OrderStatus.cancelled,
+        Order.created_at.between(start_dt, end_dt),
+    ).scalar() or 0.0
+
     expenses_list = db.query(DailyExpense).filter(DailyExpense.expense_date == target_date).all()
     awards_list = db.query(DailyAward).filter(DailyAward.award_date == target_date).all()
 
@@ -346,16 +366,22 @@ def preview_daily_close(
     closing_balance = (
         opening_balance + total_sales + total_maintenance
         + cap_deposits
+        - total_returns_preview
         - total_expenses - total_awards - total_purchases
         - cap_withdrawals
     )
-    net_profit = total_sales + total_maintenance - total_expenses - total_awards - total_purchases
+    net_profit = (
+        total_sales + total_maintenance
+        - total_returns_preview
+        - total_expenses - total_awards - total_purchases
+    )
 
     return {
         "date": str(target_date),
         "opening_balance": opening_balance,
         "total_sales": round(total_sales, 2),
         "total_maintenance": round(total_maintenance, 2),
+        "total_returns": round(total_returns_preview, 2),
         "total_expenses": round(total_expenses, 2),
         "total_awards": round(total_awards, 2),
         "total_purchases": round(total_purchases, 2),
