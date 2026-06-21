@@ -8,7 +8,10 @@ import '../pages/staff_shell.dart';
 final _staffOrdersProvider = FutureProvider<List<dynamic>>((ref) async {
   final api = ref.read(apiClientProvider);
   final res = await api.get('/orders', queryParameters: {'limit': 100});
-  return res.data['items'] ?? res.data ?? [];
+  final data = res.data;
+  if (data is List) return data;
+  if (data is Map) return (data['items'] as List?) ?? [];
+  return [];
 });
 
 class StaffOrdersPage extends ConsumerStatefulWidget {
