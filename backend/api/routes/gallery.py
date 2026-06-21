@@ -204,6 +204,58 @@ def add_image_by_url(
     return {"id": img.id, "watermark_number": img.watermark_number, "message": "تمت الإضافة"}
 
 
+# ── POST /api/gallery/folders/{folder_id}/images/batch  (رفع جماعي — admin) ──
+@router.post("/folders/{folder_id}/images/batch")
+async def batch_upload_images(
+    folder_id: int,
+    files: List[UploadFile] = File(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_admin_user),
+):
+    """رفع حتى 150 صورة دفعة واحدة مع ترقيم مائي تلقائي لكل صورة."""
+    if len(files) > 150:
+        raise HTTPException(status_code=400, detail="الحد الأقصى للرفع الجماعي هو 150 صورة")
+
+    folder = db.query(GalleryFolder).filter(GalleryFolder.id == folder_id).first()
+    if not folder:
+        raise HTTPException(status_code=404, detail="المجلد غير موجود")
+
+    count = db.query(GalleryImage).filter(GalleryImage.folder_id == folder_id).count()
+    results = []
+
+    for file in files:
+        ext = os.path.splitext(file.filename or "img.jpg")[1].lower() or ".jpg"
+        fname = f"{uuid.uuid4().hex}{ext}"
+        dest = os.path.join(UPLOAD_DIR, fname)
+        with open(dest, "wb") as f:
+            import shutil as _shutil
+            _shutil.copyfileobj(file.file, f)
+
+        count += 1
+        watermark = f"{folder.series_key.upper()}-{folder.model_key.replace(' ', '')}-{count:03d}"
+
+        img = GalleryImage(
+            folder_id=folder_id,
+            image_url=f"/uploads/gallery/{fname}",
+            watermark_number=watermark,
+            sort_order=count,
+            created_by_id=current_user.id,
+        )
+        db.add(img)
+        results.append({"filename": fname, "watermark_number": watermark})
+
+    if not folder.cover_image_url and results:
+        folder.cover_image_url = f"/uploads/gallery/{results[0]['filename']}"
+
+    db.commit()
+    return {
+        "uploaded": len(results),
+        "folder_id": folder_id,
+        "images": results,
+        "message": f"✅ تم رفع {len(results)} صورة بنجاح",
+    }
+
+
 # ── DELETE /api/gallery/images/{image_id}  (admin only) ───────────────────────
 @router.delete("/images/{image_id}")
 def delete_image(

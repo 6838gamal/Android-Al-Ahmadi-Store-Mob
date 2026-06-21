@@ -100,7 +100,7 @@ def get_post(post_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/")
-def create_post(data: PostCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def create_post(data: PostCreate, db: Session = Depends(get_db), current_user: User = Depends(require_staff_or_above)):
     post = EngSupportPost(
         title=data.title,
         content=data.content,

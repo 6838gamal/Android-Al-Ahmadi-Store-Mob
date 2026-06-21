@@ -10,7 +10,7 @@ from backend.models.user import User, UserRole
 from backend.models.inventory_item import InventoryItem, ItemStatus
 from backend.models.referral import Referral
 from backend.models.warranty import Warranty
-from backend.api.dependencies import require_branch_manager_or_above
+from backend.api.dependencies import require_branch_manager_or_above, get_admin_user as require_admin
 
 router = APIRouter()
 
@@ -68,23 +68,41 @@ def sales_report(
 def profit_report(
     period: str = "month",
     db: Session = Depends(get_db),
-    current_user=Depends(require_branch_manager_or_above)
+    current_user=Depends(require_admin)
 ):
     start, end = _date_range(period)
     q = db.query(Order).filter(Order.status == OrderStatus.delivered)
-    q = _apply_branch_filter(q, Order, current_user)
     if start:
         q = q.filter(Order.created_at >= start)
     orders = q.all()
     total_revenue = sum(o.total for o in orders)
     total_discount = sum(o.discount or 0 for o in orders)
+    net_revenue = total_revenue - total_discount
+
+    # حساب تكلفة المبيعات من cost_price للمنتجات
+    total_cost = 0.0
+    for o in orders:
+        if o.items and isinstance(o.items, list):
+            for item in o.items:
+                product_id = item.get("product_id") if isinstance(item, dict) else None
+                if product_id:
+                    prod = db.query(Product).filter(Product.id == product_id).first()
+                    if prod and prod.cost_price:
+                        qty = item.get("quantity", 1) if isinstance(item, dict) else 1
+                        total_cost += prod.cost_price * qty
+
+    gross_profit = net_revenue - total_cost
+
     return {
         "period": period,
-        "branch_id": current_user.branch_id if current_user.role == UserRole.branch_manager else None,
         "total_revenue": round(total_revenue, 2),
         "total_discount": round(total_discount, 2),
-        "net_revenue": round(total_revenue - total_discount, 2),
+        "net_revenue": round(net_revenue, 2),
+        "total_cost": round(total_cost, 2),
+        "gross_profit": round(gross_profit, 2),
+        "profit_margin_pct": round((gross_profit / net_revenue * 100) if net_revenue else 0, 2),
         "total_transactions": len(orders),
+        "note": "gross_profit = net_revenue - cost_price × quantity (يُحسب فقط للمنتجات ذات سعر تكلفة مُدخل)",
     }
 
 

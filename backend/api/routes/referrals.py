@@ -96,7 +96,7 @@ def my_referral_stats(
 @router.post("/register-referral")
 def register_referral(
     referral_code: str,
-    device_fingerprint: str = None,
+    device_fingerprint: str,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):

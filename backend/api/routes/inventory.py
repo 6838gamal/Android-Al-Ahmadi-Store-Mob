@@ -41,7 +41,7 @@ def list_items(
 
 
 @router.post("/", response_model=InventoryItemResponse)
-def create_item(data: InventoryItemCreate, db: Session = Depends(get_db), current_user=Depends(require_staff_or_above)):
+def create_item(data: InventoryItemCreate, db: Session = Depends(get_db), current_user=Depends(require_admin)):
     if data.serial_number:
         existing = db.query(InventoryItem).filter(InventoryItem.serial_number == data.serial_number).first()
         if existing:
@@ -71,7 +71,7 @@ def get_item(item_id: int, db: Session = Depends(get_db), current_user=Depends(r
 
 
 @router.put("/{item_id}", response_model=InventoryItemResponse)
-def update_item(item_id: int, data: InventoryItemUpdate, db: Session = Depends(get_db), current_user=Depends(require_staff_or_above)):
+def update_item(item_id: int, data: InventoryItemUpdate, db: Session = Depends(get_db), current_user=Depends(require_admin)):
     item = db.query(InventoryItem).filter(InventoryItem.id == item_id).first()
     if not item:
         raise HTTPException(404, "Item not found")

@@ -191,30 +191,58 @@ def place_bid(auction_id: int, data: BidCreate, db: Session = Depends(get_db)):
 
 
 @router.put("/{auction_id}/activate")
-def activate_auction(auction_id: int, days: int = 7, db: Session = Depends(get_db), admin=Depends(get_admin_user)):
+def activate_auction(
+    auction_id: int,
+    days: int = 7,
+    reserve_price: Optional[float] = None,
+    commission_rate: float = 0.0,
+    db: Session = Depends(get_db),
+    admin=Depends(get_admin_user),
+):
     a = db.query(Auction).filter(Auction.id == auction_id).first()
     if not a:
         raise HTTPException(status_code=404, detail="المزاد غير موجود")
     a.status = AuctionStatus.active
     a.ends_at = datetime.utcnow() + timedelta(days=days)
+    if reserve_price is not None:
+        a.reserve_price = reserve_price
+    a.commission_rate = commission_rate
     db.commit()
-    return {"message": "تم تفعيل المزاد"}
+    return {"message": "تم تفعيل المزاد", "ends_at": a.ends_at.isoformat(), "reserve_price": a.reserve_price}
 
 
 @router.put("/{auction_id}/close")
-def close_auction(auction_id: int, winning_bid_id: Optional[int] = None, commission: float = 0.0, db: Session = Depends(get_db), admin=Depends(get_admin_user)):
+def close_auction(
+    auction_id: int,
+    winning_bid_id: Optional[int] = None,
+    commission_rate: float = 0.0,
+    db: Session = Depends(get_db),
+    admin=Depends(get_admin_user),
+):
     a = db.query(Auction).filter(Auction.id == auction_id).first()
     if not a:
         raise HTTPException(status_code=404, detail="المزاد غير موجود")
-    a.status = AuctionStatus.sold if winning_bid_id else AuctionStatus.ended
-    a.commission_amount = commission
+
     if winning_bid_id:
-        a.winning_bid_id = winning_bid_id
         winning_bid = db.query(AuctionBid).filter(AuctionBid.id == winning_bid_id).first()
-        if winning_bid:
-            winning_bid.is_winning = True
+        if not winning_bid:
+            raise HTTPException(404, "المزايدة الفائزة غير موجودة")
+        if a.reserve_price and winning_bid.amount < a.reserve_price:
+            raise HTTPException(400, f"المزايدة الفائزة ({winning_bid.amount:,.0f}) أقل من السعر الاحتياطي ({a.reserve_price:,.0f})")
+        a.winning_bid_id = winning_bid_id
+        a.status = AuctionStatus.sold
+        a.commission_rate = commission_rate
+        a.commission_amount = round(winning_bid.amount * commission_rate / 100, 2)
+        winning_bid.is_winning = True
+    else:
+        a.status = AuctionStatus.ended
+
     db.commit()
-    return {"message": "تم إغلاق المزاد"}
+    return {
+        "message": "تم إغلاق المزاد",
+        "status": a.status.value,
+        "commission_amount": a.commission_amount,
+    }
 
 
 @router.delete("/{auction_id}")

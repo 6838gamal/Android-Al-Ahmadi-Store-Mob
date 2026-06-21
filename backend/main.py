@@ -32,6 +32,8 @@ from backend.models import (  # noqa
 )
 from backend.models.announcement import Announcement  # noqa
 from backend.models.stored_image import StoredImage  # noqa
+from backend.models import capital as capital_model  # noqa
+from backend.models import daily_close as daily_close_model  # noqa
 
 from backend.api.routes import (
     auth, products, orders, reservations, maintenance,
@@ -49,6 +51,8 @@ from backend.api.routes import (
     purchase_invoices as purchase_invoices_routes,
     gallery as gallery_routes,
     settings as settings_routes,
+    capital as capital_routes,
+    daily_close as daily_close_routes,
 )
 
 
@@ -265,6 +269,8 @@ app.include_router(complaints_routes.router,         prefix="/api/complaints",  
 app.include_router(purchase_invoices_routes.router,  prefix="/api/purchase-invoices",  tags=["PurchaseInvoices"])
 app.include_router(gallery_routes.router,            prefix="/api/gallery",            tags=["Gallery"])
 app.include_router(settings_routes.router,          prefix="/api/settings",           tags=["Settings"])
+app.include_router(capital_routes.router,           prefix="/api/capital",            tags=["Capital"])
+app.include_router(daily_close_routes.router,       prefix="/api/daily",              tags=["DailyClose"])
 
 
 @app.get("/health")

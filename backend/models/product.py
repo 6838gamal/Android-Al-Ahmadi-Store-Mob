@@ -33,6 +33,7 @@ class Product(Base):
     model = Column(String(100), nullable=True)
     image_url = Column(String(500), nullable=True)
     price = Column(Float, nullable=False)
+    cost_price = Column(Float, nullable=True)
     quantity = Column(Integer, default=0)
     status = Column(Enum(ProductStatus), default=ProductStatus.available)
     description = Column(Text, nullable=True)
