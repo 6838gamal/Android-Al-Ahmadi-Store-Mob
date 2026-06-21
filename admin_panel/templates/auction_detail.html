@@ -8,6 +8,13 @@
   <a href="/auctions" style="color:#9CA3AF;font-size:13px;font-weight:600;text-decoration:none"><i class="fa-solid fa-arrow-right"></i> العودة للمزادات</a>
 </div>
 
+{% if request.query_params.get('success') %}
+<div style="background:rgba(34,197,94,.15);border:1px solid #22C55E;border-radius:10px;padding:12px 16px;margin-bottom:16px;color:#22C55E;font-weight:700">✅ {{ request.query_params.get('success') }}</div>
+{% endif %}
+{% if request.query_params.get('error') %}
+<div style="background:rgba(239,68,68,.15);border:1px solid #EF4444;border-radius:10px;padding:12px 16px;margin-bottom:16px;color:#EF4444;font-weight:700">❌ {{ request.query_params.get('error') }}</div>
+{% endif %}
+
 {% if auction %}
 <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">
   <div class="card" style="padding:20px">
@@ -30,7 +37,9 @@
         <div style="color:#22C55E;font-weight:800;font-size:18px">{{ auction.current_bid|int }} ريال</div>
       </div>
     </div>
-    {% if auction.commission_amount %}<div style="margin-top:10px;text-align:center;color:#F59E0B;font-size:13px;font-weight:700">العمولة: {{ auction.commission_amount|int }} ريال</div>{% endif %}
+    {% if auction.reserve_price %}<div style="margin-top:8px;text-align:center;color:#9CA3AF;font-size:12px">السعر الاحتياطي: <b style="color:#F59E0B">{{ auction.reserve_price|int }} ر</b></div>{% endif %}
+    {% if auction.commission_rate %}<div style="text-align:center;color:#9CA3AF;font-size:12px">نسبة العمولة: <b style="color:#F59E0B">{{ auction.commission_rate }}%</b></div>{% endif %}
+    {% if auction.commission_amount %}<div style="margin-top:6px;text-align:center;color:#F59E0B;font-size:13px;font-weight:700">العمولة المحسوبة: {{ auction.commission_amount|int }} ريال</div>{% endif %}
   </div>
 </div>
 
@@ -51,6 +60,40 @@
   </div>
 </div>
 {% endif %}
+
+<div class="card" style="padding:18px;margin-bottom:16px">
+  <div style="font-weight:700;color:white;margin-bottom:12px">إجراءات المزاد</div>
+  <div style="display:flex;gap:10px;flex-wrap:wrap">
+    {% if auction.status == 'pending' %}
+    <form method="POST" action="/auctions/{{ auction.id }}/activate" style="flex:1;min-width:220px">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+        <div>
+          <label style="color:#9CA3AF;font-size:11px;display:block;margin-bottom:4px">مدة المزاد (أيام)</label>
+          <input type="number" name="days" value="7" min="1" max="30" style="width:100%;background:#161B22;border:1px solid #374151;border-radius:6px;padding:8px 10px;color:white;font-size:13px;box-sizing:border-box">
+        </div>
+        <div>
+          <label style="color:#9CA3AF;font-size:11px;display:block;margin-bottom:4px">نسبة العمولة %</label>
+          <input type="number" name="commission_rate" step="0.5" min="0" max="100" placeholder="0" style="width:100%;background:#161B22;border:1px solid #374151;border-radius:6px;padding:8px 10px;color:white;font-size:13px;box-sizing:border-box">
+        </div>
+        <div style="grid-column:1/-1">
+          <label style="color:#9CA3AF;font-size:11px;display:block;margin-bottom:4px">السعر الاحتياطي (اختياري)</label>
+          <input type="number" name="reserve_price" step="0.01" min="0" placeholder="بدون" style="width:100%;background:#161B22;border:1px solid #374151;border-radius:6px;padding:8px 10px;color:white;font-size:13px;box-sizing:border-box">
+        </div>
+      </div>
+      <button type="submit" style="width:100%;background:#22C55E;color:#000;border:none;border-radius:8px;padding:10px;font-weight:700;cursor:pointer;font-size:13px">✅ تفعيل المزاد</button>
+    </form>
+    <form method="POST" action="/auctions/{{ auction.id }}/reject" onsubmit="return confirm('رفض المزاد؟')" style="display:flex;align-items:flex-end">
+      <button type="submit" style="background:#EF4444;color:white;border:none;border-radius:8px;padding:10px 18px;font-weight:700;cursor:pointer;font-size:13px">❌ رفض</button>
+    </form>
+    {% elif auction.status == 'active' %}
+    <form method="POST" action="/auctions/{{ auction.id }}/close" onsubmit="return confirm('إغلاق المزاد الآن؟')">
+      <button type="submit" style="background:#F59E0B;color:#000;border:none;border-radius:8px;padding:10px 24px;font-weight:700;cursor:pointer;font-size:13px">🔒 إغلاق المزاد</button>
+    </form>
+    {% else %}
+    <div style="color:#6B7280;font-size:13px">الحالة: {{ auction.status }}</div>
+    {% endif %}
+  </div>
+</div>
 
 <div class="card" style="overflow:hidden">
   <div style="padding:14px 18px;border-bottom:1px solid #2D3748;font-weight:700;color:white;display:flex;align-items:center;justify-content:space-between">

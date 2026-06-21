@@ -1,4 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
+from backend.api.routes.audit import log_action
+from backend.models.audit_log import AuditAction
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from datetime import datetime
@@ -105,6 +107,7 @@ def add_points(data: AddPointsRequest, db: Session = Depends(get_db), admin=Depe
     if acc.is_locked:
         raise HTTPException(status_code=400, detail="الحساب مقفل — يجب على المدير تسليم الشاشة المجانية وإعادة تعيين النقاط أولاً")
 
+    before_pts = acc.total_points
     acc.total_points += data.points
     acc.lifetime_points += data.points
     balance_after = acc.total_points
@@ -124,6 +127,9 @@ def add_points(data: AddPointsRequest, db: Session = Depends(get_db), admin=Depe
     if acc.total_points >= POINTS_FOR_FREE_SCREEN and not acc.is_locked:
         acc.is_locked = True
 
+    log_action(db, admin, AuditAction.update, entity_type="loyalty_account", entity_id=data.user_id,
+               before={"points": before_pts}, after={"points": acc.total_points},
+               description=f"إضافة {data.points} نقطة ولاء — {data.reason or ''}")
     db.commit()
     return {
         "message": f"تمت إضافة {data.points} نقطة",
@@ -152,6 +158,10 @@ def reset_account(data: ResetAccountRequest, db: Session = Depends(get_db), admi
         created_by_id=admin.id,
     )
     db.add(tx)
+    log_action(db, admin, AuditAction.update, entity_type="loyalty_account", entity_id=data.user_id,
+               before={"points": old_points, "is_locked": True},
+               after={"points": 0, "is_locked": False, "free_screens_earned": acc.free_screens_earned},
+               description=f"تسليم شاشة مجانية وتصفير نقاط الولاء — {data.reason or ''}")
     db.commit()
     return {"message": "تم تسليم الشاشة المجانية وتصفير العداد بنجاح", "free_screens_earned": acc.free_screens_earned}
 

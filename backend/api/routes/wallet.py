@@ -8,6 +8,8 @@ from backend.schemas.wallet import WalletTransactionCreate, WalletTransactionRes
 from backend.api.dependencies import get_current_user, require_admin
 from backend.core.notifications_helper import push_notification
 from backend.models.notification import NotificationType
+from backend.api.routes.audit import log_action
+from backend.models.audit_log import AuditAction
 
 router = APIRouter()
 
@@ -19,6 +21,8 @@ def _apply_transaction(
     tx_type: TransactionType, reason: str = None,
     ref_id: str = None, ref_type: str = None,
 ) -> WalletTransaction:
+    db.refresh(user, ["wallet_balance"])
+    db.query(User).filter(User.id == user.id).with_for_update().first()
     current = user.wallet_balance or 0.0
 
     if tx_type == TransactionType.debit:
@@ -67,6 +71,7 @@ def credit_wallet(
     user = db.query(User).filter(User.id == data.user_id).first()
     if not user:
         raise HTTPException(404, "User not found")
+    balance_before = user.wallet_balance or 0.0
     _apply_transaction(db, user, data.amount, data.currency.value, TransactionType.credit, data.reason, data.reference_id, data.reference_type)
 
     push_notification(
@@ -76,7 +81,9 @@ def credit_wallet(
         notif_type=NotificationType.wallet,
         reference_type="wallet",
     )
-
+    log_action(db, current_user, AuditAction.create, entity_type="wallet_credit", entity_id=user.id,
+               before={"balance": balance_before}, after={"balance": user.wallet_balance, "credited": data.amount},
+               description=f"شحن محفظة المستخدم #{user.id} بمبلغ {data.amount} {data.currency.value} — {data.reason or ''}")
     db.commit()
     return {"message": "تم شحن المحفظة", "new_balance": user.wallet_balance}
 
@@ -90,6 +97,7 @@ def debit_wallet(
     user = db.query(User).filter(User.id == data.user_id).first()
     if not user:
         raise HTTPException(404, "User not found")
+    balance_before = user.wallet_balance or 0.0
     _apply_transaction(db, user, data.amount, data.currency.value, TransactionType.debit, data.reason, data.reference_id, data.reference_type)
 
     push_notification(
@@ -99,7 +107,9 @@ def debit_wallet(
         notif_type=NotificationType.wallet,
         reference_type="wallet",
     )
-
+    log_action(db, current_user, AuditAction.update, entity_type="wallet_debit", entity_id=user.id,
+               before={"balance": balance_before}, after={"balance": user.wallet_balance, "debited": data.amount},
+               description=f"خصم من محفظة المستخدم #{user.id} مبلغ {data.amount} {data.currency.value} — {data.reason or ''}")
     db.commit()
     return {"message": "تم الخصم من المحفظة", "new_balance": user.wallet_balance}
 

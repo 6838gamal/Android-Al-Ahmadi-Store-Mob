@@ -7,6 +7,8 @@ from backend.schemas.inventory import InventoryItemCreate, InventoryItemUpdate, 
 from backend.api.dependencies import get_current_user, require_staff_or_above, require_admin
 from backend.core.notifications_helper import push_notification
 from backend.models.notification import NotificationType
+from backend.api.routes.audit import log_action
+from backend.models.audit_log import AuditAction
 
 router = APIRouter()
 
@@ -48,6 +50,9 @@ def create_item(data: InventoryItemCreate, db: Session = Depends(get_db), curren
             raise HTTPException(400, "Serial number already exists")
     item = InventoryItem(**data.model_dump())
     db.add(item)
+    db.flush()
+    log_action(db, current_user, AuditAction.create, entity_type="inventory_item", entity_id=item.id,
+               after=data.model_dump(), description=f"إضافة مخزون جديد: {item.brand} {item.model} — {item.serial_number}")
     db.commit()
     db.refresh(item)
     return item
@@ -75,8 +80,12 @@ def update_item(item_id: int, data: InventoryItemUpdate, db: Session = Depends(g
     item = db.query(InventoryItem).filter(InventoryItem.id == item_id).first()
     if not item:
         raise HTTPException(404, "Item not found")
-    for k, v in data.model_dump(exclude_unset=True).items():
+    before = {k: getattr(item, k, None) for k in data.model_dump(exclude_unset=True).keys()}
+    updates = data.model_dump(exclude_unset=True)
+    for k, v in updates.items():
         setattr(item, k, v)
+    log_action(db, current_user, AuditAction.update, entity_type="inventory_item", entity_id=item.id,
+               before=before, after=updates, description=f"تعديل مخزون: {item.brand} {item.model} — {item.serial_number}")
     db.commit()
     db.refresh(item)
     return item
@@ -153,5 +162,8 @@ def delete_item(item_id: int, db: Session = Depends(get_db), current_user=Depend
     if not item:
         raise HTTPException(404, "Item not found")
     item.is_active = False
+    log_action(db, current_user, AuditAction.delete, entity_type="inventory_item", entity_id=item.id,
+               before={"serial_number": item.serial_number, "brand": item.brand, "model": item.model},
+               description=f"حذف مخزون: {item.brand} {item.model} — {item.serial_number}")
     db.commit()
     return {"message": "Item removed"}

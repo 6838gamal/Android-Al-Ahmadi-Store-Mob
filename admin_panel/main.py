@@ -1684,10 +1684,19 @@ async def auction_detail(request: Request, auction_id: int):
 async def auction_activate(request: Request, auction_id: int):
     if not _logged(request):
         return _redirect_login()
-    _, err = await api_ex("put", f"/api/auctions/{auction_id}/activate", token=_token(request), params={"days": 7})
+    form = await request.form()
+    days = int(form.get("days") or 7)
+    params: dict = {"days": days}
+    reserve = form.get("reserve_price")
+    commission = form.get("commission_rate")
+    if reserve:
+        params["reserve_price"] = float(reserve)
+    if commission:
+        params["commission_rate"] = float(commission)
+    _, err = await api_ex("put", f"/api/auctions/{auction_id}/activate", token=_token(request), params=params)
     if err:
-        return RedirectResponse(f"/auctions?error={_q(err)}", status_code=302)
-    return RedirectResponse(f"/auctions?success={_q('تم تفعيل المزاد بنجاح')}", status_code=302)
+        return RedirectResponse(f"/auctions/{auction_id}?error={_q(err)}", status_code=302)
+    return RedirectResponse(f"/auctions/{auction_id}?success={_q('تم تفعيل المزاد بنجاح')}", status_code=302)
 
 
 @app.post("/auctions/{auction_id}/reject")
@@ -1708,6 +1717,119 @@ async def auction_close(request: Request, auction_id: int):
     if err:
         return RedirectResponse(f"/auctions?error={_q(err)}", status_code=302)
     return RedirectResponse(f"/auctions?success={_q('تم إغلاق المزاد بنجاح')}", status_code=302)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  CAPITAL MANAGEMENT
+# ══════════════════════════════════════════════════════════════════════════════
+@app.get("/capital")
+async def capital_list(request: Request):
+    if not _logged(request):
+        return _redirect_login()
+    transactions = to_obj(await api("get", "/api/capital/", token=_token(request), params={"limit": 50}) or [])
+    summary = to_obj(await api("get", "/api/capital/summary", token=_token(request)) or {})
+    return templates.TemplateResponse(request, "capital.html", {
+        "active": "capital",
+        "transactions": transactions,
+        "summary": summary,
+    })
+
+
+@app.post("/capital/add")
+async def capital_add(request: Request):
+    if not _logged(request):
+        return _redirect_login()
+    form = await request.form()
+    payload = {
+        "transaction_type": form.get("transaction_type"),
+        "amount": float(form.get("amount") or 0),
+        "reason": form.get("reason") or None,
+    }
+    _, err = await api_ex("post", "/api/capital/", token=_token(request), json=payload)
+    if err:
+        return RedirectResponse(f"/capital?error={_q(err)}", status_code=302)
+    return RedirectResponse(f"/capital?success={_q('تم تسجيل العملية بنجاح')}", status_code=302)
+
+
+@app.post("/capital/{tx_id}/delete")
+async def capital_delete(request: Request, tx_id: int):
+    if not _logged(request):
+        return _redirect_login()
+    _, err = await api_ex("delete", f"/api/capital/{tx_id}", token=_token(request))
+    if err:
+        return RedirectResponse(f"/capital?error={_q(err)}", status_code=302)
+    return RedirectResponse(f"/capital?success={_q('تم حذف السجل')}", status_code=302)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  DAILY CLOSE
+# ══════════════════════════════════════════════════════════════════════════════
+@app.get("/daily-close")
+async def daily_close_page(request: Request):
+    if not _logged(request):
+        return _redirect_login()
+    expenses = to_obj(await api("get", "/api/daily/expenses", token=_token(request), params={"limit": 50}) or [])
+    closes = to_obj(await api("get", "/api/daily/close", token=_token(request), params={"limit": 10}) or [])
+    preview = to_obj(await api("get", "/api/daily/close/preview", token=_token(request)) or {})
+    return templates.TemplateResponse(request, "daily_close.html", {
+        "active": "daily-close",
+        "expenses": expenses,
+        "closes": closes,
+        "preview": preview,
+    })
+
+
+@app.post("/daily-close/expenses/add")
+async def daily_expense_add(request: Request):
+    if not _logged(request):
+        return _redirect_login()
+    form = await request.form()
+    payload = {
+        "description": form.get("description"),
+        "amount": float(form.get("amount") or 0),
+    }
+    _, err = await api_ex("post", "/api/daily/expenses", token=_token(request), json=payload)
+    if err:
+        return RedirectResponse(f"/daily-close?error={_q(err)}", status_code=302)
+    return RedirectResponse(f"/daily-close?success={_q('تم تسجيل المصروف')}", status_code=302)
+
+
+@app.post("/daily-close/expenses/{expense_id}/delete")
+async def daily_expense_delete(request: Request, expense_id: int):
+    if not _logged(request):
+        return _redirect_login()
+    _, err = await api_ex("delete", f"/api/daily/expenses/{expense_id}", token=_token(request))
+    if err:
+        return RedirectResponse(f"/daily-close?error={_q(err)}", status_code=302)
+    return RedirectResponse(f"/daily-close?success={_q('تم حذف المصروف')}", status_code=302)
+
+
+@app.post("/daily-close/awards/add")
+async def daily_award_add(request: Request):
+    if not _logged(request):
+        return _redirect_login()
+    form = await request.form()
+    payload = {
+        "recipient_name": form.get("recipient_name"),
+        "amount": float(form.get("amount") or 0),
+        "description": form.get("description") or None,
+    }
+    _, err = await api_ex("post", "/api/daily/awards", token=_token(request), json=payload)
+    if err:
+        return RedirectResponse(f"/daily-close?error={_q(err)}", status_code=302)
+    return RedirectResponse(f"/daily-close?success={_q('تم تسجيل الجائزة')}", status_code=302)
+
+
+@app.post("/daily-close/close")
+async def daily_close_submit(request: Request):
+    if not _logged(request):
+        return _redirect_login()
+    form = await request.form()
+    payload = {"notes": form.get("notes") or None}
+    _, err = await api_ex("post", "/api/daily/close", token=_token(request), json=payload)
+    if err:
+        return RedirectResponse(f"/daily-close?error={_q(err)}", status_code=302)
+    return RedirectResponse(f"/daily-close?success={_q('تم إغلاق الصندوق بنجاح')}", status_code=302)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
