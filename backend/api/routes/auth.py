@@ -136,8 +136,9 @@ def register(user_data: UserCreate, request: Request, db: Session = Depends(get_
                 raise HTTPException(status_code=400, detail="البريد الإلكتروني مسجل مسبقاً كعميل")
 
     if user_data.phone:
+        phone_variants = _normalise_phone(user_data.phone)
         existing_phone = db.query(User).filter(
-            User.phone == user_data.phone,
+            User.phone.in_(phone_variants),
             User.role == UserRole.customer,
         ).first()
         if existing_phone:

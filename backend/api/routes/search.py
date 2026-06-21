@@ -1,12 +1,12 @@
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Optional
 from backend.core.database import get_db
 from backend.models.product import Product
 from backend.models.order import Order
 from backend.models.user import User, UserRole
 from backend.models.inventory_item import InventoryItem
-from backend.api.dependencies import get_current_user, require_staff_or_above
+from backend.api.dependencies import get_current_user_optional, require_staff_or_above
 
 router = APIRouter()
 
@@ -15,9 +15,9 @@ router = APIRouter()
 def global_search(
     q: str = Query(..., min_length=2),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: Optional[User] = Depends(get_current_user_optional)
 ):
-    is_staff = current_user.role in [UserRole.staff, UserRole.branch_manager, UserRole.admin]
+    is_staff = bool(current_user and current_user.role in [UserRole.staff, UserRole.branch_manager, UserRole.admin])
     results = {}
 
     # Products — visible to all
@@ -57,8 +57,8 @@ def global_search(
         results["inventory"] = [{"id": i.id, "serial_number": i.serial_number,
                                  "brand": i.brand, "model": i.model,
                                  "grade": i.grade.value, "status": i.status.value} for i in items]
-    else:
-        # Customer: show own orders only
+    elif current_user:
+        # Logged-in customer: show own orders only
         orders = db.query(Order).filter(
             Order.customer_id == current_user.id,
             (Order.order_number.ilike(f"%{q}%"))

@@ -4,7 +4,7 @@ from typing import List, Optional
 from backend.core.database import get_db
 from backend.models.inventory_item import InventoryItem, ItemStatus, ItemGrade
 from backend.schemas.inventory import InventoryItemCreate, InventoryItemUpdate, InventoryItemResponse
-from backend.api.dependencies import get_current_user, require_staff_or_above, require_admin
+from backend.api.dependencies import get_current_user, get_current_user_optional, require_staff_or_above, require_admin
 from backend.core.notifications_helper import push_notification
 from backend.models.notification import NotificationType
 from backend.api.routes.audit import log_action
@@ -22,7 +22,7 @@ def list_items(
     search: Optional[str] = None,
     skip: int = 0, limit: int = 50,
     db: Session = Depends(get_db),
-    current_user=Depends(require_staff_or_above)
+    current_user=Depends(get_current_user_optional)
 ):
     q = db.query(InventoryItem).filter(InventoryItem.is_active == True)
     if status:
