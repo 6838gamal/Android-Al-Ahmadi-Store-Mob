@@ -2209,6 +2209,60 @@ async def settings_sms_status(request: Request):
     return JSONResponse(data)
 
 
+@app.get("/settings/sms/devices")
+async def settings_sms_devices(request: Request):
+    """AJAX — يجلب قائمة الأجهزة المتاحة من sms-gateway.app"""
+    import subprocess, json as _json, os as _os
+    from fastapi.responses import JSONResponse
+    if not _logged(request):
+        return JSONResponse({"ok": False, "message": "غير مصرَّح"}, status_code=401)
+
+    import os as _os
+    _DEFAULT_KEY = "37eaa347c97fb746d46eaf3d8fdb41737eeec5df"
+    settings_data = await api("get", "/api/settings/", token=_token(request)) or {}
+    api_key = settings_data.get("sms_api_key") or _os.getenv("SMS_API_KEY") or _DEFAULT_KEY
+
+    if not api_key:
+        return JSONResponse({"ok": False, "message": "لا يوجد مفتاح API مضبوط"})
+
+    try:
+        result = subprocess.run(
+            ["curl", "-s", "--max-time", "15",
+             "-H", f"Authorization: Basic {api_key}",
+             "https://api.sms-gateway.app/3rdparty/v1/devices"],
+            capture_output=True, text=True, timeout=20
+        )
+        raw = (result.stdout or "").strip()
+        if not raw:
+            return JSONResponse({"ok": False, "message": "لا استجابة من بوابة SMS"})
+        parsed = _json.loads(raw)
+        if isinstance(parsed, list):
+            devices = [
+                {
+                    "id": str(d.get("id", d.get("ID", ""))),
+                    "name": d.get("name", d.get("Name", "جهاز")),
+                    "state": d.get("state", d.get("State", "")),
+                }
+                for d in parsed
+            ]
+            return JSONResponse({"ok": True, "devices": devices})
+        if isinstance(parsed, dict) and "results" in parsed:
+            devices = [
+                {
+                    "id": str(d.get("id", "")),
+                    "name": d.get("name", "جهاز"),
+                    "state": d.get("state", ""),
+                }
+                for d in parsed["results"]
+            ]
+            return JSONResponse({"ok": True, "devices": devices})
+        return JSONResponse({"ok": False, "message": "صيغة استجابة غير متوقعة من بوابة SMS", "raw": raw[:300]})
+    except subprocess.TimeoutExpired:
+        return JSONResponse({"ok": False, "message": "انتهت مهلة الاتصال ببوابة SMS"})
+    except Exception as exc:
+        return JSONResponse({"ok": False, "message": str(exc)})
+
+
 @app.post("/settings/sms/test")
 async def settings_sms_test(request: Request):
     """AJAX endpoint — returns JSON {ok, message, queued}"""

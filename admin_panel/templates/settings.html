@@ -11,115 +11,299 @@
       <i class="fa-solid fa-gear" style="color:white;font-size:20px"></i>
     </div>
     <div>
-      <h1 style="color:white;font-size:20px;font-weight:800;margin:0">إعدادات النظام</h1>
-      <p style="color:rgba(255,255,255,0.7);font-size:13px;margin:4px 0 0">ضبط خدمة الرسائل النصية وإعدادات التحقق</p>
+      <h1 style="color:white;font-size:20px;font-weight:800;margin:0">إعدادات الإرسال</h1>
+      <p style="color:rgba(255,255,255,0.7);font-size:13px;margin:4px 0 0">ضبط وإدارة بوابة الرسائل النصية SMS</p>
     </div>
-  </div>
-</div>
-
-<!-- ── SMS Gateway Card ──────────────────────────────────── -->
-<div class="card" style="max-width:680px;margin-bottom:24px">
-  <div style="padding:20px 24px;border-bottom:1px solid #2D3748;display:flex;align-items:center;gap:12px">
-    <div style="width:38px;height:38px;border-radius:10px;background:rgba(34,197,94,0.12);border:1px solid rgba(34,197,94,0.25);display:flex;align-items:center;justify-content:center">
-      <i class="fa-solid fa-comment-sms" style="color:#22C55E;font-size:16px"></i>
-    </div>
-    <div>
-      <div style="color:white;font-weight:700;font-size:15px">بوابة الرسائل النصية (SMS Gateway)</div>
-      <div style="color:#6B7280;font-size:12px">خدمة إرسال رموز التحقق عبر sms-gateway.app</div>
-    </div>
-    <div style="margin-right:auto;display:flex;gap:8px;align-items:center">
+    <div style="margin-right:auto;display:flex;align-items:center;gap:8px">
       {% if sms_configured %}
-      <span style="padding:4px 12px;border-radius:20px;background:rgba(34,197,94,0.12);border:1px solid rgba(34,197,94,0.25);color:#22C55E;font-size:12px;font-weight:700">
-        <i class="fa-solid fa-circle-check" style="font-size:10px"></i> مُفعَّلة
+      <span id="status-pill" style="padding:5px 14px;border-radius:20px;background:rgba(34,197,94,0.12);border:1px solid rgba(34,197,94,0.25);color:#22C55E;font-size:12px;font-weight:700;display:flex;align-items:center;gap:6px">
+        <span id="status-dot" style="width:7px;height:7px;border-radius:50%;background:#22C55E;display:inline-block;box-shadow:0 0 0 0 rgba(34,197,94,0.4);animation:pulse-green 2s infinite"></span>
+        <span id="status-label">مُفعَّلة</span>
       </span>
-      {% if sms_key_via_env %}
-      <span style="padding:4px 10px;border-radius:20px;background:rgba(99,102,241,0.12);border:1px solid rgba(99,102,241,0.3);color:#818CF8;font-size:11px;font-weight:600">
-        <i class="fa-solid fa-shield-halved" style="font-size:9px"></i> env
-      </span>
-      {% endif %}
       {% else %}
-      <span style="padding:4px 12px;border-radius:20px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.2);color:#EF4444;font-size:12px;font-weight:700">
+      <span id="status-pill" style="padding:5px 14px;border-radius:20px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.2);color:#EF4444;font-size:12px;font-weight:700">
         <i class="fa-solid fa-circle-xmark" style="font-size:10px"></i> غير مفعّلة
       </span>
       {% endif %}
     </div>
   </div>
+</div>
 
-  <form method="post" action="/settings/sms" style="padding:24px">
-    {% if not sms_configured %}
-    <div style="background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.2);border-radius:10px;padding:12px 16px;margin-bottom:20px;display:flex;gap:10px">
-      <i class="fa-solid fa-triangle-exclamation" style="color:#F59E0B;font-size:14px;margin-top:1px;flex-shrink:0"></i>
-      <div style="color:#D97706;font-size:13px;line-height:1.6">
-        لم يتم ضبط مفتاح SMS بعد. رموز التحقق تُعرض حالياً على الشاشة (وضع التطوير فقط).
-        أدخل المفتاح أدناه لتفعيل الإرسال الفعلي للرسائل.
-      </div>
+<style>
+@keyframes pulse-green {
+  0%   { box-shadow: 0 0 0 0 rgba(34,197,94,0.4); }
+  70%  { box-shadow: 0 0 0 6px rgba(34,197,94,0); }
+  100% { box-shadow: 0 0 0 0 rgba(34,197,94,0); }
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.copy-btn {
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 7px;
+  color: #6B7280;
+  font-size: 11px;
+  padding: 4px 10px;
+  cursor: pointer;
+  transition: all .2s;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+}
+.copy-btn:hover { background: rgba(26,115,232,0.15); color: #60A5FA; border-color: rgba(26,115,232,0.3); }
+.copy-btn.copied { background: rgba(34,197,94,0.12); color: #22C55E; border-color: rgba(34,197,94,0.25); }
+.tab-btn {
+  padding: 7px 18px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all .2s;
+  border: none;
+  background: transparent;
+  color: #6B7280;
+}
+.tab-btn.active { background: rgba(26,115,232,0.15); color: #60A5FA; }
+.reveal-btn {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #6B7280;
+  font-size: 14px;
+  padding: 4px;
+  border-radius: 6px;
+  transition: color .2s;
+}
+.reveal-btn:hover { color: #60A5FA; }
+.device-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border: 1px solid #2D3748;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all .2s;
+  background: #0D1117;
+}
+.device-row:hover { border-color: rgba(26,115,232,0.4); background: rgba(26,115,232,0.06); }
+.device-row.selected { border-color: rgba(34,197,94,0.4); background: rgba(34,197,94,0.06); }
+</style>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- ① لوحة المعاينة الحالية                                    -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="card" style="max-width:720px;margin-bottom:20px">
+  <div style="padding:16px 22px;border-bottom:1px solid #2D3748;display:flex;align-items:center;justify-content:space-between">
+    <div style="display:flex;align-items:center;gap:10px">
+      <i class="fa-solid fa-eye" style="color:#06B6D4;font-size:14px"></i>
+      <span style="color:white;font-weight:700;font-size:14px">الإعدادات الحالية</span>
     </div>
-    {% elif sms_key_via_env %}
-    <div style="background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.2);border-radius:10px;padding:12px 16px;margin-bottom:20px;display:flex;gap:10px">
-      <i class="fa-solid fa-shield-halved" style="color:#818CF8;font-size:14px;margin-top:1px;flex-shrink:0"></i>
-      <div style="color:#A5B4FC;font-size:13px;line-height:1.6">
-        مفتاح SMS مُعيَّن عبر متغير البيئة <code style="background:rgba(255,255,255,0.1);padding:1px 6px;border-radius:4px;font-size:12px">SMS_API_KEY</code> — لا حاجة لإعداد يدوي.
+    <button onclick="checkGatewayStatusInline()" id="inline-check-btn"
+      style="background:rgba(6,182,212,0.1);border:1px solid rgba(6,182,212,0.25);color:#06B6D4;font-size:11px;font-weight:700;padding:5px 14px;border-radius:7px;cursor:pointer;display:flex;align-items:center;gap:6px;transition:opacity .2s">
+      <i class="fa-solid fa-satellite-dish" id="inline-check-icon"></i>
+      <span id="inline-check-label">فحص الاتصال</span>
+    </button>
+  </div>
+
+  <div style="padding:20px 22px;display:flex;flex-direction:column;gap:14px">
+
+    <!-- مفتاح API -->
+    <div style="background:#0D1117;border:1px solid #2D3748;border-radius:12px;padding:14px 16px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <div style="display:flex;align-items:center;gap:7px">
+          <i class="fa-solid fa-key" style="color:#1A73E8;font-size:12px"></i>
+          <span style="color:#9CA3AF;font-size:12px;font-weight:600">مفتاح API</span>
+          {% if sms_key_via_env %}
+          <span style="background:rgba(99,102,241,0.12);border:1px solid rgba(99,102,241,0.25);color:#818CF8;font-size:10px;font-weight:700;padding:1px 7px;border-radius:10px">env</span>
+          {% endif %}
+        </div>
+        <div style="display:flex;gap:6px">
+          <button class="copy-btn" onclick="copyValue('{{ sms_api_key or '' }}', this)">
+            <i class="fa-solid fa-copy"></i> نسخ
+          </button>
+          <button class="copy-btn" onclick="toggleKeyPreview(this)" id="key-reveal-btn">
+            <i class="fa-solid fa-eye" id="key-reveal-icon"></i> إظهار
+          </button>
+        </div>
       </div>
+      {% if sms_api_key %}
+      <div id="key-preview-masked" style="font-family:monospace;font-size:13px;color:#E5E7EB;letter-spacing:1px;direction:ltr;word-break:break-all">
+        {{ (sms_api_key[:8] + '•' * (sms_api_key|length - 12) + sms_api_key[-4:]) if sms_api_key|length > 12 else ('•' * sms_api_key|length) }}
+      </div>
+      <div id="key-preview-full" style="display:none;font-family:monospace;font-size:13px;color:#E5E7EB;letter-spacing:0.5px;direction:ltr;word-break:break-all">
+        {{ sms_api_key }}
+      </div>
+      {% else %}
+      <div style="color:#6B7280;font-size:12px;font-style:italic">غير مضبوط</div>
+      {% endif %}
+    </div>
+
+    <!-- رقم الجهاز + حالة الاتصال -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+
+      <!-- رقم الجهاز -->
+      <div style="background:#0D1117;border:1px solid #2D3748;border-radius:12px;padding:14px 16px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+          <div style="display:flex;align-items:center;gap:7px">
+            <i class="fa-solid fa-mobile-screen-button" style="color:#1A73E8;font-size:12px"></i>
+            <span style="color:#9CA3AF;font-size:12px;font-weight:600">معرّف الجهاز</span>
+          </div>
+          <button class="copy-btn" onclick="copyValue('{{ sms_devices or '0' }}', this)">
+            <i class="fa-solid fa-copy"></i> نسخ
+          </button>
+        </div>
+        <div style="font-family:monospace;font-size:15px;font-weight:700;color:{% if sms_devices and sms_devices != '0' %}#22C55E{% else %}#6B7280{% endif %};direction:ltr">
+          {{ sms_devices or '0' }}
+          {% if not sms_devices or sms_devices == '0' %}
+          <span style="font-family:Cairo,sans-serif;font-size:11px;color:#4B5563;font-weight:400;margin-right:6px">تلقائي</span>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- حالة الاتصال -->
+      <div id="inline-status-card" style="background:#0D1117;border:1px solid #2D3748;border-radius:12px;padding:14px 16px">
+        <div style="display:flex;align-items:center;gap:7px;margin-bottom:8px">
+          <i class="fa-solid fa-signal" style="color:#1A73E8;font-size:12px"></i>
+          <span style="color:#9CA3AF;font-size:12px;font-weight:600">حالة البوابة</span>
+        </div>
+        <div id="inline-status-val" style="color:#4B5563;font-size:13px;font-weight:600">
+          <i class="fa-solid fa-circle-question" style="font-size:11px"></i> اضغط «فحص الاتصال»
+        </div>
+        <div id="inline-status-detail" style="display:none;font-size:11px;color:#6B7280;margin-top:6px;line-height:1.6"></div>
+      </div>
+
+    </div>
+
+    <!-- شريط الإجراءات السريعة -->
+    {% if sms_configured %}
+    <div style="display:flex;gap:8px;flex-wrap:wrap;padding-top:4px">
+      <button onclick="scrollToEdit()" style="background:rgba(26,115,232,0.1);border:1px solid rgba(26,115,232,0.25);color:#60A5FA;font-size:12px;font-weight:700;padding:6px 16px;border-radius:8px;cursor:pointer;display:flex;align-items:center;gap:6px">
+        <i class="fa-solid fa-pen"></i> تعديل الإعدادات
+      </button>
+      <button onclick="openTestModal()" style="background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.25);color:#22C55E;font-size:12px;font-weight:700;padding:6px 16px;border-radius:8px;cursor:pointer;display:flex;align-items:center;gap:6px">
+        <i class="fa-solid fa-paper-plane"></i> اختبار الإرسال
+      </button>
+      <a href="https://app.sms-gateway.app" target="_blank"
+        style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);color:#9CA3AF;font-size:12px;font-weight:700;padding:6px 16px;border-radius:8px;cursor:pointer;display:flex;align-items:center;gap:6px;text-decoration:none">
+        <i class="fa-solid fa-arrow-up-right-from-square" style="font-size:10px"></i> لوحة SMS Gateway
+      </a>
     </div>
     {% endif %}
+  </div>
+</div>
 
-    <div style="margin-bottom:18px">
-      <label style="display:block;color:#9CA3AF;font-size:13px;font-weight:600;margin-bottom:8px">
-        <i class="fa-solid fa-key" style="color:#1A73E8;margin-left:4px"></i>
-        مفتاح API الخاص بـ sms-gateway.app
-      </label>
-      <div style="position:relative">
-        <input
-          type="password"
-          id="sms-key-input"
-          name="sms_api_key"
-          value="{{ sms_api_key or '' }}"
-          placeholder="أدخل مفتاح الـ API هنا..."
-          class="input-field"
-          style="padding-left:44px;direction:ltr;font-family:monospace;letter-spacing:0.5px"
-          autocomplete="off"
-        >
-        <button type="button" onclick="toggleKey()"
-          style="position:absolute;left:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:#6B7280;font-size:14px;padding:4px"
-          title="إظهار/إخفاء">
-          <i class="fa-solid fa-eye" id="eye-icon"></i>
-        </button>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- ② بطاقة التعديل                                           -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="card" id="edit-card" style="max-width:720px;margin-bottom:20px">
+  <div style="padding:16px 22px;border-bottom:1px solid #2D3748;display:flex;align-items:center;gap:10px">
+    <i class="fa-solid fa-pen-to-square" style="color:#1A73E8;font-size:14px"></i>
+    <span style="color:white;font-weight:700;font-size:14px">تعديل إعدادات الإرسال</span>
+  </div>
+
+  {% if not sms_configured %}
+  <div style="margin:16px 22px 0;background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.2);border-radius:10px;padding:12px 16px;display:flex;gap:10px">
+    <i class="fa-solid fa-triangle-exclamation" style="color:#F59E0B;font-size:14px;margin-top:1px;flex-shrink:0"></i>
+    <div style="color:#D97706;font-size:13px;line-height:1.6">
+      لم يتم ضبط مفتاح SMS بعد. أدخل المفتاح أدناه لتفعيل إرسال رموز التحقق.
+    </div>
+  </div>
+  {% elif sms_key_via_env %}
+  <div style="margin:16px 22px 0;background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.2);border-radius:10px;padding:12px 16px;display:flex;gap:10px">
+    <i class="fa-solid fa-shield-halved" style="color:#818CF8;font-size:14px;margin-top:1px;flex-shrink:0"></i>
+    <div style="color:#A5B4FC;font-size:13px;line-height:1.6">
+      المفتاح مُعيَّن عبر متغير البيئة <code style="background:rgba(255,255,255,0.1);padding:1px 6px;border-radius:4px;font-size:12px">SMS_API_KEY</code> — يمكنك تجاوزه بإدخال قيمة في الحقل أدناه.
+    </div>
+  </div>
+  {% endif %}
+
+  <form method="post" action="/settings/sms" style="padding:22px">
+    <div style="display:grid;gap:20px">
+
+      <!-- مفتاح API -->
+      <div>
+        <label style="display:flex;align-items:center;gap:6px;color:#9CA3AF;font-size:12px;font-weight:700;margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px">
+          <i class="fa-solid fa-key" style="color:#1A73E8"></i>
+          مفتاح API — sms-gateway.app
+        </label>
+        <div style="position:relative">
+          <input
+            type="password"
+            id="sms-key-input"
+            name="sms_api_key"
+            value="{{ sms_api_key or '' }}"
+            placeholder="أدخل مفتاح الـ API..."
+            class="input-field"
+            style="padding-left:80px;direction:ltr;font-family:monospace;letter-spacing:0.5px"
+            autocomplete="off"
+          >
+          <div style="position:absolute;left:4px;top:50%;transform:translateY(-50%);display:flex;gap:2px">
+            <button type="button" onclick="toggleKeyInput()"
+              style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:6px;cursor:pointer;color:#6B7280;font-size:11px;padding:4px 8px;transition:all .2s"
+              id="toggle-key-btn" title="إظهار/إخفاء">
+              <i class="fa-solid fa-eye" id="toggle-key-icon"></i>
+            </button>
+            <button type="button" onclick="copyKeyInput()"
+              style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:6px;cursor:pointer;color:#6B7280;font-size:11px;padding:4px 8px;transition:all .2s"
+              id="copy-key-btn" title="نسخ">
+              <i class="fa-solid fa-copy"></i>
+            </button>
+          </div>
+        </div>
+        <p style="color:#4B5563;font-size:11px;margin-top:6px;display:flex;align-items:center;gap:5px">
+          <i class="fa-solid fa-circle-info" style="color:#1A73E8;font-size:9px"></i>
+          احصل على المفتاح من
+          <a href="https://app.sms-gateway.app" target="_blank" style="color:#1A73E8;text-decoration:none">app.sms-gateway.app</a>
+          ← Profile ← API Key
+        </p>
       </div>
-      <p style="color:#4B5563;font-size:11px;margin-top:6px">
-        احصل على المفتاح من لوحة تحكم
-        <a href="https://app.sms-gateway.app" target="_blank" style="color:#1A73E8">app.sms-gateway.app</a>
-      </p>
+
+      <!-- معرّف الجهاز -->
+      <div>
+        <label style="display:flex;align-items:center;gap:6px;color:#9CA3AF;font-size:12px;font-weight:700;margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px">
+          <i class="fa-solid fa-mobile-screen-button" style="color:#1A73E8"></i>
+          معرّف الجهاز (Device ID)
+        </label>
+        <div style="display:flex;gap:8px;align-items:center">
+          <div style="position:relative;flex:1;max-width:280px">
+            <input
+              type="text"
+              name="sms_devices"
+              id="sms-device-input"
+              value="{{ sms_devices or '0' }}"
+              placeholder="0 = تلقائي"
+              class="input-field"
+              style="direction:ltr"
+            >
+          </div>
+          <button type="button" onclick="openDevicePicker()"
+            style="background:rgba(26,115,232,0.1);border:1px solid rgba(26,115,232,0.25);color:#60A5FA;font-size:12px;font-weight:700;padding:9px 16px;border-radius:9px;cursor:pointer;display:flex;align-items:center;gap:6px;white-space:nowrap;transition:opacity .2s">
+            <i class="fa-solid fa-mobile-screen-button"></i>
+            اختيار جهاز
+          </button>
+        </div>
+        <p style="color:#4B5563;font-size:11px;margin-top:6px;display:flex;align-items:center;gap:5px">
+          <i class="fa-solid fa-circle-info" style="color:#1A73E8;font-size:9px"></i>
+          استخدم <code style="background:#1C2230;padding:1px 5px;border-radius:4px;color:#9CA3AF">0</code> لأي جهاز متاح تلقائياً، أو اضغط «اختيار جهاز» لاختيار جهاز محدد
+        </p>
+      </div>
+
     </div>
 
-    <div style="margin-bottom:18px">
-      <label style="display:block;color:#9CA3AF;font-size:13px;font-weight:600;margin-bottom:8px">
-        <i class="fa-solid fa-mobile-screen-button" style="color:#1A73E8;margin-left:4px"></i>
-        رقم الجهاز (Devices)
-      </label>
-      <input
-        type="text"
-        name="sms_devices"
-        value="{{ sms_devices or '0' }}"
-        placeholder="0 = أي جهاز متاح"
-        class="input-field"
-        style="direction:ltr;max-width:220px"
-      >
-      <p style="color:#4B5563;font-size:11px;margin-top:6px">
-        استخدم <code style="background:#1C2230;padding:1px 5px;border-radius:4px;color:#9CA3AF">0</code>
-        لاختيار الجهاز تلقائياً، أو أدخل معرّف جهاز محدد.
-      </p>
-    </div>
-
-    <div style="display:flex;gap:10px;flex-wrap:wrap">
+    <!-- أزرار الحفظ -->
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:24px;padding-top:20px;border-top:1px solid #1C2230">
       <button type="submit" class="btn-primary">
         <i class="fa-solid fa-floppy-disk"></i> حفظ الإعدادات
       </button>
       {% if sms_configured %}
-      <button type="button" onclick="openTestModal()" class="btn-secondary">
-        <i class="fa-solid fa-paper-plane"></i> اختبار الإرسال
-      </button>
       <form method="post" action="/settings/sms/clear" style="display:inline">
-        <button type="submit" class="btn-danger" onclick="return confirm('هل تريد حذف مفتاح SMS؟')">
+        <button type="submit" class="btn-danger" onclick="return confirm('هل تريد حذف مفتاح SMS؟ سيتوقف إرسال رموز التحقق.')">
           <i class="fa-solid fa-trash"></i> حذف المفتاح
         </button>
       </form>
@@ -128,68 +312,124 @@
   </form>
 </div>
 
-<!-- ── How it works ──────────────────────────────────────── -->
-<div class="card" style="max-width:680px;margin-bottom:24px">
-  <div style="padding:18px 24px;border-bottom:1px solid #2D3748">
-    <div style="color:white;font-weight:700;font-size:14px">
-      <i class="fa-solid fa-circle-info" style="color:#06B6D4;margin-left:6px"></i>
-      كيف يعمل نظام التحقق؟
-    </div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- ③ كيف يعمل النظام                                         -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="card" style="max-width:720px;margin-bottom:24px">
+  <div style="padding:14px 22px;border-bottom:1px solid #2D3748;display:flex;align-items:center;gap:8px;cursor:pointer"
+       onclick="toggleHowItWorks()" id="how-header">
+    <i class="fa-solid fa-circle-info" style="color:#06B6D4;font-size:13px"></i>
+    <span style="color:#9CA3AF;font-weight:700;font-size:13px;flex:1">كيف يعمل نظام التحقق؟</span>
+    <i class="fa-solid fa-chevron-down" id="how-chevron" style="color:#4B5563;font-size:11px;transition:transform .3s"></i>
   </div>
-  <div style="padding:20px 24px">
+  <div id="how-body" style="display:none;padding:20px 22px">
     <div style="display:flex;flex-direction:column;gap:14px">
+      {% for num, title, desc in [
+        ('1','العميل يطلب رمز التحقق','يدخل رقم جواله في التطبيق ويضغط على «إرسال رمز التحقق».'),
+        ('2','الخادم يُولّد رمزاً عشوائياً','رمز 6 أرقام صالح 10 دقائق، يُرسَل عبر sms-gateway.app إذا كان المفتاح مضبوطاً.'),
+        ('3','العميل يُدخل الرمز ويُسجّل دخوله','عند التحقق الناجح يتم تسجيل الدخول تلقائياً وتفعيل الحساب.'),
+      ] %}
       <div style="display:flex;gap:12px;align-items:flex-start">
-        <div style="width:28px;height:28px;border-radius:50%;background:rgba(26,115,232,0.15);border:1px solid rgba(26,115,232,0.3);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:12px;font-weight:800;color:#1A73E8">1</div>
+        <div style="width:28px;height:28px;border-radius:50%;background:rgba(26,115,232,0.15);border:1px solid rgba(26,115,232,0.3);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:12px;font-weight:800;color:#1A73E8">{{ num }}</div>
         <div>
-          <div style="color:#E5E7EB;font-size:13px;font-weight:600">العميل يطلب رمز التحقق</div>
-          <div style="color:#6B7280;font-size:12px;margin-top:2px">يدخل العميل رقم جواله في التطبيق، ويضغط على «إرسال رمز التحقق».</div>
+          <div style="color:#E5E7EB;font-size:13px;font-weight:600">{{ title }}</div>
+          <div style="color:#6B7280;font-size:12px;margin-top:2px">{{ desc }}</div>
         </div>
       </div>
-      <div style="display:flex;gap:12px;align-items:flex-start">
-        <div style="width:28px;height:28px;border-radius:50%;background:rgba(26,115,232,0.15);border:1px solid rgba(26,115,232,0.3);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:12px;font-weight:800;color:#1A73E8">2</div>
-        <div>
-          <div style="color:#E5E7EB;font-size:13px;font-weight:600">الخادم يُولّد رمزاً عشوائياً</div>
-          <div style="color:#6B7280;font-size:12px;margin-top:2px">رمز من 6 أرقام صالح لمدة 10 دقائق، يُرسَل عبر sms-gateway.app إذا كان المفتاح مضبوطاً.</div>
-        </div>
-      </div>
-      <div style="display:flex;gap:12px;align-items:flex-start">
-        <div style="width:28px;height:28px;border-radius:50%;background:rgba(26,115,232,0.15);border:1px solid rgba(26,115,232,0.3);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:12px;font-weight:800;color:#1A73E8">3</div>
-        <div>
-          <div style="color:#E5E7EB;font-size:13px;font-weight:600">العميل يُدخل الرمز ويُؤكَّد حسابه</div>
-          <div style="color:#6B7280;font-size:12px;margin-top:2px">عند التحقق الناجح يتم تسجيل الدخول تلقائياً وتُفعَّل الحساب.</div>
-        </div>
-      </div>
-      <div style="border:1px solid rgba(26,115,232,.2);border-radius:10px;padding:12px 14px;background:#0D1117;margin-top:4px">
+      {% endfor %}
+      <div style="border:1px solid rgba(26,115,232,.2);border-radius:10px;padding:12px 14px;background:#0D1117">
         <div style="color:#1A73E8;font-size:12px;font-weight:700;margin-bottom:4px">
           <i class="fa-solid fa-circle-info" style="margin-left:4px"></i> وضع الإنتاج
         </div>
         <div style="color:#6B7280;font-size:12px;line-height:1.6">
-          النظام يعمل في وضع الإنتاج. رموز التحقق تُرسَل عبر SMS فقط ولا تظهر على الشاشة.
+          رموز التحقق تُرسَل عبر SMS فقط ولا تظهر على الشاشة. الجهاز يجب أن يكون متصلاً وتطبيق SMS Gateway يعمل.
         </div>
       </div>
     </div>
   </div>
 </div>
 
-<!-- ── Test SMS Modal ────────────────────────────────────── -->
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- MODAL: اختيار الجهاز                                      -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div id="device-modal" style="display:none;position:fixed;inset:0;z-index:1001;background:rgba(0,0,0,.8);backdrop-filter:blur(6px);align-items:center;justify-content:center">
+  <div style="background:#161B22;border:1px solid #2D3748;border-radius:18px;padding:0;width:92%;max-width:480px;box-shadow:0 24px 64px rgba(0,0,0,.6);overflow:hidden">
+
+    <div style="padding:20px 22px;border-bottom:1px solid #2D3748;display:flex;align-items:center;gap:10px">
+      <div style="width:36px;height:36px;border-radius:10px;background:rgba(26,115,232,0.15);border:1px solid rgba(26,115,232,0.25);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+        <i class="fa-solid fa-mobile-screen-button" style="color:#1A73E8;font-size:15px"></i>
+      </div>
+      <div style="flex:1">
+        <div style="color:white;font-weight:700;font-size:15px">اختيار الجهاز</div>
+        <div style="color:#6B7280;font-size:11px;margin-top:2px">الأجهزة المرتبطة بحسابك في sms-gateway.app</div>
+      </div>
+      <button onclick="closeDevicePicker()" style="background:none;border:none;color:#6B7280;font-size:18px;cursor:pointer;padding:4px 8px;border-radius:6px">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+    </div>
+
+    <div style="padding:16px 22px">
+      <button onclick="fetchDevices()" id="fetch-devices-btn"
+        style="width:100%;padding:10px;background:rgba(26,115,232,0.1);border:1px solid rgba(26,115,232,0.25);border-radius:10px;color:#60A5FA;font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:opacity .2s;margin-bottom:14px">
+        <i class="fa-solid fa-rotate" id="fetch-icon"></i>
+        <span id="fetch-label">جلب الأجهزة من بوابة SMS</span>
+      </button>
+
+      <div id="devices-loading" style="display:none;text-align:center;padding:20px;color:#6B7280;font-size:13px">
+        <i class="fa-solid fa-spinner" style="animation:spin 1s linear infinite;font-size:20px;margin-bottom:8px;display:block;color:#1A73E8"></i>
+        جارٍ جلب الأجهزة...
+      </div>
+
+      <div id="devices-error" style="display:none;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);border-radius:10px;padding:12px 14px;color:#F87171;font-size:12px;line-height:1.6"></div>
+
+      <div id="devices-list" style="display:flex;flex-direction:column;gap:8px"></div>
+
+      <div id="devices-manual" style="margin-top:14px">
+        <label style="display:block;color:#6B7280;font-size:11px;font-weight:700;margin-bottom:6px">أو أدخل المعرّف يدوياً</label>
+        <div style="display:flex;gap:8px">
+          <input id="manual-device-id" type="text" placeholder="مثال: 11209" class="input-field" style="direction:ltr;flex:1">
+          <button onclick="useManualDevice()" class="btn-primary" style="white-space:nowrap">تطبيق</button>
+        </div>
+      </div>
+
+      <div style="margin-top:12px;padding:10px 12px;background:#0D1117;border-radius:8px;font-size:11px;color:#4B5563;line-height:1.7">
+        <strong style="color:#9CA3AF">ملاحظة:</strong> استخدم <code style="background:#1C2230;padding:1px 4px;border-radius:3px;color:#9CA3AF">0</code> لاختيار أي جهاز متاح تلقائياً
+        — أو حدد معرّف جهاز بعينه إذا كان لديك عدة أجهزة.
+      </div>
+    </div>
+
+    <div style="padding:12px 22px;border-top:1px solid #2D3748;display:flex;justify-content:flex-start">
+      <button onclick="useAutoDevice()" style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);color:#9CA3AF;font-size:12px;font-weight:700;padding:7px 16px;border-radius:8px;cursor:pointer">
+        <i class="fa-solid fa-wand-magic-sparkles" style="margin-left:5px"></i> استخدام تلقائي (0)
+      </button>
+      <button onclick="closeDevicePicker()" class="btn-secondary" style="margin-right:auto">إغلاق</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- MODAL: اختبار الإرسال                                     -->
+<!-- ═══════════════════════════════════════════════════════════ -->
 <div id="test-modal" style="display:none;position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,.8);backdrop-filter:blur(6px);align-items:center;justify-content:center">
   <div style="background:#161B22;border:1px solid #2D3748;border-radius:18px;padding:28px;width:92%;max-width:460px;box-shadow:0 24px 64px rgba(0,0,0,.6)">
 
-    <!-- Header -->
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px">
       <div style="width:40px;height:40px;border-radius:12px;background:rgba(26,115,232,0.15);border:1px solid rgba(26,115,232,0.25);display:flex;align-items:center;justify-content:center;flex-shrink:0">
         <i class="fa-solid fa-paper-plane" style="color:#1A73E8;font-size:15px"></i>
       </div>
       <div>
         <div style="color:white;font-weight:700;font-size:15px">اختبار إرسال SMS</div>
-        <div style="color:#6B7280;font-size:11px;margin-top:2px">فحص الحالة أولاً ثم الإرسال</div>
+        <div style="color:#6B7280;font-size:11px;margin-top:2px">إرسال رمز تحقق تجريبي للتأكد من عمل البوابة</div>
       </div>
-      <button onclick="closeTestModal()" style="margin-right:auto;background:none;border:none;color:#6B7280;font-size:18px;cursor:pointer;padding:4px 8px;border-radius:6px" onmouseover="this.style.color='#EF4444'" onmouseout="this.style.color='#6B7280'">
+      <button onclick="closeTestModal()" style="margin-right:auto;background:none;border:none;color:#6B7280;font-size:18px;cursor:pointer;padding:4px 8px;border-radius:6px">
         <i class="fa-solid fa-xmark"></i>
       </button>
     </div>
 
-    <!-- ── Gateway Status Row ── -->
+    <!-- حالة البوابة -->
     <div style="border:1px solid #2D3748;border-radius:10px;padding:12px 14px;margin-bottom:16px;background:#0D1117">
       <div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
         <div style="display:flex;align-items:center;gap:8px">
@@ -200,14 +440,12 @@
           <span style="color:#6B7280;font-size:12px">لم يُفحص بعد</span>
         </div>
         <button id="gw-check-btn" onclick="checkGatewayStatus()" style="background:rgba(26,115,232,0.12);border:1px solid rgba(26,115,232,0.25);color:#60A5FA;font-size:11px;font-weight:700;padding:5px 12px;border-radius:7px;cursor:pointer;white-space:nowrap;transition:opacity .2s">
-          <i class="fa-solid fa-rotate" id="gw-check-icon"></i> فحص الحالة
+          <i class="fa-solid fa-rotate" id="gw-check-icon"></i> فحص
         </button>
       </div>
-      <!-- Credits & device note -->
       <div id="gw-detail" style="display:none;margin-top:10px;padding-top:10px;border-top:1px solid #2D3748;font-size:11px;color:#6B7280;line-height:1.7"></div>
     </div>
 
-    <!-- Phone input -->
     <label style="display:block;color:#9CA3AF;font-size:11px;font-weight:700;margin-bottom:6px;text-transform:uppercase;letter-spacing:.6px">رقم الجوال</label>
     <input
       id="test-phone-input"
@@ -219,8 +457,6 @@
       onkeydown="if(event.key==='Enter') sendSmsTest()"
     >
 
-    <!-- ── Status Panel ── -->
-    <!-- WAITING -->
     <div id="sms-state-waiting" style="display:none;border-radius:12px;padding:14px 16px;margin-bottom:16px;background:rgba(26,115,232,0.08);border:1px solid rgba(26,115,232,0.25)">
       <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
         <i class="fa-solid fa-spinner fa-spin" style="color:#1A73E8;font-size:18px;flex-shrink:0"></i>
@@ -235,37 +471,25 @@
       </div>
     </div>
 
-    <!-- QUEUED (success but device status unknown) -->
-    <div id="sms-state-queued" style="display:none;border-radius:12px;padding:16px;margin-bottom:16px;background:rgba(245,158,11,0.07);border:1px solid rgba(245,158,11,0.3)">
-      <div style="display:flex;align-items:flex-start;gap:12px;margin-bottom:10px">
-        <div style="width:38px;height:38px;border-radius:50%;background:rgba(245,158,11,0.15);border:1px solid rgba(245,158,11,0.3);display:flex;align-items:center;justify-content:center;flex-shrink:0">
-          <i class="fa-solid fa-clock" style="color:#F59E0B;font-size:16px"></i>
+    <div id="sms-state-queued" style="display:none;border-radius:12px;padding:16px;margin-bottom:16px;background:rgba(34,197,94,0.07);border:1px solid rgba(34,197,94,0.3)">
+      <div style="display:flex;align-items:flex-start;gap:12px;margin-bottom:8px">
+        <div style="width:36px;height:36px;border-radius:50%;background:rgba(34,197,94,0.15);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+          <i class="fa-solid fa-circle-check" style="color:#22C55E;font-size:16px"></i>
         </div>
         <div>
-          <div style="color:#F59E0B;font-weight:700;font-size:14px;margin-bottom:2px">📬 مُقبَّل في Queue — في انتظار الجهاز</div>
+          <div style="color:#22C55E;font-weight:700;font-size:14px;margin-bottom:2px">✅ تم قبول الرسالة</div>
           <div id="sms-queued-detail" style="color:#9CA3AF;font-size:12px;line-height:1.6"></div>
         </div>
       </div>
       <div style="background:rgba(0,0,0,0.3);border-radius:8px;padding:10px 12px;font-size:11px;color:#6B7280;line-height:1.8">
-        <strong style="color:#D97706">⚠️ ملاحظة مهمة:</strong><br>
-        البوابة <strong style="color:#F59E0B">قبلت الرسالة وخزّنتها</strong>، لكن الإرسال الفعلي يعتمد على:<br>
-        • جهاز Android مشغَّل ومتصل بالإنترنت<br>
-        • تطبيق <span style="color:#60A5FA">SMS Gateway</span> يعمل في الخلفية<br>
-        إذا كان الجهاز online → ستصل الرسالة خلال ثوانٍ<br>
-        إذا كان offline → ستُرسَل فور اتصاله
-      </div>
-      <div style="margin-top:10px;display:flex;align-items:center;justify-content:space-between">
-        <span style="color:#4B5563;font-size:11px">وقت الاستجابة: <span id="sms-queued-time" style="color:#F59E0B;font-weight:700"></span></span>
-        <a href="https://app.sms-gateway.app" target="_blank" style="font-size:11px;color:#60A5FA;text-decoration:none">
-          <i class="fa-solid fa-arrow-up-right-from-square" style="font-size:9px"></i> تحقق من لوحة sms-gateway.app
-        </a>
+        الرسالة قُبِلت في queue — ستصل فور اتصال الجهاز بالإنترنت وعمل تطبيق SMS Gateway.<br>
+        <span style="color:#4B5563">وقت الاستجابة: <span id="sms-queued-time" style="color:#22C55E;font-weight:700"></span></span>
       </div>
     </div>
 
-    <!-- FAILURE -->
     <div id="sms-state-failure" style="display:none;border-radius:12px;padding:16px;margin-bottom:16px;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.3)">
       <div style="display:flex;align-items:flex-start;gap:12px;margin-bottom:12px">
-        <div style="width:38px;height:38px;border-radius:50%;background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.35);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+        <div style="width:36px;height:36px;border-radius:50%;background:rgba(239,68,68,0.15);display:flex;align-items:center;justify-content:center;flex-shrink:0">
           <i class="fa-solid fa-triangle-exclamation" style="color:#EF4444;font-size:16px"></i>
         </div>
         <div>
@@ -274,14 +498,10 @@
         </div>
       </div>
       <div style="background:rgba(0,0,0,0.3);border-radius:8px;padding:10px 12px;font-size:11px;color:#6B7280;line-height:1.7">
-        <strong style="color:#9CA3AF">تحقق من:</strong><br>
-        • أن جهاز Android متصل وتطبيق SMS Gateway يعمل<br>
-        • أن مفتاح API صحيح في إعدادات SMS<br>
-        • أن الرقم بصيغة دولية: <span style="color:#60A5FA;direction:ltr;display:inline">+9677XXXXXXXX</span>
+        تحقق من: مفتاح API صحيح ← جهاز Android متصل ← التطبيق يعمل في الخلفية ← الرقم بصيغة <span style="color:#60A5FA;direction:ltr;display:inline">+9677XXXXXXXX</span>
       </div>
     </div>
 
-    <!-- Buttons -->
     <div style="display:flex;gap:10px">
       <button id="test-send-btn" onclick="sendSmsTest()" class="btn-primary" style="flex:1;justify-content:center;transition:opacity .2s">
         <i class="fa-solid fa-paper-plane" id="test-btn-icon"></i>
@@ -289,7 +509,6 @@
       </button>
       <button type="button" onclick="closeTestModal()" class="btn-secondary" style="white-space:nowrap">إغلاق</button>
     </div>
-
   </div>
 </div>
 
@@ -297,97 +516,274 @@
 
 {% block scripts %}
 <script>
-var _smsElapsedTimer  = null;
-var _smsStartTime     = null;
-var _smsProgressTimer = null;
-var _SMS_TIMEOUT      = 35;
+/* ═══════════════════════════════════════════════════════════════
+   نسخ القيم للحافظة
+═══════════════════════════════════════════════════════════════ */
+function copyValue(val, btn) {
+  if (!val) return;
+  navigator.clipboard.writeText(val).then(function() {
+    var orig = btn.innerHTML;
+    btn.classList.add('copied');
+    btn.innerHTML = '<i class="fa-solid fa-check"></i> تم النسخ';
+    setTimeout(function() { btn.classList.remove('copied'); btn.innerHTML = orig; }, 2000);
+  });
+}
 
-/* ── state helpers ── */
+function copyKeyInput() {
+  var val = document.getElementById('sms-key-input').value;
+  if (!val) return;
+  navigator.clipboard.writeText(val).then(function() {
+    var btn = document.getElementById('copy-key-btn');
+    btn.style.color = '#22C55E'; btn.style.borderColor = 'rgba(34,197,94,0.3)';
+    setTimeout(function() { btn.style.color = ''; btn.style.borderColor = ''; }, 1800);
+  });
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   إظهار/إخفاء المفتاح
+═══════════════════════════════════════════════════════════════ */
+function toggleKeyInput() {
+  var inp = document.getElementById('sms-key-input');
+  var ico = document.getElementById('toggle-key-icon');
+  if (inp.type === 'password') { inp.type = 'text'; ico.className = 'fa-solid fa-eye-slash'; }
+  else { inp.type = 'password'; ico.className = 'fa-solid fa-eye'; }
+}
+
+function toggleKeyPreview(btn) {
+  var masked = document.getElementById('key-preview-masked');
+  var full   = document.getElementById('key-preview-full');
+  var ico    = document.getElementById('key-reveal-icon');
+  if (!masked || !full) return;
+  if (full.style.display === 'none') {
+    full.style.display = 'block'; masked.style.display = 'none';
+    ico.className = 'fa-solid fa-eye-slash'; btn.innerHTML = '<i class="fa-solid fa-eye-slash" id="key-reveal-icon"></i> إخفاء';
+  } else {
+    full.style.display = 'none'; masked.style.display = 'block';
+    ico.className = 'fa-solid fa-eye'; btn.innerHTML = '<i class="fa-solid fa-eye" id="key-reveal-icon"></i> إظهار';
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   التمرير لنموذج التعديل
+═══════════════════════════════════════════════════════════════ */
+function scrollToEdit() {
+  document.getElementById('edit-card').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   طيّ/فتح قسم "كيف يعمل"
+═══════════════════════════════════════════════════════════════ */
+function toggleHowItWorks() {
+  var body = document.getElementById('how-body');
+  var chev = document.getElementById('how-chevron');
+  if (body.style.display === 'none') {
+    body.style.display = 'block'; chev.style.transform = 'rotate(180deg)';
+  } else {
+    body.style.display = 'none'; chev.style.transform = 'rotate(0deg)';
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   فحص حالة البوابة (inline في لوحة المعاينة)
+═══════════════════════════════════════════════════════════════ */
+async function checkGatewayStatusInline() {
+  var btn   = document.getElementById('inline-check-btn');
+  var icon  = document.getElementById('inline-check-icon');
+  var label = document.getElementById('inline-check-label');
+  var val   = document.getElementById('inline-status-val');
+  var det   = document.getElementById('inline-status-detail');
+  var card  = document.getElementById('inline-status-card');
+
+  btn.disabled = true; btn.style.opacity = '0.6';
+  icon.className = 'fa-solid fa-spinner'; icon.style.animation = 'spin 1s linear infinite';
+  label.textContent = 'جارٍ الفحص...';
+  val.innerHTML = '<span style="color:#60A5FA;font-size:12px">جارٍ الفحص...</span>';
+  det.style.display = 'none';
+
+  try {
+    var resp = await fetch('/settings/sms/status');
+    var data = await resp.json();
+    if (data.ok) {
+      val.innerHTML = '<i class="fa-solid fa-circle-check" style="color:#22C55E;font-size:11px"></i> <span style="color:#22C55E;font-weight:700">متصلة</span>';
+      card.style.borderColor = 'rgba(34,197,94,0.3)';
+      var credits = data.credits != null ? data.credits : '—';
+      det.innerHTML = '<span style="color:#22C55E">✓ المفتاح صالح</span> &nbsp;|&nbsp; رصيد: <strong style="color:#60A5FA">' + credits + '</strong>';
+      det.style.display = 'block';
+    } else {
+      val.innerHTML = '<i class="fa-solid fa-circle-xmark" style="color:#EF4444;font-size:11px"></i> <span style="color:#EF4444;font-weight:700">خطأ في الاتصال</span>';
+      card.style.borderColor = 'rgba(239,68,68,0.3)';
+      det.innerHTML = '<span style="color:#F87171">' + (data.message || 'تعذّر الاتصال') + '</span>';
+      det.style.display = 'block';
+    }
+  } catch(e) {
+    val.innerHTML = '<span style="color:#EF4444;font-size:12px">فشل الفحص</span>';
+  } finally {
+    btn.disabled = false; btn.style.opacity = '1';
+    icon.className = 'fa-solid fa-satellite-dish'; icon.style.animation = '';
+    label.textContent = 'فحص الاتصال';
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   MODAL: اختيار الجهاز
+═══════════════════════════════════════════════════════════════ */
+function openDevicePicker() {
+  document.getElementById('device-modal').style.display = 'flex';
+  document.getElementById('devices-list').innerHTML = '';
+  document.getElementById('devices-error').style.display = 'none';
+  document.getElementById('devices-loading').style.display = 'none';
+  document.getElementById('manual-device-id').value = document.getElementById('sms-device-input').value || '';
+}
+function closeDevicePicker() {
+  document.getElementById('device-modal').style.display = 'none';
+}
+function useAutoDevice() {
+  document.getElementById('sms-device-input').value = '0';
+  closeDevicePicker();
+}
+function useManualDevice() {
+  var val = document.getElementById('manual-device-id').value.trim();
+  if (!val) return;
+  document.getElementById('sms-device-input').value = val;
+  closeDevicePicker();
+}
+function selectDevice(id) {
+  document.getElementById('sms-device-input').value = id;
+  document.querySelectorAll('.device-row').forEach(function(r) { r.classList.remove('selected'); });
+  var rows = document.querySelectorAll('.device-row');
+  rows.forEach(function(r) { if (r.dataset.id === id) r.classList.add('selected'); });
+  setTimeout(closeDevicePicker, 500);
+}
+
+async function fetchDevices() {
+  var btn   = document.getElementById('fetch-devices-btn');
+  var icon  = document.getElementById('fetch-icon');
+  var label = document.getElementById('fetch-label');
+  var list  = document.getElementById('devices-list');
+  var err   = document.getElementById('devices-error');
+  var load  = document.getElementById('devices-loading');
+
+  btn.disabled = true; btn.style.opacity = '0.6';
+  icon.className = 'fa-solid fa-spinner'; icon.style.animation = 'spin 1s linear infinite';
+  label.textContent = 'جارٍ الجلب...';
+  list.innerHTML = ''; err.style.display = 'none'; load.style.display = 'block';
+
+  try {
+    var resp = await fetch('/settings/sms/devices');
+    var data = await resp.json();
+    load.style.display = 'none';
+
+    if (data.ok && data.devices && data.devices.length > 0) {
+      var current = document.getElementById('sms-device-input').value.trim();
+      data.devices.forEach(function(d) {
+        var online = (d.state || '').toLowerCase().includes('online') || (d.state || '').toLowerCase().includes('active');
+        var stateColor = online ? '#22C55E' : '#6B7280';
+        var stateIcon  = online ? 'fa-signal' : 'fa-signal-slash';
+        var stateLabel = online ? 'متصل' : (d.state || 'غير متصل');
+        var isSelected = d.id === current;
+        var row = document.createElement('div');
+        row.className = 'device-row' + (isSelected ? ' selected' : '');
+        row.dataset.id = d.id;
+        row.onclick = function() { selectDevice(d.id); };
+        row.innerHTML =
+          '<div style="width:34px;height:34px;border-radius:9px;background:rgba(26,115,232,0.12);border:1px solid rgba(26,115,232,0.2);display:flex;align-items:center;justify-content:center;flex-shrink:0">' +
+            '<i class="fa-solid fa-mobile-screen-button" style="color:#1A73E8;font-size:14px"></i>' +
+          '</div>' +
+          '<div style="flex:1;min-width:0">' +
+            '<div style="color:#E5E7EB;font-size:13px;font-weight:700;truncate">' + d.name + '</div>' +
+            '<div style="color:#6B7280;font-size:11px;direction:ltr;margin-top:1px">ID: ' + d.id + '</div>' +
+          '</div>' +
+          '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:3px">' +
+            '<span style="font-size:10px;color:' + stateColor + ';font-weight:700"><i class="fa-solid ' + stateIcon + '" style="font-size:9px"></i> ' + stateLabel + '</span>' +
+            (isSelected ? '<span style="font-size:10px;color:#22C55E;font-weight:700"><i class="fa-solid fa-circle-check" style="font-size:9px"></i> مُختار</span>' : '') +
+          '</div>';
+        list.appendChild(row);
+      });
+    } else if (data.ok && (!data.devices || data.devices.length === 0)) {
+      err.style.display = 'block';
+      err.innerHTML = '<i class="fa-solid fa-mobile-screen-button" style="margin-left:5px"></i> لا توجد أجهزة مسجّلة في حسابك. سجّل جهازك أولاً عبر تطبيق SMS Gateway.';
+    } else {
+      err.style.display = 'block';
+      err.innerHTML = '<strong>تعذّر جلب الأجهزة:</strong> ' + (data.message || 'خطأ غير معروف');
+      if (data.raw) err.innerHTML += '<br><code style="font-size:10px;color:#9CA3AF">' + data.raw + '</code>';
+    }
+  } catch(e) {
+    load.style.display = 'none';
+    err.style.display = 'block';
+    err.innerHTML = 'خطأ في الاتصال: ' + e.message;
+  } finally {
+    btn.disabled = false; btn.style.opacity = '1';
+    icon.className = 'fa-solid fa-rotate'; icon.style.animation = '';
+    label.textContent = 'تحديث القائمة';
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   MODAL: اختبار الإرسال
+═══════════════════════════════════════════════════════════════ */
+var _smsElapsedTimer  = null, _smsStartTime = null, _smsProgressTimer = null, _SMS_TIMEOUT = 35;
+
 function _smsState(state) {
-  /* state: 'idle' | 'waiting' | 'queued' | 'failure' */
   document.getElementById('sms-state-waiting').style.display = state === 'waiting' ? 'block' : 'none';
   document.getElementById('sms-state-queued').style.display  = state === 'queued'  ? 'block' : 'none';
   document.getElementById('sms-state-failure').style.display = state === 'failure' ? 'block' : 'none';
 }
-
 function _smsStopTimers() {
   if (_smsElapsedTimer)  { clearInterval(_smsElapsedTimer);  _smsElapsedTimer  = null; }
   if (_smsProgressTimer) { clearInterval(_smsProgressTimer); _smsProgressTimer = null; }
 }
-
 function _smsStartWaiting() {
-  _smsStopTimers();
-  _smsStartTime = Date.now();
+  _smsStopTimers(); _smsStartTime = Date.now();
   document.getElementById('sms-elapsed').textContent = '0 ث';
   document.getElementById('sms-progress-bar').style.width = '0%';
   _smsState('waiting');
-  _smsElapsedTimer = setInterval(function() {
-    var s = ((Date.now() - _smsStartTime) / 1000).toFixed(1);
-    document.getElementById('sms-elapsed').textContent = s + ' ث';
+  _smsElapsedTimer  = setInterval(function() {
+    document.getElementById('sms-elapsed').textContent = ((Date.now()-_smsStartTime)/1000).toFixed(1)+' ث';
   }, 100);
   _smsProgressTimer = setInterval(function() {
-    var elapsed = (Date.now() - _smsStartTime) / 1000;
-    var pct = Math.min(90, (elapsed / _SMS_TIMEOUT) * 90);
-    document.getElementById('sms-progress-bar').style.width = pct + '%';
+    var pct = Math.min(90, ((Date.now()-_smsStartTime)/1000/_SMS_TIMEOUT)*90);
+    document.getElementById('sms-progress-bar').style.width = pct+'%';
   }, 200);
 }
-
 function _smsFinishWaiting() {
   document.getElementById('sms-progress-bar').style.transition = 'width 0.2s linear';
   document.getElementById('sms-progress-bar').style.width = '100%';
   _smsStopTimers();
 }
 
-function toggleKey() {
-  var inp = document.getElementById('sms-key-input');
-  var ico = document.getElementById('eye-icon');
-  if (inp.type === 'password') { inp.type = 'text'; ico.className = 'fa-solid fa-eye-slash'; }
-  else { inp.type = 'password'; ico.className = 'fa-solid fa-eye'; }
-}
-
 function openTestModal() {
-  _smsStopTimers();
-  _smsState('idle');
-  /* reset gateway badge */
+  _smsStopTimers(); _smsState('idle');
   document.getElementById('gw-status-badge').innerHTML = '<span style="color:#6B7280;font-size:12px">لم يُفحص بعد</span>';
   document.getElementById('gw-detail').style.display = 'none';
   document.getElementById('gw-detail').innerHTML = '';
   document.getElementById('test-modal').style.display = 'flex';
-  document.getElementById('test-phone-input').focus();
+  setTimeout(function() { document.getElementById('test-phone-input').focus(); }, 100);
   var btn = document.getElementById('test-send-btn');
   btn.disabled = false; btn.style.opacity = '1';
   document.getElementById('test-btn-label').textContent = 'إرسال رسالة تجريبية';
   document.getElementById('test-btn-icon').className = 'fa-solid fa-paper-plane';
 }
-
 function closeTestModal() {
   _smsStopTimers();
   document.getElementById('test-modal').style.display = 'none';
 }
 
-/* ── فحص حالة البوابة ── */
 async function checkGatewayStatus() {
-  var btn  = document.getElementById('gw-check-btn');
-  var icon = document.getElementById('gw-check-icon');
+  var btn   = document.getElementById('gw-check-btn');
+  var icon  = document.getElementById('gw-check-icon');
   var badge = document.getElementById('gw-status-badge');
-  var detail = document.getElementById('gw-detail');
-
+  var detail= document.getElementById('gw-detail');
   btn.disabled = true; btn.style.opacity = '0.6';
   icon.className = 'fa-solid fa-spinner fa-spin';
   badge.innerHTML = '<span style="color:#60A5FA;font-size:12px">جارٍ الفحص...</span>';
   detail.style.display = 'none';
-
   try {
     var resp = await fetch('/settings/sms/status');
     var data = await resp.json();
-
     if (data.ok) {
       var credits = data.credits != null ? data.credits : '—';
       badge.innerHTML = '<i class="fa-solid fa-circle-check" style="color:#22C55E;font-size:12px"></i><span style="color:#22C55E;font-size:12px;font-weight:700">متصلة</span>';
-      detail.innerHTML =
-        '<span style="color:#22C55E">✓ المفتاح صالح</span> &nbsp;|&nbsp; ' +
-        '<span style="color:#60A5FA">رصيد الكريدت: <strong>' + credits + '</strong></span>' +
-        '<br><span style="color:#D97706">⚠️ حالة الجهاز (Android) لا تظهر في API — تأكد أن التطبيق يعمل على الجوال</span>';
+      detail.innerHTML = '<span style="color:#22C55E">✓ المفتاح صالح</span> &nbsp;|&nbsp; <span style="color:#60A5FA">رصيد: <strong>' + credits + '</strong></span><br><span style="color:#D97706">ملاحظة: حالة الجهاز لا تظهر في API — تأكد أن التطبيق يعمل على الجوال</span>';
       detail.style.display = 'block';
     } else {
       badge.innerHTML = '<i class="fa-solid fa-circle-xmark" style="color:#EF4444;font-size:12px"></i><span style="color:#EF4444;font-size:12px;font-weight:700">خطأ</span>';
@@ -396,67 +792,50 @@ async function checkGatewayStatus() {
     }
   } catch(e) {
     badge.innerHTML = '<span style="color:#EF4444;font-size:12px">فشل الفحص</span>';
-    detail.innerHTML = '<span style="color:#F87171">' + (e.message || e.toString()) + '</span>';
-    detail.style.display = 'block';
   } finally {
     btn.disabled = false; btn.style.opacity = '1';
     icon.className = 'fa-solid fa-rotate';
   }
 }
 
-/* ── إرسال رسالة تجريبية ── */
 async function sendSmsTest() {
   var phone = document.getElementById('test-phone-input').value.trim();
-  if (!phone) {
-    _smsState('failure');
-    document.getElementById('sms-error-msg').textContent = 'أدخل رقم الجوال أولاً';
-    return;
-  }
-
+  if (!phone) { _smsState('failure'); document.getElementById('sms-error-msg').textContent = 'أدخل رقم الجوال أولاً'; return; }
   var btn   = document.getElementById('test-send-btn');
   var label = document.getElementById('test-btn-label');
   var icon  = document.getElementById('test-btn-icon');
-
   btn.disabled = true; btn.style.opacity = '0.6';
-  icon.className = 'fa-solid fa-spinner fa-spin';
-  label.textContent = 'جارٍ الإرسال...';
+  icon.className = 'fa-solid fa-spinner fa-spin'; label.textContent = 'جارٍ الإرسال...';
   _smsStartWaiting();
-
   try {
-    var resp = await fetch('/settings/sms/test', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ phone: phone })
-    });
-
+    var t0   = Date.now();
+    var resp = await fetch('/settings/sms/test', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({phone:phone}) });
+    var data = await resp.json();
     _smsFinishWaiting();
-    var elapsed = ((Date.now() - _smsStartTime) / 1000).toFixed(2);
-
-    var data;
-    try { data = await resp.json(); }
-    catch(e) { data = { ok: false, message: 'استجابة غير صالحة (status ' + resp.status + ')' }; }
-
-    if (data.ok) {
-      /* دائماً "queued" — البوابة تقبل وتُخزّن، لا نعرف إن وصلت */
-      _smsState('queued');
-      document.getElementById('sms-queued-detail').textContent =
-        'الرسالة قُبِلت للإرسال إلى ' + phone;
-      document.getElementById('sms-queued-time').textContent = elapsed + ' ث';
-    } else {
-      _smsState('failure');
-      document.getElementById('sms-error-msg').textContent =
-        data.message || 'فشل الإرسال — لا تفاصيل متاحة';
-    }
+    var elapsed = ((Date.now()-t0)/1000).toFixed(1)+' ث';
+    setTimeout(function() {
+      if (data.ok) {
+        _smsState('queued');
+        document.getElementById('sms-queued-detail').textContent = data.message || ('تم قبول الرسالة في queue إلى '+phone);
+        document.getElementById('sms-queued-time').textContent = elapsed;
+      } else {
+        _smsState('failure');
+        document.getElementById('sms-error-msg').textContent = data.message || 'خطأ غير معروف';
+      }
+    }, 350);
   } catch(e) {
     _smsFinishWaiting();
-    _smsState('failure');
-    document.getElementById('sms-error-msg').textContent =
-      'خطأ في الاتصال: ' + (e.message || e.toString());
+    setTimeout(function() { _smsState('failure'); document.getElementById('sms-error-msg').textContent = 'خطأ في الاتصال: '+e.message; }, 350);
   } finally {
-    btn.disabled = false; btn.style.opacity = '1';
-    icon.className = 'fa-solid fa-paper-plane';
-    label.textContent = 'إرسال مرة أخرى';
+    setTimeout(function() {
+      btn.disabled = false; btn.style.opacity = '1';
+      icon.className = 'fa-solid fa-paper-plane'; label.textContent = 'إرسال مجدداً';
+    }, 600);
   }
 }
+
+/* إغلاق modals بالنقر خارجها */
+document.getElementById('device-modal').addEventListener('click', function(e) { if (e.target === this) closeDevicePicker(); });
+document.getElementById('test-modal').addEventListener('click', function(e)   { if (e.target === this) closeTestModal(); });
 </script>
 {% endblock %}
