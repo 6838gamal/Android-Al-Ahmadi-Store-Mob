@@ -333,9 +333,21 @@ def preview_daily_close(
     expenses_list = db.query(DailyExpense).filter(DailyExpense.expense_date == target_date).all()
     awards_list = db.query(DailyAward).filter(DailyAward.award_date == target_date).all()
 
+    cap_deposits = db.query(func.sum(CapitalTransaction.amount)).filter(
+        CapitalTransaction.transaction_type == CapitalTransactionType.deposit,
+        CapitalTransaction.created_at.between(start_dt, end_dt),
+    ).scalar() or 0.0
+
+    cap_withdrawals = db.query(func.sum(CapitalTransaction.amount)).filter(
+        CapitalTransaction.transaction_type == CapitalTransactionType.withdrawal,
+        CapitalTransaction.created_at.between(start_dt, end_dt),
+    ).scalar() or 0.0
+
     closing_balance = (
         opening_balance + total_sales + total_maintenance
+        + cap_deposits
         - total_expenses - total_awards - total_purchases
+        - cap_withdrawals
     )
     net_profit = total_sales + total_maintenance - total_expenses - total_awards - total_purchases
 
@@ -347,6 +359,8 @@ def preview_daily_close(
         "total_expenses": round(total_expenses, 2),
         "total_awards": round(total_awards, 2),
         "total_purchases": round(total_purchases, 2),
+        "capital_deposited": round(cap_deposits, 2),
+        "owner_withdrawals": round(cap_withdrawals, 2),
         "closing_balance": round(closing_balance, 2),
         "net_profit": round(net_profit, 2),
         "expenses_detail": [{"desc": e.description, "amount": e.amount, "category": e.category} for e in expenses_list],

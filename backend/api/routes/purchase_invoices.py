@@ -4,6 +4,7 @@ from typing import List, Optional
 from datetime import datetime
 from backend.core.database import get_db
 from backend.models.purchase_invoice import PurchaseInvoice, PurchaseInvoiceItem, InvoiceStatus
+from backend.models.capital import CapitalTransaction, CapitalTransactionType
 from backend.models.user import User
 from backend.api.dependencies import get_admin_user, require_staff_or_above
 from pydantic import BaseModel
@@ -68,7 +69,7 @@ class PurchaseInvoiceResponse(BaseModel):
 
 
 @router.post("/")
-def create_invoice(data: PurchaseInvoiceCreate, db: Session = Depends(get_db), admin=Depends(require_staff_or_above)):
+def create_invoice(data: PurchaseInvoiceCreate, db: Session = Depends(get_db), admin=Depends(get_admin_user)):
     total = sum(item.unit_price * item.quantity for item in data.items)
     declared_total = data.cash_from_drawer + data.capital_from_owner
 
@@ -106,6 +107,16 @@ def create_invoice(data: PurchaseInvoiceCreate, db: Session = Depends(get_db), a
         )
         db.add(item)
 
+    if data.capital_from_owner > 0:
+        cap_tx = CapitalTransaction(
+            transaction_type=CapitalTransactionType.withdrawal,
+            amount=data.capital_from_owner,
+            reason=f"مشتريات من المالك — {data.supplier_name}",
+            reference_number=invoice.invoice_number,
+            recorded_by_id=admin.id,
+        )
+        db.add(cap_tx)
+
     db.commit()
     db.refresh(invoice)
     return {
@@ -123,7 +134,7 @@ def list_invoices(
     skip: int = 0,
     limit: int = 200,
     db: Session = Depends(get_db),
-    admin=Depends(require_staff_or_above),
+    admin=Depends(get_admin_user),
 ):
     return db.query(PurchaseInvoice).order_by(PurchaseInvoice.created_at.desc()).offset(skip).limit(limit).all()
 

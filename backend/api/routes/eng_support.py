@@ -46,15 +46,17 @@ def list_posts(
     skip: int = 0,
     limit: int = 50,
     db: Session = Depends(get_db),
+    current_user: Optional[User] = Depends(get_current_user_optional),
 ):
     q = db.query(EngSupportPost)
     if status:
         q = q.filter(EngSupportPost.status == status)
     posts = q.order_by(EngSupportPost.is_pinned.desc(), EngSupportPost.created_at.desc()).offset(skip).limit(limit).all()
+    is_staff = current_user and current_user.role.value in ("admin", "branch_manager", "staff")
     result = []
     for p in posts:
         resp_count = db.query(EngSupportResponse).filter(EngSupportResponse.post_id == p.id).count()
-        result.append({
+        entry = {
             "id": p.id,
             "title": p.title,
             "device_type": p.device_type,
@@ -68,15 +70,30 @@ def list_posts(
             "price_per_consult": p.price_per_consult,
             "is_pinned": p.is_pinned,
             "created_at": p.created_at,
-        })
+        }
+        if p.is_subscription_required and not is_staff:
+            entry["content_locked"] = True
+        result.append(entry)
     return result
 
 
 @router.get("/{post_id}")
-def get_post(post_id: int, db: Session = Depends(get_db)):
+def get_post(
+    post_id: int,
+    db: Session = Depends(get_db),
+    current_user: Optional[User] = Depends(get_current_user_optional),
+):
     p = db.query(EngSupportPost).filter(EngSupportPost.id == post_id).first()
     if not p:
         raise HTTPException(status_code=404, detail="المنشور غير موجود")
+
+    is_staff = current_user and current_user.role.value in ("admin", "branch_manager", "staff")
+    if p.is_subscription_required and not is_staff:
+        raise HTTPException(
+            status_code=403,
+            detail="هذا المحتوى مخصص للمشتركين فقط — يُرجى التواصل مع الإدارة للاشتراك"
+        )
+
     p.views += 1
     db.commit()
     responses = db.query(EngSupportResponse).filter(EngSupportResponse.post_id == post_id).order_by(EngSupportResponse.created_at).all()
