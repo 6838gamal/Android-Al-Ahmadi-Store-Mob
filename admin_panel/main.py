@@ -213,6 +213,30 @@ def _logged(req: Request) -> bool:
 def _redirect_login():
     return RedirectResponse("/login", status_code=302)
 
+def _is_super_admin(req: Request) -> bool:
+    return req.session.get("admin_role") == "admin"
+
+def _require_super_admin(req: Request):
+    """Returns an HTMLResponse redirect if the caller is not a super-admin, else None."""
+    if not _logged(req):
+        return _redirect_login()
+    if not _is_super_admin(req):
+        return HTMLResponse("""<!doctype html>
+<html lang="ar" dir="rtl">
+<head><meta charset="UTF-8"><title>غير مصرح</title>
+<style>body{background:#0D1117;color:#e6edf3;font-family:sans-serif;
+display:flex;align-items:center;justify-content:center;height:100vh;margin:0;flex-direction:column;gap:16px}
+.card{background:#161B22;border:1px solid #f85149;border-radius:12px;padding:32px 40px;text-align:center}
+h2{color:#f85149;margin:0 0 8px}p{color:#8b949e;margin:0 0 20px}
+a{background:#1A73E8;color:#fff;padding:10px 24px;border-radius:8px;text-decoration:none;font-size:14px}
+</style></head>
+<body><div class="card">
+<h2>⛔ غير مصرح</h2>
+<p>هذه الصفحة مخصصة للمدير العام فقط</p>
+<a href="/dashboard">← العودة للرئيسية</a>
+</div></body></html>""", status_code=403)
+    return None
+
 # ── API Status Check (used by login page JS) ────────────────────────────────────
 
 @app.get("/api-status")
@@ -285,6 +309,7 @@ async def login_post(request: Request, identifier: str = Form(...), password: st
                 if user_data.get("role") in ("admin", "branch_manager"):
                     request.session["admin_id"]   = user_data.get("id")
                     request.session["admin_name"] = user_data.get("name", "المدير")
+                    request.session["admin_role"] = user_data.get("role", "branch_manager")
                     request.session["token"]      = data.get("access_token")
                     # Return 200 + JS redirect — avoids 303 chain losing cookie in proxy
                     # If request came from Node proxy (127.0.0.1) → prefix with /admin-panel
@@ -975,8 +1000,8 @@ async def warranty_delete(warranty_id: int, request: Request):
 
 @app.get("/staff", response_class=HTMLResponse)
 async def staff_list(request: Request):
-    if not _logged(request):
-        return _redirect_login()
+    guard = _require_super_admin(request)
+    if guard: return guard
     raw = await api("get", "/api/staff/", token=_token(request)) or []
     return templates.TemplateResponse(request, "staff.html", {
         "admin_name": _name(request), "active": "staff",
@@ -990,8 +1015,8 @@ async def staff_add(
     name: str = Form(...), phone: str = Form(""),
     role: str = Form("staff"), password: str = Form(...),
 ):
-    if not _logged(request):
-        return _redirect_login()
+    guard = _require_super_admin(request)
+    if guard: return guard
     _, err = await api_ex("post", "/api/staff/", token=_token(request),
                           json={"name": name, "phone": phone or None,
                                 "email": None, "role": role, "password": password})
@@ -1002,8 +1027,8 @@ async def staff_add(
 
 @app.post("/staff/{user_id}/toggle-active")
 async def staff_toggle(user_id: int, request: Request):
-    if not _logged(request):
-        return _redirect_login()
+    guard = _require_super_admin(request)
+    if guard: return guard
     _, err = await api_ex("post", f"/api/staff/{user_id}/toggle-active", token=_token(request))
     if err:
         return RedirectResponse(f"/staff?error={_q(err)}", status_code=302)
@@ -1017,8 +1042,8 @@ async def staff_edit(
     role: str = Form("staff"),
     password: str = Form(""),
 ):
-    if not _logged(request):
-        return _redirect_login()
+    guard = _require_super_admin(request)
+    if guard: return guard
     _, err = await api_ex("put", f"/api/staff/{user_id}", token=_token(request),
                           json={"name": name, "phone": phone or None,
                                 "email": None, "role": role,
@@ -1030,8 +1055,8 @@ async def staff_edit(
 
 @app.post("/staff/{user_id}/delete")
 async def staff_delete(user_id: int, request: Request):
-    if not _logged(request):
-        return _redirect_login()
+    guard = _require_super_admin(request)
+    if guard: return guard
     _, err = await api_ex("delete", f"/api/staff/{user_id}", token=_token(request))
     if err:
         return RedirectResponse(f"/staff?error={_q(err)}", status_code=302)
@@ -1150,8 +1175,8 @@ async def notification_delete(notif_id: int, request: Request):
 
 @app.get("/reports", response_class=HTMLResponse)
 async def reports_page(request: Request, period: str = "month"):
-    if not _logged(request):
-        return _redirect_login()
+    guard = _require_super_admin(request)
+    if guard: return guard
     params = {"period": period}
     sales  = to_obj(await api("get", "/api/reports/sales",       token=_token(request), params=params) or {})
     profit = to_obj(await api("get", "/api/reports/profit",      token=_token(request), params=params) or {})
@@ -1194,8 +1219,8 @@ async def wallet_credit(
     user_id: int, request: Request,
     amount: float = Form(...), note: str = Form(""),
 ):
-    if not _logged(request):
-        return _redirect_login()
+    guard = _require_super_admin(request)
+    if guard: return guard
     _, err = await api_ex("post", "/api/wallet/credit", token=_token(request),
               json={"user_id": user_id, "amount": amount,
                     "transaction_type": "credit",
@@ -1210,8 +1235,8 @@ async def wallet_debit(
     user_id: int, request: Request,
     amount: float = Form(...), note: str = Form(""),
 ):
-    if not _logged(request):
-        return _redirect_login()
+    guard = _require_super_admin(request)
+    if guard: return guard
     _, err = await api_ex("post", "/api/wallet/debit", token=_token(request),
               json={"user_id": user_id, "amount": amount,
                     "transaction_type": "debit",
@@ -1275,8 +1300,8 @@ async def profile_update(
 
 @app.get("/audit", response_class=HTMLResponse)
 async def audit_page(request: Request):
-    if not _logged(request):
-        return _redirect_login()
+    guard = _require_super_admin(request)
+    if guard: return guard
     raw = await api("get", "/api/audit/", token=_token(request), params={"limit": 200}) or []
     return templates.TemplateResponse(request, "audit.html", {
         "admin_name": _name(request), "active": "audit",
@@ -1311,8 +1336,8 @@ async def audit_feed(request: Request):
 
 @app.get("/announcements", response_class=HTMLResponse)
 async def announcements_list(request: Request):
-    if not _logged(request):
-        return _redirect_login()
+    guard = _require_super_admin(request)
+    if guard: return guard
     raw = await api("get", "/api/announcements/", token=_token(request),
                     params={"active_only": "false"}) or []
     return templates.TemplateResponse(request, "announcements.html", {
@@ -1412,8 +1437,8 @@ def _wb_response(wb, filename: str):
 
 @app.get("/export/customers")
 async def export_customers(request: Request):
-    if not _logged(request):
-        return _redirect_login()
+    guard = _require_super_admin(request)
+    if guard: return guard
     raw = await api("get", "/api/customers/", token=_token(request), params={"limit": 5000}) or []
     wb, ws = _make_wb("العملاء")
     _style_header(ws, ["#", "الاسم", "رقم الجوال", "البريد الإلكتروني", "رصيد المحفظة", "الحالة", "التوثيق", "تاريخ التسجيل"])
@@ -1429,8 +1454,8 @@ async def export_customers(request: Request):
 
 @app.get("/export/staff")
 async def export_staff_excel(request: Request):
-    if not _logged(request):
-        return _redirect_login()
+    guard = _require_super_admin(request)
+    if guard: return guard
     raw = await api("get", "/api/staff/", token=_token(request)) or []
     wb, ws = _make_wb("الموظفون")
     _style_header(ws, ["#", "الاسم", "رقم الجوال", "البريد الإلكتروني", "الدور", "الحالة", "تاريخ الإضافة"])
@@ -1446,8 +1471,8 @@ async def export_staff_excel(request: Request):
 
 @app.get("/export/products")
 async def export_products_excel(request: Request):
-    if not _logged(request):
-        return _redirect_login()
+    guard = _require_super_admin(request)
+    if guard: return guard
     raw = await api("get", "/api/products/", token=_token(request), params={"limit": 5000}) or []
     wb, ws = _make_wb("المنتجات")
     _style_header(ws, ["#", "الاسم", "الاسم بالعربي", "الماركة", "الموديل", "الفئة", "السعر", "الكمية", "الحالة", "تاريخ الإضافة"])
@@ -1463,8 +1488,8 @@ async def export_products_excel(request: Request):
 
 @app.get("/export/orders")
 async def export_orders_excel(request: Request):
-    if not _logged(request):
-        return _redirect_login()
+    guard = _require_super_admin(request)
+    if guard: return guard
     raw = await api("get", "/api/orders/", token=_token(request), params={"limit": 5000}) or []
     wb, ws = _make_wb("الطلبات")
     _style_header(ws, ["#", "رقم الطلب", "اسم العميل", "الجوال", "المنتج", "السعر", "الحالة", "ملاحظات", "تاريخ الطلب"])
@@ -1488,8 +1513,8 @@ async def export_orders_excel(request: Request):
 
 @app.get("/export/maintenance")
 async def export_maintenance_excel(request: Request):
-    if not _logged(request):
-        return _redirect_login()
+    guard = _require_super_admin(request)
+    if guard: return guard
     raw = await api("get", "/api/maintenance/", token=_token(request), params={"limit": 5000}) or []
     wb, ws = _make_wb("الصيانة")
     _style_header(ws, ["#", "رقم الطلب", "اسم العميل", "الجوال", "نوع الجهاز", "المشكلة", "السعر", "الحالة", "تاريخ الاستلام"])
@@ -1724,8 +1749,8 @@ async def auction_close(request: Request, auction_id: int):
 # ══════════════════════════════════════════════════════════════════════════════
 @app.get("/capital")
 async def capital_list(request: Request):
-    if not _logged(request):
-        return _redirect_login()
+    guard = _require_super_admin(request)
+    if guard: return guard
     transactions = to_obj(await api("get", "/api/capital/", token=_token(request), params={"limit": 50}) or [])
     summary = to_obj(await api("get", "/api/capital/summary", token=_token(request)) or {})
     return templates.TemplateResponse(request, "capital.html", {
@@ -1737,8 +1762,8 @@ async def capital_list(request: Request):
 
 @app.post("/capital/add")
 async def capital_add(request: Request):
-    if not _logged(request):
-        return _redirect_login()
+    guard = _require_super_admin(request)
+    if guard: return guard
     form = await request.form()
     payload = {
         "transaction_type": form.get("transaction_type"),
@@ -1753,8 +1778,8 @@ async def capital_add(request: Request):
 
 @app.post("/capital/{tx_id}/delete")
 async def capital_delete(request: Request, tx_id: int):
-    if not _logged(request):
-        return _redirect_login()
+    guard = _require_super_admin(request)
+    if guard: return guard
     _, err = await api_ex("delete", f"/api/capital/{tx_id}", token=_token(request))
     if err:
         return RedirectResponse(f"/capital?error={_q(err)}", status_code=302)
@@ -1822,8 +1847,8 @@ async def daily_award_add(request: Request):
 
 @app.post("/daily-close/close")
 async def daily_close_submit(request: Request):
-    if not _logged(request):
-        return _redirect_login()
+    guard = _require_super_admin(request)
+    if guard: return guard
     form = await request.form()
     payload = {"notes": form.get("notes") or None}
     _, err = await api_ex("post", "/api/daily/close", token=_token(request), json=payload)
@@ -1837,8 +1862,8 @@ async def daily_close_submit(request: Request):
 # ══════════════════════════════════════════════════════════════════════════════
 @app.get("/secret-deals")
 async def secret_deals_list(request: Request, status: str = ""):
-    if not _logged(request):
-        return _redirect_login()
+    guard = _require_super_admin(request)
+    if guard: return guard
     params = {"limit": 100}
     if status:
         params["status"] = status
@@ -1855,8 +1880,8 @@ async def secret_deals_list(request: Request, status: str = ""):
 
 @app.get("/secret-deals/add")
 async def secret_deal_add_form(request: Request):
-    if not _logged(request):
-        return _redirect_login()
+    guard = _require_super_admin(request)
+    if guard: return guard
     return templates.TemplateResponse(request, "secret_deal_add.html", {
         "admin_name": _name(request),
         "active": "secret-deals",
@@ -1874,8 +1899,8 @@ async def secret_deal_create(
     total_price: Optional[float] = Form(None),
     admin_notes: Optional[str] = Form(None),
 ):
-    if not _logged(request):
-        return _redirect_login()
+    guard = _require_super_admin(request)
+    if guard: return guard
     result, err = await api_ex("post", "/api/secret-deals/", token=_token(request), json={
         "title": title, "supplier_name": supplier_name, "supplier_phone": supplier_phone,
         "total_quantity": total_quantity, "price_per_unit": price_per_unit,
@@ -1889,8 +1914,8 @@ async def secret_deal_create(
 
 @app.get("/secret-deals/{deal_id}")
 async def secret_deal_detail(request: Request, deal_id: int):
-    if not _logged(request):
-        return _redirect_login()
+    guard = _require_super_admin(request)
+    if guard: return guard
     deal = to_obj(await api("get", f"/api/secret-deals/{deal_id}", token=_token(request)) or {})
     return templates.TemplateResponse(request, "secret_deal_detail.html", {
         "admin_name": _name(request),
@@ -1903,8 +1928,8 @@ async def secret_deal_detail(request: Request, deal_id: int):
 
 @app.get("/secret-deals/{deal_id}/upload")
 async def secret_deal_upload_form(request: Request, deal_id: int):
-    if not _logged(request):
-        return _redirect_login()
+    guard = _require_super_admin(request)
+    if guard: return guard
     deal = to_obj(await api("get", f"/api/secret-deals/{deal_id}", token=_token(request)) or {})
     return templates.TemplateResponse(request, "secret_deal_upload.html", {
         "admin_name": _name(request),
@@ -1915,8 +1940,8 @@ async def secret_deal_upload_form(request: Request, deal_id: int):
 
 @app.post("/secret-deals/{deal_id}/upload")
 async def secret_deal_upload(request: Request, deal_id: int, image_urls: str = Form("")):
-    if not _logged(request):
-        return _redirect_login()
+    guard = _require_super_admin(request)
+    if guard: return guard
     urls = [u.strip() for u in image_urls.split("\n") if u.strip()]
     result, err = await api_ex("post", f"/api/secret-deals/{deal_id}/images", token=_token(request), json={"image_urls": urls})
     if err:
@@ -1927,8 +1952,8 @@ async def secret_deal_upload(request: Request, deal_id: int, image_urls: str = F
 
 @app.post("/secret-deals/{deal_id}/status")
 async def secret_deal_update_status(request: Request, deal_id: int, status: str = Form(...)):
-    if not _logged(request):
-        return _redirect_login()
+    guard = _require_super_admin(request)
+    if guard: return guard
     _, err = await api_ex("put", f"/api/secret-deals/{deal_id}/status", token=_token(request), params={"status": status})
     if err:
         return RedirectResponse(f"/secret-deals?error={_q(err)}", status_code=302)
@@ -1995,8 +2020,8 @@ async def eng_support_delete(request: Request, post_id: int):
 # ══════════════════════════════════════════════════════════════════════════════
 @app.get("/complaints")
 async def complaints_list(request: Request, status: str = "", type: str = ""):
-    if not _logged(request):
-        return _redirect_login()
+    guard = _require_super_admin(request)
+    if guard: return guard
     params = {"limit": 200}
     if status:
         params["status"] = status
@@ -2019,8 +2044,8 @@ async def complaints_list(request: Request, status: str = "", type: str = ""):
 
 @app.get("/complaints/{complaint_id}")
 async def complaint_detail(request: Request, complaint_id: int):
-    if not _logged(request):
-        return _redirect_login()
+    guard = _require_super_admin(request)
+    if guard: return guard
     complaint = to_obj(await api("get", f"/api/complaints/{complaint_id}", token=_token(request)) or {})
     return templates.TemplateResponse(request, "complaint_detail.html", {
         "admin_name": _name(request),
@@ -2033,8 +2058,8 @@ async def complaint_detail(request: Request, complaint_id: int):
 
 @app.post("/complaints/{complaint_id}/reply")
 async def complaint_reply(request: Request, complaint_id: int, reply: str = Form(...)):
-    if not _logged(request):
-        return _redirect_login()
+    guard = _require_super_admin(request)
+    if guard: return guard
     _, err = await api_ex("put", f"/api/complaints/{complaint_id}/reply", token=_token(request), json={"reply": reply})
     if err:
         return RedirectResponse(f"/complaints/{complaint_id}?error={_q(err)}", status_code=302)
@@ -2043,8 +2068,8 @@ async def complaint_reply(request: Request, complaint_id: int, reply: str = Form
 
 @app.post("/complaints/{complaint_id}/resolve")
 async def complaint_resolve(request: Request, complaint_id: int):
-    if not _logged(request):
-        return _redirect_login()
+    guard = _require_super_admin(request)
+    if guard: return guard
     _, err = await api_ex("put", f"/api/complaints/{complaint_id}/resolve", token=_token(request))
     if err:
         return RedirectResponse(f"/complaints?error={_q(err)}", status_code=302)
@@ -2053,8 +2078,8 @@ async def complaint_resolve(request: Request, complaint_id: int):
 
 @app.post("/complaints/{complaint_id}/archive")
 async def complaint_archive(request: Request, complaint_id: int):
-    if not _logged(request):
-        return _redirect_login()
+    guard = _require_super_admin(request)
+    if guard: return guard
     _, err = await api_ex("put", f"/api/complaints/{complaint_id}/archive", token=_token(request))
     if err:
         return RedirectResponse(f"/complaints?error={_q(err)}", status_code=302)
@@ -2250,8 +2275,8 @@ async def gallery_delete_image(request: Request, image_id: int, folder_id: int =
 
 @app.get("/export/inventory")
 async def export_inventory_excel(request: Request):
-    if not _logged(request):
-        return _redirect_login()
+    guard = _require_super_admin(request)
+    if guard: return guard
     raw = await api("get", "/api/inventory/", token=_token(request), params={"limit": 5000}) or []
     wb, ws = _make_wb("المخزون")
     _style_header(ws, ["#", "الرقم التسلسلي", "الفئة", "الماركة", "الموديل", "الدرجة", "السعر", "الحالة", "الفرع", "تاريخ الإضافة"])
@@ -2273,8 +2298,8 @@ async def export_inventory_excel(request: Request):
 
 @app.get("/settings", response_class=HTMLResponse)
 async def settings_page(request: Request):
-    if not _logged(request):
-        return _redirect_login()
+    guard = _require_super_admin(request)
+    if guard: return guard
     import os as _os
     data = await api("get", "/api/settings/", token=_token(request)) or {}
     sms_api_key_db = data.get("sms_api_key", "")
@@ -2302,8 +2327,8 @@ async def settings_sms_save(
     sms_api_key: str = Form(""),
     sms_devices:  str = Form("0"),
 ):
-    if not _logged(request):
-        return _redirect_login()
+    guard = _require_super_admin(request)
+    if guard: return guard
     token = _token(request)
     errors = []
     if sms_api_key.strip():
@@ -2323,8 +2348,8 @@ async def settings_sms_save(
 
 @app.post("/settings/sms/clear")
 async def settings_sms_clear(request: Request):
-    if not _logged(request):
-        return _redirect_login()
+    guard = _require_super_admin(request)
+    if guard: return guard
     token = _token(request)
     await api_ex("delete", "/api/settings/sms_api_key", token=token)
     await api_ex("delete", "/api/settings/sms_devices",  token=token)
@@ -2335,8 +2360,8 @@ async def settings_sms_clear(request: Request):
 async def settings_sms_status(request: Request):
     """AJAX — يفحص حالة بوابة SMS ويعيد JSON {ok, message, credits, device_online}"""
     from fastapi.responses import JSONResponse
-    if not _logged(request):
-        return JSONResponse({"ok": False, "message": "غير مصرَّح"}, status_code=401)
+    if not _logged(request) or not _is_super_admin(request):
+        return JSONResponse({"ok": False, "message": "غير مصرَّح"}, status_code=403)
     data, err = await api_ex("get", "/api/auth/sms-gateway-status", token=_token(request))
     if err or not data:
         return JSONResponse({"ok": False, "message": err or "تعذّر الاتصال بالخادم"})
@@ -2348,8 +2373,8 @@ async def settings_sms_devices(request: Request):
     """AJAX — يجلب قائمة الأجهزة المتاحة من sms-gateway.app"""
     import subprocess, json as _json, os as _os
     from fastapi.responses import JSONResponse
-    if not _logged(request):
-        return JSONResponse({"ok": False, "message": "غير مصرَّح"}, status_code=401)
+    if not _logged(request) or not _is_super_admin(request):
+        return JSONResponse({"ok": False, "message": "غير مصرَّح"}, status_code=403)
 
     import os as _os
     _DEFAULT_KEY = "37eaa347c97fb746d46eaf3d8fdb41737eeec5df"
@@ -2401,8 +2426,8 @@ async def settings_sms_devices(request: Request):
 async def settings_sms_test(request: Request):
     """AJAX endpoint — returns JSON {ok, message, queued}"""
     from fastapi.responses import JSONResponse
-    if not _logged(request):
-        return JSONResponse({"ok": False, "message": "غير مصرَّح — سجّل دخولك"}, status_code=401)
+    if not _logged(request) or not _is_super_admin(request):
+        return JSONResponse({"ok": False, "message": "غير مصرَّح — للمدير العام فقط"}, status_code=403)
     try:
         body = await request.json()
         phone = (body.get("phone") or "").strip()

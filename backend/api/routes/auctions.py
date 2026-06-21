@@ -26,8 +26,6 @@ class AuctionCreate(BaseModel):
 
 
 class BidCreate(BaseModel):
-    bidder_name: str
-    bidder_phone: str
     amount: float
     notes: Optional[str] = None
 
@@ -168,19 +166,26 @@ def get_auction(auction_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/{auction_id}/bid")
-def place_bid(auction_id: int, data: BidCreate, db: Session = Depends(get_db)):
+def place_bid(
+    auction_id: int,
+    data: BidCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
     a = db.query(Auction).filter(Auction.id == auction_id).first()
     if not a:
         raise HTTPException(status_code=404, detail="المزاد غير موجود")
     if a.status != AuctionStatus.active:
         raise HTTPException(status_code=400, detail="المزاد غير نشط")
-    if data.amount < a.current_bid:
-        raise HTTPException(status_code=400, detail=f"المزايدة يجب أن تكون أعلى من العرض الحالي: {a.current_bid}")
+    if a.seller_id == current_user.id:
+        raise HTTPException(status_code=400, detail="لا يمكنك المزايدة على مزادك الخاص")
+    if data.amount <= a.current_bid:
+        raise HTTPException(status_code=400, detail=f"المزايدة يجب أن تكون أعلى من العرض الحالي: {a.current_bid:,.0f}")
 
     bid = AuctionBid(
         auction_id=auction_id,
-        bidder_name=data.bidder_name,
-        bidder_phone=data.bidder_phone,
+        bidder_name=current_user.name,
+        bidder_phone=current_user.phone or "",
         amount=data.amount,
         notes=data.notes,
     )
