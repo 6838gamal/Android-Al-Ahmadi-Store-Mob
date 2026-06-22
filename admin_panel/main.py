@@ -15,7 +15,14 @@ from urllib.parse import quote as _q
 from contextlib import asynccontextmanager
 
 # ── Backend API URL — يُقرأ من BACKEND_API_URL أو يستخدم القيمة الافتراضية ────
-API_BASE = os.getenv("BACKEND_API_URL", "https://android-al-ahmadi-store-api.onrender.com").rstrip("/")
+_API_BASE_DEFAULT = os.getenv("BACKEND_API_URL", "https://android-al-ahmadi-store-api.onrender.com").rstrip("/")
+API_BASE = _API_BASE_DEFAULT  # kept for backward compat
+_api_base_override: list = [None]  # [0] = override from DB (None = use default)
+
+
+def _get_base() -> str:
+    """Return the currently active backend API base URL."""
+    return (_api_base_override[0] or _API_BASE_DEFAULT).rstrip("/")
 
 
 @asynccontextmanager
@@ -92,7 +99,7 @@ def _bu(path):
     s = str(path)
     if s.startswith('http'):
         return s
-    return f"{API_BASE}{s}"
+    return f"{_get_base()}{s}"
 templates.env.filters['bu'] = _bu
 templates.env.globals['bu'] = _bu
 
@@ -138,7 +145,7 @@ async def api(method: str, path: str, token: str = None, real_ip: str = None, **
     try:
         async with httpx.AsyncClient(timeout=_API_TIMEOUT, follow_redirects=True) as client:
             resp = await getattr(client, method)(
-                f"{API_BASE}{path}", headers=headers, **kwargs
+                f"{_get_base()}{path}", headers=headers, **kwargs
             )
         if resp.status_code in (200, 201):
             return resp.json()
@@ -155,7 +162,7 @@ async def api_raw_upload(path: str, files: dict, data: dict = None, token: str =
     try:
         async with httpx.AsyncClient(timeout=60, follow_redirects=True) as client:
             resp = await client.post(
-                f"{API_BASE}{path}", headers=headers, files=files, data=data or {}
+                f"{_get_base()}{path}", headers=headers, files=files, data=data or {}
             )
         if resp.status_code in (200, 201):
             return resp.json(), None
@@ -177,7 +184,7 @@ async def api_ex(method: str, path: str, token: str = None, **kwargs):
     try:
         async with httpx.AsyncClient(timeout=_API_TIMEOUT, follow_redirects=True) as client:
             resp = await getattr(client, method)(
-                f"{API_BASE}{path}", headers=headers, **kwargs
+                f"{_get_base()}{path}", headers=headers, **kwargs
             )
         if resp.status_code in (200, 201):
             return resp.json(), None
@@ -245,7 +252,7 @@ async def api_status():
     from fastapi.responses import JSONResponse
     try:
         async with httpx.AsyncClient(timeout=15.0) as client:
-            resp = await client.get(f"{API_BASE}/api/health")
+            resp = await client.get(f"{_get_base()}/api/health")
         if resp.status_code == 200:
             return JSONResponse({"ok": True})
         return JSONResponse({"ok": False, "reason": f"HTTP {resp.status_code}"}, status_code=200)
@@ -295,7 +302,7 @@ async def login_post(request: Request, identifier: str = Form(...), password: st
         try:
             headers_req = {"X-Real-IP": client_ip, "X-Forwarded-For": client_ip}
             resp = await client.post(
-                f"{API_BASE}/api/auth/admin-login",
+                f"{_get_base()}/api/auth/admin-login",
                 json={"identifier": identifier, "password": password},
                 headers=headers_req,
             )
@@ -2309,15 +2316,27 @@ async def settings_page(request: Request):
     sms_api_key = sms_api_key_db or sms_api_key_env
     sms_key_via_env = bool(sms_api_key_env) and not sms_api_key_db
     sms_devices  = data.get("sms_devices", "0")
-    sms_test_phone = _os.getenv("SMS_TEST_PHONE", "") or _DEFAULT_PHONE
+    # test phone: DB first, then env var, then default
+    sms_test_phone_db = data.get("sms_test_phone", "")
+    sms_test_phone = sms_test_phone_db or _os.getenv("SMS_TEST_PHONE", "") or _DEFAULT_PHONE
+    # backend api url: DB first, then env var
+    backend_api_url_db = data.get("backend_api_url", "")
+    backend_api_url = backend_api_url_db or _os.getenv("BACKEND_API_URL", _API_BASE_DEFAULT)
+    # sync in-memory override if DB has a value
+    if backend_api_url_db:
+        _api_base_override[0] = backend_api_url_db.rstrip("/")
     return templates.TemplateResponse(request, "settings.html", {
-        "admin_name":      _name(request),
-        "active":          "settings",
-        "sms_configured":  bool(sms_api_key),
-        "sms_key_via_env": sms_key_via_env,
-        "sms_api_key":     sms_api_key,
-        "sms_devices":     sms_devices,
-        "sms_test_phone":  sms_test_phone,
+        "admin_name":          _name(request),
+        "active":              "settings",
+        "sms_configured":      bool(sms_api_key),
+        "sms_key_via_env":     sms_key_via_env,
+        "sms_api_key":         sms_api_key,
+        "sms_devices":         sms_devices,
+        "sms_test_phone":      sms_test_phone,
+        "sms_test_phone_db":   sms_test_phone_db,
+        "backend_api_url":     backend_api_url,
+        "backend_api_url_db":  backend_api_url_db,
+        "backend_api_default": _API_BASE_DEFAULT,
     })
 
 
@@ -2354,6 +2373,62 @@ async def settings_sms_clear(request: Request):
     await api_ex("delete", "/api/settings/sms_api_key", token=token)
     await api_ex("delete", "/api/settings/sms_devices",  token=token)
     return RedirectResponse("/settings?success=تم+حذف+مفتاح+SMS", status_code=302)
+
+
+@app.post("/settings/general")
+async def settings_general_save(
+    request: Request,
+    backend_api_url: str = Form(""),
+    sms_test_phone:  str = Form(""),
+):
+    guard = _require_super_admin(request)
+    if guard: return guard
+    token = _token(request)
+    errors = []
+
+    url_val = backend_api_url.strip().rstrip("/")
+    if url_val:
+        _, err = await api_ex("post", "/api/settings/", token=token,
+                              json={"key": "backend_api_url", "value": url_val})
+        if err:
+            errors.append(err)
+        else:
+            _api_base_override[0] = url_val
+    else:
+        await api_ex("delete", "/api/settings/backend_api_url", token=token)
+        _api_base_override[0] = None
+
+    phone_val = sms_test_phone.strip()
+    if phone_val:
+        _, err = await api_ex("post", "/api/settings/", token=token,
+                              json={"key": "sms_test_phone", "value": phone_val})
+        if err:
+            errors.append(err)
+    else:
+        await api_ex("delete", "/api/settings/sms_test_phone", token=token)
+
+    if errors:
+        return RedirectResponse(f"/settings?error={_q('; '.join(errors))}", status_code=302)
+    return RedirectResponse("/settings?success=تم+حفظ+الإعدادات+العامة+بنجاح", status_code=302)
+
+
+@app.post("/settings/general/clear-api-url")
+async def settings_clear_api_url(request: Request):
+    guard = _require_super_admin(request)
+    if guard: return guard
+    token = _token(request)
+    await api_ex("delete", "/api/settings/backend_api_url", token=token)
+    _api_base_override[0] = None
+    return RedirectResponse("/settings?success=تم+حذف+رابط+الـ+API+وسيُستخدم+الرابط+الافتراضي", status_code=302)
+
+
+@app.post("/settings/general/clear-phone")
+async def settings_clear_phone(request: Request):
+    guard = _require_super_admin(request)
+    if guard: return guard
+    token = _token(request)
+    await api_ex("delete", "/api/settings/sms_test_phone", token=token)
+    return RedirectResponse("/settings?success=تم+حذف+رقم+الاختبار", status_code=302)
 
 
 @app.get("/settings/sms/status")
