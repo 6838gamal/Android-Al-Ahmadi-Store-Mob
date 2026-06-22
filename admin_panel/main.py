@@ -2323,6 +2323,9 @@ async def settings_page(request: Request):
     _DEFAULT_GW_URL = "https://app.sms-gateway.app/services/send.php"
     sms_gateway_url_db = data.get("sms_gateway_url", "")
     sms_gateway_url = sms_gateway_url_db or _os.getenv("SMS_GATEWAY_URL", _DEFAULT_GW_URL)
+    # backend api url: DB first, then env var, then default
+    backend_api_url_db = data.get("backend_api_url", "")
+    backend_api_url = backend_api_url_db or _os.getenv("BACKEND_API_URL", _API_BASE_DEFAULT)
     return templates.TemplateResponse(request, "settings.html", {
         "admin_name":           _name(request),
         "active":               "settings",
@@ -2335,6 +2338,9 @@ async def settings_page(request: Request):
         "sms_gateway_url":      sms_gateway_url,
         "sms_gateway_url_db":   sms_gateway_url_db,
         "sms_gateway_default":  _DEFAULT_GW_URL,
+        "backend_api_url":      backend_api_url,
+        "backend_api_url_db":   backend_api_url_db,
+        "backend_api_default":  _API_BASE_DEFAULT,
     })
 
 
@@ -2377,6 +2383,7 @@ async def settings_sms_clear(request: Request):
 async def settings_general_save(
     request: Request,
     sms_gateway_url: str = Form(""),
+    backend_api_url: str = Form(""),
     sms_test_phone:  str = Form(""),
 ):
     guard = _require_super_admin(request)
@@ -2393,6 +2400,15 @@ async def settings_general_save(
             errors.append(err)
     else:
         await api_ex("delete", "/api/settings/sms_gateway_url", token=token)
+
+    api_val = backend_api_url.strip().rstrip("/")
+    if api_val:
+        _, err = await api_ex("post", "/api/settings/", token=token,
+                              json={"key": "backend_api_url", "value": api_val})
+        if err:
+            errors.append(err)
+    else:
+        await api_ex("delete", "/api/settings/backend_api_url", token=token)
 
     phone_val = sms_test_phone.strip()
     if phone_val:
@@ -2415,6 +2431,15 @@ async def settings_clear_gateway_url(request: Request):
     token = _token(request)
     await api_ex("delete", "/api/settings/sms_gateway_url", token=token)
     return RedirectResponse("/settings?success=تم+حذف+رابط+البوابة+وسيُستخدم+الرابط+الافتراضي", status_code=302)
+
+
+@app.post("/settings/general/clear-api-url")
+async def settings_clear_api_url(request: Request):
+    guard = _require_super_admin(request)
+    if guard: return guard
+    token = _token(request)
+    await api_ex("delete", "/api/settings/backend_api_url", token=token)
+    return RedirectResponse("/settings?success=تم+حذف+رابط+الـ+API+وسيُستخدم+الرابط+الافتراضي", status_code=302)
 
 
 @app.post("/settings/sms/clear-devices")
