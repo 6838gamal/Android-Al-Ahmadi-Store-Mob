@@ -106,40 +106,6 @@
   <!-- معاينة القيم الحالية -->
   <div style="padding:18px 22px 4px;display:flex;flex-direction:column;gap:12px">
 
-    <!-- رابط الـ Backend API الحالي -->
-    <div style="background:#0D1117;border:1px solid #2D3748;border-radius:12px;padding:14px 16px">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-        <div style="display:flex;align-items:center;gap:7px">
-          <i class="fa-solid fa-server" style="color:#A78BFA;font-size:12px"></i>
-          <span style="color:#9CA3AF;font-size:12px;font-weight:600">رابط الـ Backend API</span>
-          {% if backend_api_url_db %}
-          <span style="background:rgba(167,139,250,0.12);border:1px solid rgba(167,139,250,0.25);color:#A78BFA;font-size:10px;font-weight:700;padding:1px 7px;border-radius:10px">DB</span>
-          {% else %}
-          <span style="background:rgba(99,102,241,0.12);border:1px solid rgba(99,102,241,0.25);color:#818CF8;font-size:10px;font-weight:700;padding:1px 7px;border-radius:10px">افتراضي</span>
-          {% endif %}
-        </div>
-        <div style="display:flex;gap:6px">
-          <button class="copy-btn" onclick="copyValue('{{ backend_api_url or '' }}', this)">
-            <i class="fa-solid fa-copy"></i> نسخ
-          </button>
-          <button class="copy-btn" onclick="scrollToGeneralEdit('api')" style="color:#60A5FA;border-color:rgba(96,165,250,0.25)">
-            <i class="fa-solid fa-pen"></i> تعديل
-          </button>
-          {% if backend_api_url_db %}
-          <form method="post" action="/settings/general/clear-api-url" style="display:inline">
-            <button type="submit" class="copy-btn" style="color:#F87171;border-color:rgba(239,68,68,0.2)"
-              onclick="return confirm('حذف رابط الـ API المحفوظ؟ سيُستخدم الرابط الافتراضي.')">
-              <i class="fa-solid fa-trash"></i> حذف
-            </button>
-          </form>
-          {% endif %}
-        </div>
-      </div>
-      <div style="font-family:monospace;font-size:12px;color:#E5E7EB;direction:ltr;word-break:break-all">
-        {{ backend_api_url }}
-      </div>
-    </div>
-
     <!-- رابط بوابة SMS الحالي -->
     <div style="background:#0D1117;border:1px solid #2D3748;border-radius:12px;padding:14px 16px">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
@@ -212,29 +178,6 @@
   <!-- نموذج التعديل -->
   <form method="post" action="/settings/general" style="padding:18px 22px 22px" id="general-edit-form">
     <div style="display:grid;gap:18px">
-
-      <!-- رابط الـ Backend API -->
-      <div id="general-field-api">
-        <label style="display:flex;align-items:center;gap:6px;color:#9CA3AF;font-size:12px;font-weight:700;margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px">
-          <i class="fa-solid fa-server" style="color:#A78BFA"></i>
-          رابط الـ Backend API
-        </label>
-        <input
-          type="url"
-          name="backend_api_url"
-          id="input-backend-api-url"
-          value="{{ backend_api_url_db or '' }}"
-          placeholder="{{ backend_api_default }}"
-          class="input-field"
-          style="direction:ltr;font-family:monospace;font-size:13px"
-          autocomplete="off"
-        >
-        <p style="color:#4B5563;font-size:11px;margin-top:6px;display:flex;align-items:center;gap:5px">
-          <i class="fa-solid fa-circle-info" style="color:#A78BFA;font-size:9px"></i>
-          اتركه فارغاً لاستخدام القيمة الافتراضية:
-          <code style="background:#1C2230;padding:1px 5px;border-radius:4px;color:#9CA3AF;direction:ltr;font-size:10px">{{ backend_api_default }}</code>
-        </p>
-      </div>
 
       <!-- رابط بوابة SMS -->
       <div id="general-field-gateway">
@@ -448,22 +391,51 @@
   <form method="post" action="/settings/sms" style="padding:22px">
     <div style="display:grid;gap:20px">
 
-      <!-- مفتاح API -->
+      <!-- مفتاح الوصول (API Key / Token) -->
       <div>
         <label style="display:flex;align-items:center;gap:6px;color:#9CA3AF;font-size:12px;font-weight:700;margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px">
           <i class="fa-solid fa-key" style="color:#1A73E8"></i>
-          مفتاح API — sms-gateway.app
+          مفتاح الوصول (API Token) — sms-gateway.app
         </label>
+
+        <!-- المفتاح الحالي (للقراءة فقط) -->
+        {% if sms_api_key %}
+        <div style="background:#0D1117;border:1px solid #2D3748;border-radius:10px;padding:10px 14px;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;gap:8px">
+          <div style="display:flex;align-items:center;gap:8px;flex:1;min-width:0">
+            <i class="fa-solid fa-lock" style="color:#6B7280;font-size:11px;flex-shrink:0"></i>
+            <span style="color:#6B7280;font-size:11px;font-weight:600;white-space:nowrap">المفتاح الحالي:</span>
+            <span id="cur-key-masked" style="font-family:monospace;font-size:12px;color:#9CA3AF;direction:ltr;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+              {{ (sms_api_key[:6] + '•' * 20 + sms_api_key[-4:]) if sms_api_key|length > 10 else ('•' * sms_api_key|length) }}
+            </span>
+            <span id="cur-key-full" style="display:none;font-family:monospace;font-size:12px;color:#E5E7EB;direction:ltr;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+              {{ sms_api_key }}
+            </span>
+          </div>
+          <div style="display:flex;gap:4px;flex-shrink:0">
+            <button type="button" onclick="toggleCurKey()"
+              style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);border-radius:6px;cursor:pointer;color:#6B7280;font-size:10px;padding:3px 8px"
+              id="cur-key-toggle-btn">
+              <i class="fa-solid fa-eye" id="cur-key-toggle-icon"></i>
+            </button>
+            <button type="button" onclick="copyValue('{{ sms_api_key }}', this)"
+              style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);border-radius:6px;cursor:pointer;color:#6B7280;font-size:10px;padding:3px 8px">
+              <i class="fa-solid fa-copy"></i>
+            </button>
+          </div>
+        </div>
+        {% endif %}
+
+        <!-- حقل إدخال المفتاح الجديد -->
         <div style="position:relative">
           <input
             type="password"
             id="sms-key-input"
             name="sms_api_key"
-            value="{{ sms_api_key or '' }}"
-            placeholder="أدخل مفتاح الـ API..."
+            value=""
+            placeholder="{% if sms_api_key %}أدخل المفتاح الجديد لاستبداله...{% else %}أدخل مفتاح الوصول...{% endif %}"
             class="input-field"
-            style="padding-left:80px;direction:ltr;font-family:monospace;letter-spacing:0.5px"
-            autocomplete="off"
+            style="padding-left:44px;direction:ltr;font-family:monospace;letter-spacing:0.5px"
+            autocomplete="new-password"
           >
           <div style="position:absolute;left:4px;top:50%;transform:translateY(-50%);display:flex;gap:2px">
             <button type="button" onclick="toggleKeyInput()"
@@ -471,19 +443,16 @@
               id="toggle-key-btn" title="إظهار/إخفاء">
               <i class="fa-solid fa-eye" id="toggle-key-icon"></i>
             </button>
-            <button type="button" onclick="copyKeyInput()"
-              style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:6px;cursor:pointer;color:#6B7280;font-size:11px;padding:4px 8px;transition:all .2s"
-              id="copy-key-btn" title="نسخ">
-              <i class="fa-solid fa-copy"></i>
-            </button>
           </div>
         </div>
-        <p style="color:#4B5563;font-size:11px;margin-top:6px;display:flex;align-items:center;gap:5px">
+        <div style="display:flex;align-items:center;gap:5px;margin-top:6px">
           <i class="fa-solid fa-circle-info" style="color:#1A73E8;font-size:9px"></i>
-          احصل على المفتاح من
-          <a href="https://app.sms-gateway.app" target="_blank" style="color:#1A73E8;text-decoration:none">app.sms-gateway.app</a>
-          ← Profile ← API Key
-        </p>
+          <p style="color:#4B5563;font-size:11px;margin:0">
+            {% if sms_api_key %}اتركه فارغاً للإبقاء على المفتاح الحالي. احصل على مفتاح جديد من{% else %}احصل على المفتاح من{% endif %}
+            <a href="https://app.sms-gateway.app" target="_blank" style="color:#1A73E8;text-decoration:none">app.sms-gateway.app</a>
+            ← Profile ← API Key
+          </p>
+        </div>
       </div>
 
       <!-- معرّف الجهاز -->
@@ -770,6 +739,20 @@ function toggleKeyInput() {
   var ico = document.getElementById('toggle-key-icon');
   if (inp.type === 'password') { inp.type = 'text'; ico.className = 'fa-solid fa-eye-slash'; }
   else { inp.type = 'password'; ico.className = 'fa-solid fa-eye'; }
+}
+
+function toggleCurKey() {
+  var masked = document.getElementById('cur-key-masked');
+  var full   = document.getElementById('cur-key-full');
+  var ico    = document.getElementById('cur-key-toggle-icon');
+  if (!masked || !full) return;
+  if (full.style.display === 'none') {
+    full.style.display = 'block'; masked.style.display = 'none';
+    ico.className = 'fa-solid fa-eye-slash';
+  } else {
+    full.style.display = 'none'; masked.style.display = 'block';
+    ico.className = 'fa-solid fa-eye';
+  }
 }
 
 function toggleKeyPreview(btn) {
