@@ -84,6 +84,12 @@ async def _keep_alive_task():
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     import asyncio
+    from backend.core import supabase_storage
+    # Initialize Supabase Storage bucket on startup
+    if supabase_storage.is_configured():
+        supabase_storage.ensure_bucket()
+    else:
+        logger.warning("Supabase not configured — images will use DB fallback only")
     task = asyncio.create_task(_keep_alive_task())
     yield
     task.cancel()

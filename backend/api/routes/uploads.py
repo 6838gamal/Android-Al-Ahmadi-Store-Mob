@@ -9,6 +9,7 @@ from backend.core.config import settings
 from backend.api.dependencies import get_admin_user, get_current_user
 from backend.models.user import User
 from backend.models.stored_image import StoredImage
+from backend.core import supabase_storage
 
 router = APIRouter()
 
@@ -20,7 +21,7 @@ MAX_VIDEO_SIZE = 50 * 1024 * 1024  # 50 MB
 
 
 def _save_image_to_db(db: Session, img_uuid: str, image_bytes: bytes, mime_type: str) -> None:
-    """Store image bytes as base64 in PostgreSQL for persistent cross-restart access."""
+    """Store image bytes as base64 in PostgreSQL — fallback if Supabase is unavailable."""
     b64 = base64.b64encode(image_bytes).decode("utf-8")
     stored = StoredImage(uuid=img_uuid, data=b64, mime_type=mime_type)
     db.merge(stored)
@@ -28,7 +29,7 @@ def _save_image_to_db(db: Session, img_uuid: str, image_bytes: bytes, mime_type:
 
 
 def _save_image_to_fs(filepath: str, image_bytes: bytes) -> None:
-    """Save image to local filesystem (best-effort; may not persist on Render.com free tier)."""
+    """Save image to local filesystem (cache — may not persist on restarts)."""
     try:
         os.makedirs(os.path.dirname(filepath), exist_ok=True)
         with open(filepath, "wb") as f:
@@ -37,13 +38,32 @@ def _save_image_to_fs(filepath: str, image_bytes: bytes) -> None:
         pass
 
 
+def _store_image(db: Session, img_uuid: str, image_bytes: bytes, mime_type: str, filepath: str) -> str:
+    """
+    Store image with priority:
+    1. Supabase Storage (persistent CDN) → returns public URL
+    2. DB fallback + filesystem cache → returns /api/uploads/image/{uuid}
+    """
+    # 1) Try Supabase Storage first
+    supabase_url = supabase_storage.upload_image(img_uuid, image_bytes, mime_type)
+    if supabase_url:
+        # Also save to filesystem as local cache
+        _save_image_to_fs(filepath, image_bytes)
+        return supabase_url
+
+    # 2) Fallback: save to DB + filesystem
+    _save_image_to_fs(filepath, image_bytes)
+    _save_image_to_db(db, img_uuid, image_bytes, mime_type)
+    return f"/api/uploads/image/{img_uuid}"
+
+
 @router.get("/image/{img_uuid}")
 def serve_image(img_uuid: str, db: Session = Depends(get_db)):
-    """Serve a stored image by UUID — tries filesystem first, falls back to DB."""
-    # Sanitise: strip any extension the caller may have appended
+    """Serve a stored image by UUID — for legacy images not on Supabase.
+    Priority: filesystem → database."""
     base_uuid = img_uuid.split(".")[0]
 
-    # 1) Filesystem (fast path — works locally and on Render.com if not restarted)
+    # 1) Filesystem (local cache)
     for ext in (".jpg", ".png", ".webp"):
         fpath = os.path.join(settings.UPLOAD_DIR, f"{base_uuid}{ext}")
         if os.path.isfile(fpath):
@@ -53,7 +73,7 @@ def serve_image(img_uuid: str, db: Session = Depends(get_db)):
             return Response(content=data, media_type=mime,
                             headers={"Cache-Control": "public, max-age=86400"})
 
-    # 2) Database (persistent — survives Render.com restarts)
+    # 2) Database (persistent fallback)
     record = db.query(StoredImage).filter(StoredImage.uuid == base_uuid).first()
     if record:
         img_bytes = base64.b64decode(record.data)
@@ -91,14 +111,8 @@ async def upload_image(
         filename = f"{img_uuid}{ext}"
         filepath = os.path.join(settings.UPLOAD_DIR, filename)
 
-        # Save to filesystem (fast serving, may be ephemeral on Render.com)
-        _save_image_to_fs(filepath, processed)
-
-        # Save to DB (persistent across Render.com restarts)
-        _save_image_to_db(db, img_uuid, processed, mime)
-
-        # Return /api/uploads/image/{uuid} — served by the DB endpoint above
-        return {"url": f"/api/uploads/image/{img_uuid}", "filename": filename}
+        url = _store_image(db, img_uuid, processed, mime, filepath)
+        return {"url": url, "filename": filename}
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Upload failed: {str(e)}")
@@ -112,8 +126,8 @@ async def upload_media(
 ):
     """
     Upload image or video. Accessible by any authenticated user.
-    Images: max 5 MB, resized to 1200×1200, quality 85, stored in DB + filesystem.
-    Videos: max 50 MB, saved to filesystem only.
+    Images → Supabase Storage (CDN) with DB fallback.
+    Videos → filesystem only.
     """
     content_type = file.content_type or ""
 
@@ -165,10 +179,8 @@ async def upload_media(
         filename = f"{img_uuid}{ext}"
         filepath = os.path.join(settings.UPLOAD_DIR, filename)
 
-        _save_image_to_fs(filepath, processed)
-        _save_image_to_db(db, img_uuid, processed, mime)
-
-        return {"url": f"/api/uploads/image/{img_uuid}", "filename": filename, "type": "image"}
+        url = _store_image(db, img_uuid, processed, mime, filepath)
+        return {"url": url, "filename": filename, "type": "image"}
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"فشل رفع الملف: {str(e)}")

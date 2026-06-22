@@ -6,13 +6,70 @@ from backend.models.gallery import GalleryFolder, GalleryImage
 from backend.api.dependencies import get_admin_user, get_current_user
 from backend.models.user import User
 from backend.core.samsung_catalog import SAMSUNG_CATALOG
-import shutil, os, uuid
+from backend.core import supabase_storage
+import os, uuid
 from datetime import datetime
 
 router = APIRouter()
 
 UPLOAD_DIR = "uploads/gallery"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
+
+_MIME_TO_EXT = {
+    "image/jpeg": ".jpg",
+    "image/png": ".png",
+    "image/webp": ".webp",
+    "image/gif": ".gif",
+}
+
+
+def _save_gallery_image(fname: str, file_bytes: bytes, content_type: str) -> str:
+    """
+    رفع صورة المعرض إلى Supabase Storage أولاً، ثم الـ filesystem كـ fallback.
+    يُعيد الـ URL الذي يُخزَّن في قاعدة البيانات.
+    """
+    storage_path = f"gallery/{fname}"
+    mime = content_type or "image/jpeg"
+
+    # 1) Try Supabase Storage
+    supabase_url = supabase_storage.upload_file(storage_path, file_bytes, mime)
+    if supabase_url:
+        # Also cache locally
+        try:
+            dest = os.path.join(UPLOAD_DIR, fname)
+            with open(dest, "wb") as f:
+                f.write(file_bytes)
+        except Exception:
+            pass
+        return supabase_url
+
+    # 2) Fallback: local filesystem
+    dest = os.path.join(UPLOAD_DIR, fname)
+    with open(dest, "wb") as f:
+        f.write(file_bytes)
+    return f"/uploads/gallery/{fname}"
+
+
+def _delete_gallery_file(image_url: str) -> None:
+    """حذف صورة المعرض من Supabase والـ filesystem."""
+    if image_url.startswith("http"):
+        # Supabase URL — extract path after bucket name
+        try:
+            marker = f"/{supabase_storage.BUCKET_NAME}/"
+            idx = image_url.find(marker)
+            if idx != -1:
+                storage_path = image_url[idx + len(marker):]
+                supabase_storage.delete_file(storage_path)
+        except Exception:
+            pass
+    else:
+        # Local filesystem path
+        local_path = image_url.lstrip("/")
+        if os.path.exists(local_path):
+            try:
+                os.remove(local_path)
+            except Exception:
+                pass
 
 
 # ── Seed folders from catalog ──────────────────────────────────────────────────
@@ -57,7 +114,6 @@ def list_folders(db: Session = Depends(get_db)):
                 "label_en": series_info.get("label_en", f.series_key),
                 "folders": [],
             }
-        # Count images for this folder
         count = db.query(GalleryImage).filter(GalleryImage.folder_id == f.id).count()
         cover = f.cover_image_url
         if not cover:
@@ -134,17 +190,17 @@ async def upload_image(
 
     ext = os.path.splitext(file.filename or "img.jpg")[1].lower() or ".jpg"
     fname = f"{uuid.uuid4().hex}{ext}"
-    dest = os.path.join(UPLOAD_DIR, fname)
-    with open(dest, "wb") as f:
-        shutil.copyfileobj(file.file, f)
+    file_bytes = await file.read()
+    mime = file.content_type or "image/jpeg"
 
-    # Auto watermark number: series_key-model_key-NNN
+    image_url = _save_gallery_image(fname, file_bytes, mime)
+
     count = db.query(GalleryImage).filter(GalleryImage.folder_id == folder_id).count()
     watermark = f"{folder.series_key.upper()}-{folder.model_key.replace(' ', '')}-{count+1:03d}"
 
     img = GalleryImage(
         folder_id=folder_id,
-        image_url=f"/uploads/gallery/{fname}",
+        image_url=image_url,
         watermark_number=watermark,
         title=title,
         notes=notes,
@@ -154,7 +210,7 @@ async def upload_image(
     db.add(img)
 
     if not folder.cover_image_url:
-        folder.cover_image_url = f"/uploads/gallery/{fname}"
+        folder.cover_image_url = image_url
 
     db.commit()
     db.refresh(img)
@@ -222,30 +278,34 @@ async def batch_upload_images(
 
     count = db.query(GalleryImage).filter(GalleryImage.folder_id == folder_id).count()
     results = []
+    first_url = None
 
     for file in files:
         ext = os.path.splitext(file.filename or "img.jpg")[1].lower() or ".jpg"
         fname = f"{uuid.uuid4().hex}{ext}"
-        dest = os.path.join(UPLOAD_DIR, fname)
-        with open(dest, "wb") as f:
-            import shutil as _shutil
-            _shutil.copyfileobj(file.file, f)
+        file_bytes = await file.read()
+        mime = file.content_type or "image/jpeg"
+
+        image_url = _save_gallery_image(fname, file_bytes, mime)
 
         count += 1
         watermark = f"{folder.series_key.upper()}-{folder.model_key.replace(' ', '')}-{count:03d}"
 
         img = GalleryImage(
             folder_id=folder_id,
-            image_url=f"/uploads/gallery/{fname}",
+            image_url=image_url,
             watermark_number=watermark,
             sort_order=count,
             created_by_id=current_user.id,
         )
         db.add(img)
-        results.append({"filename": fname, "watermark_number": watermark})
+        results.append({"filename": fname, "watermark_number": watermark, "url": image_url})
 
-    if not folder.cover_image_url and results:
-        folder.cover_image_url = f"/uploads/gallery/{results[0]['filename']}"
+        if first_url is None:
+            first_url = image_url
+
+    if not folder.cover_image_url and first_url:
+        folder.cover_image_url = first_url
 
     db.commit()
     return {
@@ -267,9 +327,8 @@ def delete_image(
     if not img:
         raise HTTPException(status_code=404, detail="الصورة غير موجودة")
 
-    local_path = img.image_url.lstrip("/")
-    if os.path.exists(local_path):
-        os.remove(local_path)
+    # Delete from Supabase or local filesystem
+    _delete_gallery_file(img.image_url)
 
     folder_id = img.folder_id
     db.delete(img)
