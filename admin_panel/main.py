@@ -2319,24 +2319,22 @@ async def settings_page(request: Request):
     # test phone: DB first, then env var, then default
     sms_test_phone_db = data.get("sms_test_phone", "")
     sms_test_phone = sms_test_phone_db or _os.getenv("SMS_TEST_PHONE", "") or _DEFAULT_PHONE
-    # backend api url: DB first, then env var
-    backend_api_url_db = data.get("backend_api_url", "")
-    backend_api_url = backend_api_url_db or _os.getenv("BACKEND_API_URL", _API_BASE_DEFAULT)
-    # sync in-memory override if DB has a value
-    if backend_api_url_db:
-        _api_base_override[0] = backend_api_url_db.rstrip("/")
+    # sms gateway url: DB first, then env var, then default
+    _DEFAULT_GW_URL = "https://app.sms-gateway.app/services/send.php"
+    sms_gateway_url_db = data.get("sms_gateway_url", "")
+    sms_gateway_url = sms_gateway_url_db or _os.getenv("SMS_GATEWAY_URL", _DEFAULT_GW_URL)
     return templates.TemplateResponse(request, "settings.html", {
-        "admin_name":          _name(request),
-        "active":              "settings",
-        "sms_configured":      bool(sms_api_key),
-        "sms_key_via_env":     sms_key_via_env,
-        "sms_api_key":         sms_api_key,
-        "sms_devices":         sms_devices,
-        "sms_test_phone":      sms_test_phone,
-        "sms_test_phone_db":   sms_test_phone_db,
-        "backend_api_url":     backend_api_url,
-        "backend_api_url_db":  backend_api_url_db,
-        "backend_api_default": _API_BASE_DEFAULT,
+        "admin_name":           _name(request),
+        "active":               "settings",
+        "sms_configured":       bool(sms_api_key),
+        "sms_key_via_env":      sms_key_via_env,
+        "sms_api_key":          sms_api_key,
+        "sms_devices":          sms_devices,
+        "sms_test_phone":       sms_test_phone,
+        "sms_test_phone_db":    sms_test_phone_db,
+        "sms_gateway_url":      sms_gateway_url,
+        "sms_gateway_url_db":   sms_gateway_url_db,
+        "sms_gateway_default":  _DEFAULT_GW_URL,
     })
 
 
@@ -2378,25 +2376,23 @@ async def settings_sms_clear(request: Request):
 @app.post("/settings/general")
 async def settings_general_save(
     request: Request,
-    backend_api_url: str = Form(""),
+    sms_gateway_url: str = Form(""),
     sms_test_phone:  str = Form(""),
 ):
     guard = _require_super_admin(request)
     if guard: return guard
     token = _token(request)
     errors = []
+    from urllib.parse import quote as _q
 
-    url_val = backend_api_url.strip().rstrip("/")
-    if url_val:
+    gw_val = sms_gateway_url.strip()
+    if gw_val:
         _, err = await api_ex("post", "/api/settings/", token=token,
-                              json={"key": "backend_api_url", "value": url_val})
+                              json={"key": "sms_gateway_url", "value": gw_val})
         if err:
             errors.append(err)
-        else:
-            _api_base_override[0] = url_val
     else:
-        await api_ex("delete", "/api/settings/backend_api_url", token=token)
-        _api_base_override[0] = None
+        await api_ex("delete", "/api/settings/sms_gateway_url", token=token)
 
     phone_val = sms_test_phone.strip()
     if phone_val:
@@ -2412,14 +2408,22 @@ async def settings_general_save(
     return RedirectResponse("/settings?success=تم+حفظ+الإعدادات+العامة+بنجاح", status_code=302)
 
 
-@app.post("/settings/general/clear-api-url")
-async def settings_clear_api_url(request: Request):
+@app.post("/settings/general/clear-gateway-url")
+async def settings_clear_gateway_url(request: Request):
     guard = _require_super_admin(request)
     if guard: return guard
     token = _token(request)
-    await api_ex("delete", "/api/settings/backend_api_url", token=token)
-    _api_base_override[0] = None
-    return RedirectResponse("/settings?success=تم+حذف+رابط+الـ+API+وسيُستخدم+الرابط+الافتراضي", status_code=302)
+    await api_ex("delete", "/api/settings/sms_gateway_url", token=token)
+    return RedirectResponse("/settings?success=تم+حذف+رابط+البوابة+وسيُستخدم+الرابط+الافتراضي", status_code=302)
+
+
+@app.post("/settings/sms/clear-devices")
+async def settings_clear_devices(request: Request):
+    guard = _require_super_admin(request)
+    if guard: return guard
+    token = _token(request)
+    await api_ex("delete", "/api/settings/sms_devices", token=token)
+    return RedirectResponse("/settings?success=تم+حذف+معرّف+الجهاز+وسيُستخدم+الجهاز+الافتراضي", status_code=302)
 
 
 @app.post("/settings/general/clear-phone")

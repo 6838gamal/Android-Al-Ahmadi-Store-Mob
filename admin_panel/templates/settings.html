@@ -106,26 +106,29 @@
   <!-- معاينة القيم الحالية -->
   <div style="padding:18px 22px 4px;display:flex;flex-direction:column;gap:12px">
 
-    <!-- رابط API الحالي -->
+    <!-- رابط بوابة SMS الحالي -->
     <div style="background:#0D1117;border:1px solid #2D3748;border-radius:12px;padding:14px 16px">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
         <div style="display:flex;align-items:center;gap:7px">
           <i class="fa-solid fa-link" style="color:#A78BFA;font-size:12px"></i>
-          <span style="color:#9CA3AF;font-size:12px;font-weight:600">رابط الـ API الحالي</span>
-          {% if backend_api_url_db %}
+          <span style="color:#9CA3AF;font-size:12px;font-weight:600">رابط بوابة SMS</span>
+          {% if sms_gateway_url_db %}
           <span style="background:rgba(167,139,250,0.12);border:1px solid rgba(167,139,250,0.25);color:#A78BFA;font-size:10px;font-weight:700;padding:1px 7px;border-radius:10px">DB</span>
           {% else %}
           <span style="background:rgba(99,102,241,0.12);border:1px solid rgba(99,102,241,0.25);color:#818CF8;font-size:10px;font-weight:700;padding:1px 7px;border-radius:10px">افتراضي</span>
           {% endif %}
         </div>
         <div style="display:flex;gap:6px">
-          <button class="copy-btn" onclick="copyValue('{{ backend_api_url or '' }}', this)">
+          <button class="copy-btn" onclick="copyValue('{{ sms_gateway_url or '' }}', this)">
             <i class="fa-solid fa-copy"></i> نسخ
           </button>
-          {% if backend_api_url_db %}
-          <form method="post" action="/settings/general/clear-api-url" style="display:inline">
+          <button class="copy-btn" onclick="scrollToGeneralEdit('gateway')" style="color:#60A5FA;border-color:rgba(96,165,250,0.25)">
+            <i class="fa-solid fa-pen"></i> تعديل
+          </button>
+          {% if sms_gateway_url_db %}
+          <form method="post" action="/settings/general/clear-gateway-url" style="display:inline">
             <button type="submit" class="copy-btn" style="color:#F87171;border-color:rgba(239,68,68,0.2)"
-              onclick="return confirm('حذف رابط API المحفوظ؟ سيُستخدم الرابط الافتراضي.')">
+              onclick="return confirm('حذف رابط البوابة المحفوظ؟ سيُستخدم الرابط الافتراضي.')">
               <i class="fa-solid fa-trash"></i> حذف
             </button>
           </form>
@@ -133,7 +136,7 @@
         </div>
       </div>
       <div style="font-family:monospace;font-size:12px;color:#E5E7EB;direction:ltr;word-break:break-all">
-        {{ backend_api_url }}
+        {{ sms_gateway_url }}
       </div>
     </div>
 
@@ -153,6 +156,9 @@
           <button class="copy-btn" onclick="copyValue('{{ sms_test_phone or '' }}', this)">
             <i class="fa-solid fa-copy"></i> نسخ
           </button>
+          <button class="copy-btn" onclick="scrollToGeneralEdit('phone')" style="color:#60A5FA;border-color:rgba(96,165,250,0.25)">
+            <i class="fa-solid fa-pen"></i> تعديل
+          </button>
           {% if sms_test_phone_db %}
           <form method="post" action="/settings/general/clear-phone" style="display:inline">
             <button type="submit" class="copy-btn" style="color:#F87171;border-color:rgba(239,68,68,0.2)"
@@ -170,34 +176,34 @@
   </div>
 
   <!-- نموذج التعديل -->
-  <form method="post" action="/settings/general" style="padding:18px 22px 22px">
+  <form method="post" action="/settings/general" style="padding:18px 22px 22px" id="general-edit-form">
     <div style="display:grid;gap:18px">
 
-      <!-- رابط API -->
-      <div>
+      <!-- رابط بوابة SMS -->
+      <div id="general-field-gateway">
         <label style="display:flex;align-items:center;gap:6px;color:#9CA3AF;font-size:12px;font-weight:700;margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px">
           <i class="fa-solid fa-link" style="color:#A78BFA"></i>
-          رابط الـ Backend API
+          رابط بوابة SMS (SMS Gateway URL)
         </label>
         <input
           type="url"
-          name="backend_api_url"
-          value="{{ backend_api_url or '' }}"
-          placeholder="{{ backend_api_default }}"
+          name="sms_gateway_url"
+          id="input-gateway-url"
+          value="{{ sms_gateway_url_db or '' }}"
+          placeholder="{{ sms_gateway_default }}"
           class="input-field"
           style="direction:ltr;font-family:monospace;font-size:13px"
           autocomplete="off"
-          oninput="updateApiPreview(this.value)"
         >
         <p style="color:#4B5563;font-size:11px;margin-top:6px;display:flex;align-items:center;gap:5px">
           <i class="fa-solid fa-circle-info" style="color:#A78BFA;font-size:9px"></i>
           اتركه فارغاً لاستخدام القيمة الافتراضية:
-          <code id="api-default-preview" style="background:#1C2230;padding:1px 5px;border-radius:4px;color:#9CA3AF;direction:ltr;font-size:10px">{{ backend_api_default }}</code>
+          <code style="background:#1C2230;padding:1px 5px;border-radius:4px;color:#9CA3AF;direction:ltr;font-size:10px">{{ sms_gateway_default }}</code>
         </p>
       </div>
 
       <!-- رقم الاختبار -->
-      <div>
+      <div id="general-field-phone">
         <label style="display:flex;align-items:center;gap:6px;color:#9CA3AF;font-size:12px;font-weight:700;margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px">
           <i class="fa-solid fa-phone" style="color:#A78BFA"></i>
           رقم هاتف الاختبار (SMS Test Phone)
@@ -205,7 +211,8 @@
         <input
           type="text"
           name="sms_test_phone"
-          value="{{ sms_test_phone or '' }}"
+          id="input-sms-test-phone"
+          value="{{ sms_test_phone_db or '' }}"
           placeholder="+9677XXXXXXXX"
           class="input-field"
           style="direction:ltr"
@@ -263,6 +270,17 @@
           <button class="copy-btn" onclick="toggleKeyPreview(this)" id="key-reveal-btn">
             <i class="fa-solid fa-eye" id="key-reveal-icon"></i> إظهار
           </button>
+          <button class="copy-btn" onclick="scrollToEdit('sms_api_key')" style="color:#60A5FA;border-color:rgba(96,165,250,0.25)">
+            <i class="fa-solid fa-pen"></i> تعديل
+          </button>
+          {% if sms_api_key and not sms_key_via_env %}
+          <form method="post" action="/settings/sms/clear" style="display:inline">
+            <button type="submit" class="copy-btn" style="color:#F87171;border-color:rgba(239,68,68,0.2)"
+              onclick="return confirm('حذف مفتاح API؟ سيُستخدم المفتاح الافتراضي.')">
+              <i class="fa-solid fa-trash"></i> حذف
+            </button>
+          </form>
+          {% endif %}
         </div>
       </div>
       {% if sms_api_key %}
@@ -287,9 +305,22 @@
             <i class="fa-solid fa-mobile-screen-button" style="color:#1A73E8;font-size:12px"></i>
             <span style="color:#9CA3AF;font-size:12px;font-weight:600">معرّف الجهاز</span>
           </div>
-          <button class="copy-btn" onclick="copyValue('{{ sms_devices or '0' }}', this)">
-            <i class="fa-solid fa-copy"></i> نسخ
-          </button>
+          <div style="display:flex;gap:6px">
+            <button class="copy-btn" onclick="copyValue('{{ sms_devices or '0' }}', this)">
+              <i class="fa-solid fa-copy"></i> نسخ
+            </button>
+            <button class="copy-btn" onclick="scrollToEdit('sms_devices')" style="color:#60A5FA;border-color:rgba(96,165,250,0.25)">
+              <i class="fa-solid fa-pen"></i> تعديل
+            </button>
+            {% if sms_devices and sms_devices != '0' %}
+            <form method="post" action="/settings/sms/clear-devices" style="display:inline">
+              <button type="submit" class="copy-btn" style="color:#F87171;border-color:rgba(239,68,68,0.2)"
+                onclick="return confirm('حذف معرّف الجهاز؟ سيُستخدم الجهاز الافتراضي.')">
+                <i class="fa-solid fa-trash"></i> حذف
+              </button>
+            </form>
+            {% endif %}
+          </div>
         </div>
         <div style="font-family:monospace;font-size:15px;font-weight:700;color:{% if sms_devices and sms_devices != '0' %}#22C55E{% else %}#6B7280{% endif %};direction:ltr">
           {{ sms_devices or '0' }}
@@ -663,15 +694,6 @@ function copyValue(val, btn) {
   });
 }
 
-function updateApiPreview(val) {
-  var el = document.getElementById('api-default-preview');
-  if (!el) return;
-  if (val && val.trim()) {
-    el.style.color = '#A78BFA';
-  } else {
-    el.style.color = '#9CA3AF';
-  }
-}
 
 function copyKeyInput() {
   var val = document.getElementById('sms-key-input').value;
@@ -710,8 +732,26 @@ function toggleKeyPreview(btn) {
 /* ═══════════════════════════════════════════════════════════════
    التمرير لنموذج التعديل
 ═══════════════════════════════════════════════════════════════ */
-function scrollToEdit() {
-  document.getElementById('edit-card').scrollIntoView({ behavior: 'smooth', block: 'start' });
+function scrollToEdit(fieldName) {
+  var card = document.getElementById('edit-card');
+  card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  if (fieldName) {
+    setTimeout(function() {
+      var el = card.querySelector('[name="' + fieldName + '"]');
+      if (el) { el.focus(); el.select(); }
+    }, 400);
+  }
+}
+
+function scrollToGeneralEdit(fieldKey) {
+  var form = document.getElementById('general-edit-form');
+  if (!form) return;
+  form.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  var fieldId = fieldKey === 'gateway' ? 'input-gateway-url' : 'input-sms-test-phone';
+  setTimeout(function() {
+    var el = document.getElementById(fieldId);
+    if (el) { el.focus(); el.select(); }
+  }, 400);
 }
 
 /* ═══════════════════════════════════════════════════════════════

@@ -359,17 +359,19 @@ class OtpVerifyRequest(BaseModel):
     code: str
 
 
-_DEFAULT_SMS_API_KEY  = "37eaa347c97fb746d46eaf3d8fdb41737eeec5df"
-_DEFAULT_SMS_DEVICES  = "0"
+_DEFAULT_SMS_API_KEY   = "37eaa347c97fb746d46eaf3d8fdb41737eeec5df"
+_DEFAULT_SMS_DEVICES   = "0"
+_DEFAULT_SMS_GW_URL    = "https://app.sms-gateway.app/services/send.php"
 
 
-def _get_sms_config(db: Session) -> tuple[str | None, str]:
-    """Return (api_key, devices).
+def _get_sms_config(db: Session) -> tuple[str | None, str, str]:
+    """Return (api_key, devices, gateway_url).
     Priority: env var → DB setting → hardcoded default.
     """
     from backend.models.app_setting import AppSetting
     api_key = os.getenv("SMS_API_KEY") or ""
     devices = os.getenv("SMS_DEVICES", "0")
+    gateway_url = os.getenv("SMS_GATEWAY_URL", "")
     if not api_key:
         row = db.query(AppSetting).filter(AppSetting.key == "sms_api_key").first()
         if row and row.value:
@@ -378,12 +380,18 @@ def _get_sms_config(db: Session) -> tuple[str | None, str]:
         row = db.query(AppSetting).filter(AppSetting.key == "sms_devices").first()
         if row and row.value:
             devices = row.value
+    if not gateway_url:
+        row = db.query(AppSetting).filter(AppSetting.key == "sms_gateway_url").first()
+        if row and row.value:
+            gateway_url = row.value
     # Hardcoded defaults — work on any environment without manual setup
     if not api_key:
         api_key = _DEFAULT_SMS_API_KEY
     if not devices or devices == "0":
         devices = _DEFAULT_SMS_DEVICES
-    return api_key or None, devices
+    if not gateway_url:
+        gateway_url = _DEFAULT_SMS_GW_URL
+    return api_key or None, devices, gateway_url
 
 
 def _normalise_phone_for_gateway(phone: str) -> str:
@@ -398,7 +406,7 @@ def _normalise_phone_for_gateway(phone: str) -> str:
     return p
 
 
-def _send_sms(phone: str, message: str, api_key: str, devices: str = "") -> bool:
+def _send_sms(phone: str, message: str, api_key: str, devices: str = "", gateway_url: str = "") -> bool:
     """Send SMS via sms-gateway.app using subprocess curl.
     curl bypasses Cloudflare TLS fingerprinting that blocks Python HTTP clients.
     Returns True on success. Retries once on failure."""
@@ -406,6 +414,7 @@ def _send_sms(phone: str, message: str, api_key: str, devices: str = "") -> bool
     import json as _json
 
     gw_phone = _normalise_phone_for_gateway(phone)
+    send_url = gateway_url.strip() or _DEFAULT_SMS_GW_URL
 
     # استبدل السطر الجديد بمسافة — sms-gateway.app يتوقع single-line message
     clean_message = message.replace("\n", " ").replace("\r", " ")
@@ -414,7 +423,7 @@ def _send_sms(phone: str, message: str, api_key: str, devices: str = "") -> bool
     # الوحيد المؤكد أنه يعمل مع sms-gateway.app استناداً لاختبارات curl المباشرة
     cmd = [
         "curl", "-s", "-X", "POST",
-        "https://app.sms-gateway.app/services/send.php",
+        send_url,
         "-d", f"key={api_key}",
         "-d", f"number={gw_phone}",
         "-d", f"message={clean_message}",
@@ -465,12 +474,12 @@ def _send_sms(phone: str, message: str, api_key: str, devices: str = "") -> bool
 def sms_gateway_status(db: Session = Depends(get_db)):
     """فحص حالة بوابة SMS — يتحقق من صلاحية المفتاح ورصيد الكريدت واتصال الجهاز."""
     import httpx
-    api_key, devices = _get_sms_config(db)
+    api_key, devices, gateway_url = _get_sms_config(db)
     if not api_key:
         return {"ok": False, "reason": "no_key", "message": "لم يُضبَط مفتاح SMS", "credits": None, "device_online": None}
     try:
         resp = httpx.post(
-            "https://app.sms-gateway.app/services/send.php",
+            gateway_url,
             data={"key": api_key, "action": "info"},
             timeout=15,
         )
@@ -523,7 +532,7 @@ def send_otp(body: OtpSendRequest, request: Request, db: Session = Depends(get_d
     except Exception as _e:
         print(f"[OTP] DB save failed (non-fatal): {_e}", flush=True)
 
-    api_key, devices = _get_sms_config(db)
+    api_key, devices, gateway_url = _get_sms_config(db)
     if api_key:
         message = f"رمز التحقق الخاص بك في أندرويد الأحمدي هو: {code}\nصالح لمدة 10 دقائق"
 
@@ -532,7 +541,7 @@ def send_otp(body: OtpSendRequest, request: Request, db: Session = Depends(get_d
         # في thread منفصل. هذا يحل مشكلة timeout عند النشر خارج Replit.
         import threading
         def _bg_send():
-            sent = _send_sms(phone, message, api_key, devices)
+            sent = _send_sms(phone, message, api_key, devices, gateway_url)
             if not sent:
                 print(f"[OTP] ⚠️ SMS BG-failed — code={code} phone={phone}", flush=True)
             else:
