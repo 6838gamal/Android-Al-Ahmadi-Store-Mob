@@ -4,12 +4,20 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/network/api_client.dart';
+import '../../../../core/constants/app_constants.dart';
+import '../../../../core/providers/shared_filters_provider.dart';
 import '../../../home/presentation/pages/main_shell.dart';
 
 // ─── Filter state ─────────────────────────────────────────────────────────────
 
 final _selectedSeriesProvider = StateProvider.autoDispose<String?>((ref) => null);
 final _selectedModelProvider  = StateProvider.autoDispose<String?>((ref) => null);
+
+// ─── View mode ────────────────────────────────────────────────────────────────
+
+enum _GalleryView { folders, images }
+final _viewModeProvider = StateProvider.autoDispose<_GalleryView>(
+    (ref) => _GalleryView.folders);
 
 // ─── Data providers ───────────────────────────────────────────────────────────
 
@@ -48,10 +56,12 @@ class GalleryPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final metaAsync   = ref.watch(_galleryMetaProvider);
-    final imagesAsync = ref.watch(_galleryImagesProvider);
-    final selSeries   = ref.watch(_selectedSeriesProvider);
-    final selModel    = ref.watch(_selectedModelProvider);
+    final metaAsync     = ref.watch(_galleryMetaProvider);
+    final imagesAsync   = ref.watch(_galleryImagesProvider);
+    final selSeries     = ref.watch(_selectedSeriesProvider);
+    final selModel      = ref.watch(_selectedModelProvider);
+    final viewMode      = ref.watch(_viewModeProvider);
+    final activeCategory = ref.watch(selectedProductCategoryProvider);
 
     final seriesList = metaAsync.valueOrNull ?? [];
 
@@ -65,6 +75,10 @@ class GalleryPage extends ConsumerWidget {
       modelFolders = List<Map<String, dynamic>>.from(
           seriesEntry['folders'] as List? ?? []);
     }
+
+    // هل الفئة المختارة من المنتجات تدعم المعرض (شاشات فقط)؟
+    final bool categorySupported =
+        activeCategory == null || activeCategory == 'screen';
 
     return Scaffold(
       backgroundColor: AppColors.darkBg,
@@ -80,6 +94,25 @@ class GalleryPage extends ConsumerWidget {
               onPressed: () => MainShell.scaffoldKey.currentState?.openDrawer(),
             ),
             actions: [
+              // زر تبديل عرض المجلدات / الصور
+              if (categorySupported)
+                IconButton(
+                  icon: Icon(
+                    viewMode == _GalleryView.folders
+                        ? Icons.photo_library_outlined
+                        : Icons.folder_outlined,
+                    color: AppColors.primary,
+                  ),
+                  tooltip: viewMode == _GalleryView.folders
+                      ? 'عرض الصور'
+                      : 'عرض المجلدات',
+                  onPressed: () {
+                    ref.read(_viewModeProvider.notifier).state =
+                        viewMode == _GalleryView.folders
+                            ? _GalleryView.images
+                            : _GalleryView.folders;
+                  },
+                ),
               IconButton(
                 icon: const Icon(Icons.refresh, color: AppColors.primary),
                 onPressed: () {
@@ -129,100 +162,183 @@ class GalleryPage extends ConsumerWidget {
             ),
           ),
 
-          // ── Series chips (الفئة) ────────────────────────────────────────────
-          SliverToBoxAdapter(
-            child: _SeriesChips(
-              seriesList: seriesList,
-              selected: selSeries,
-              onSelect: (key) {
-                ref.read(_selectedSeriesProvider.notifier).state = key;
-                ref.read(_selectedModelProvider.notifier).state  = null;
-              },
-            ),
-          ),
-
-          // ── Model chips (نوع الشاشة) ────────────────────────────────────────
-          if (selSeries != null && modelFolders.isNotEmpty)
+          // ── شريط الفئة النشطة من المنتجات ──────────────────────────────────
+          if (activeCategory != null)
             SliverToBoxAdapter(
-              child: _ModelChips(
-                folders: modelFolders,
-                selected: selModel,
-                onSelect: (key) =>
-                    ref.read(_selectedModelProvider.notifier).state = key,
-              ),
+              child: _ActiveCategoryBanner(
+                categoryKey: activeCategory,
+                onClear: () {
+                  ref.read(selectedProductCategoryProvider.notifier).state =
+                      null;
+                  ref.read(_selectedSeriesProvider.notifier).state = null;
+                  ref.read(_selectedModelProvider.notifier).state = null;
+                },
+              ).animate().fadeIn(duration: 250.ms).slideY(begin: -0.3, end: 0),
             ),
 
-          // ── Divider / info ──────────────────────────────────────────────────
-          SliverToBoxAdapter(
-            child: imagesAsync.when(
-              loading: () => const SizedBox.shrink(),
-              error: (_, __) => const SizedBox.shrink(),
-              data: (images) => Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                child: Row(
-                  children: [
-                    const Icon(Icons.photo_library_outlined,
-                        color: AppColors.textMuted, size: 15),
-                    const SizedBox(width: 6),
-                    Text(
-                      '${images.length} صورة'
-                      '${selSeries != null ? " في ${_seriesLabel(seriesList, selSeries)}" : ""}'
-                      '${selModel  != null ? " · ${selModel}" : ""}',
-                      style: const TextStyle(
-                          fontFamily: 'Cairo',
-                          color: AppColors.textMuted,
-                          fontSize: 12),
-                    ),
-                  ],
+          // ── إذا الفئة لا تدعم المعرض ─────────────────────────────────────
+          if (!categorySupported)
+            SliverFillRemaining(
+              child: _UnsupportedCategory(
+                categoryKey: activeCategory!,
+                onShowAll: () {
+                  ref.read(selectedProductCategoryProvider.notifier).state =
+                      null;
+                },
+              ),
+            )
+          else ...[
+            // ── Series chips (الفئة) ────────────────────────────────────────
+            if (viewMode == _GalleryView.images)
+              SliverToBoxAdapter(
+                child: _SeriesChips(
+                  seriesList: seriesList,
+                  selected: selSeries,
+                  onSelect: (key) {
+                    ref.read(_selectedSeriesProvider.notifier).state = key;
+                    ref.read(_selectedModelProvider.notifier).state = null;
+                  },
                 ),
               ),
-            ),
-          ),
 
-          // ── Images grid ─────────────────────────────────────────────────────
-          imagesAsync.when(
-            loading: () => const SliverFillRemaining(
-              child: Center(
-                  child: CircularProgressIndicator(color: AppColors.primary)),
-            ),
-            error: (_, __) => SliverFillRemaining(
-              child: _EmptyGallery(
-                  onRetry: () => ref.invalidate(_galleryImagesProvider)),
-            ),
-            data: (images) {
-              if (images.isEmpty) {
-                return SliverFillRemaining(
+            // ── Model chips (نوع الشاشة) ───────────────────────────────────
+            if (viewMode == _GalleryView.images &&
+                selSeries != null &&
+                modelFolders.isNotEmpty)
+              SliverToBoxAdapter(
+                child: _ModelChips(
+                  folders: modelFolders,
+                  selected: selModel,
+                  onSelect: (key) =>
+                      ref.read(_selectedModelProvider.notifier).state = key,
+                ),
+              ),
+
+            // ── عرض المجلدات ────────────────────────────────────────────────
+            if (viewMode == _GalleryView.folders)
+              metaAsync.when(
+                loading: () => const SliverFillRemaining(
+                  child: Center(
+                    child: CircularProgressIndicator(color: AppColors.primary),
+                  ),
+                ),
+                error: (_, __) => SliverFillRemaining(
                   child: _EmptyGallery(
-                      message: selSeries != null
-                          ? 'لا توجد صور لهذه الفئة بعد'
-                          : 'لا توجد صور في المعرض بعد',
-                      onRetry: null),
-                );
-              }
-              return SliverPadding(
-                padding: const EdgeInsets.fromLTRB(12, 0, 12, 32),
-                sliver: SliverGrid(
-                  delegate: SliverChildBuilderDelegate(
-                    (ctx, i) => _ImageCard(
-                      image: images[i],
-                      index: i,
-                      onTap: () =>
-                          _showFullScreen(ctx, images, i),
+                      onRetry: () => ref.invalidate(_galleryMetaProvider)),
+                ),
+                data: (series) {
+                  if (series.isEmpty) {
+                    return const SliverFillRemaining(
+                      child: _EmptyGallery(message: 'لا توجد مجلدات بعد'),
+                    );
+                  }
+                  return SliverPadding(
+                    padding: const EdgeInsets.fromLTRB(12, 8, 12, 32),
+                    sliver: SliverList(
+                      delegate: SliverChildBuilderDelegate(
+                        (ctx, si) {
+                          final s = series[si];
+                          final folders = List<Map<String, dynamic>>.from(
+                              s['folders'] as List? ?? []);
+                          if (folders.isEmpty) return const SizedBox.shrink();
+                          return _SeriesSection(
+                            seriesKey: s['series_key'] as String? ?? '',
+                            labelAr: s['label_ar'] as String? ?? '',
+                            folders: folders,
+                            onFolderTap: (folderSeriesKey, modelKey) {
+                              // الانتقال لعرض الصور وتصفيتها بهذا الموديل
+                              ref.read(_viewModeProvider.notifier).state =
+                                  _GalleryView.images;
+                              ref
+                                  .read(_selectedSeriesProvider.notifier)
+                                  .state = folderSeriesKey;
+                              ref.read(_selectedModelProvider.notifier).state =
+                                  modelKey;
+                            },
+                          );
+                        },
+                        childCount: series.length,
+                      ),
                     ),
-                    childCount: images.length,
-                  ),
-                  gridDelegate:
-                      const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 3,
-                    crossAxisSpacing: 8,
-                    mainAxisSpacing: 8,
-                    childAspectRatio: 0.78,
+                  );
+                },
+              ),
+
+            // ── عرض الصور ──────────────────────────────────────────────────
+            if (viewMode == _GalleryView.images) ...[
+              // معلومات العدد
+              SliverToBoxAdapter(
+                child: imagesAsync.when(
+                  loading: () => const SizedBox.shrink(),
+                  error: (_, __) => const SizedBox.shrink(),
+                  data: (images) => Padding(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.photo_library_outlined,
+                            color: AppColors.textMuted, size: 15),
+                        const SizedBox(width: 6),
+                        Text(
+                          '${images.length} صورة'
+                          '${selSeries != null ? " في ${_seriesLabel(seriesList, selSeries)}" : ""}'
+                          '${selModel != null ? " · ${selModel}" : ""}',
+                          style: const TextStyle(
+                              fontFamily: 'Cairo',
+                              color: AppColors.textMuted,
+                              fontSize: 12),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-              );
-            },
-          ),
+              ),
+
+              // شبكة الصور
+              imagesAsync.when(
+                loading: () => const SliverFillRemaining(
+                  child: Center(
+                    child: CircularProgressIndicator(color: AppColors.primary),
+                  ),
+                ),
+                error: (_, __) => SliverFillRemaining(
+                  child: _EmptyGallery(
+                      onRetry: () => ref.invalidate(_galleryImagesProvider)),
+                ),
+                data: (images) {
+                  if (images.isEmpty) {
+                    return SliverFillRemaining(
+                      child: _EmptyGallery(
+                          message: selSeries != null
+                              ? 'لا توجد صور لهذه الفئة بعد'
+                              : 'لا توجد صور في المعرض بعد',
+                          onRetry: null),
+                    );
+                  }
+                  return SliverPadding(
+                    padding: const EdgeInsets.fromLTRB(12, 0, 12, 32),
+                    sliver: SliverGrid(
+                      delegate: SliverChildBuilderDelegate(
+                        (ctx, i) => _ImageCard(
+                          image: images[i],
+                          index: i,
+                          onTap: () => _showFullScreen(ctx, images, i),
+                        ),
+                        childCount: images.length,
+                      ),
+                      gridDelegate:
+                          const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 3,
+                        crossAxisSpacing: 8,
+                        mainAxisSpacing: 8,
+                        childAspectRatio: 0.78,
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ],
+          ],
         ],
       ),
     );
@@ -247,6 +363,270 @@ class GalleryPage extends ConsumerWidget {
       MaterialPageRoute(
         builder: (_) => _FullScreenViewer(images: images, initialIndex: index),
       ),
+    );
+  }
+}
+
+// ─── Active Category Banner ───────────────────────────────────────────────────
+
+class _ActiveCategoryBanner extends StatelessWidget {
+  final String categoryKey;
+  final VoidCallback onClear;
+
+  const _ActiveCategoryBanner(
+      {required this.categoryKey, required this.onClear});
+
+  @override
+  Widget build(BuildContext context) {
+    final label =
+        AppConstants.categoryAr[categoryKey] ?? categoryKey;
+    return Container(
+      margin: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      decoration: BoxDecoration(
+        color: const Color(0xFF7B1FA2).withOpacity(0.15),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFF7B1FA2).withOpacity(0.4)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.filter_list_rounded,
+              color: Color(0xFF7B1FA2), size: 16),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'تصفية من المنتجات: $label',
+              style: const TextStyle(
+                  fontFamily: 'Cairo',
+                  color: Colors.white,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600),
+            ),
+          ),
+          GestureDetector(
+            onTap: onClear,
+            child: const Icon(Icons.close_rounded,
+                color: AppColors.textMuted, size: 16),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── Unsupported Category ─────────────────────────────────────────────────────
+
+class _UnsupportedCategory extends StatelessWidget {
+  final String categoryKey;
+  final VoidCallback onShowAll;
+
+  const _UnsupportedCategory(
+      {required this.categoryKey, required this.onShowAll});
+
+  @override
+  Widget build(BuildContext context) {
+    final label = AppConstants.categoryAr[categoryKey] ?? categoryKey;
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.photo_library_outlined,
+                color: AppColors.textMuted, size: 64),
+            const SizedBox(height: 16),
+            Text(
+              'لا توجد صور لفئة "$label"',
+              style: const TextStyle(
+                  fontFamily: 'Cairo',
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'معرض الصور مخصص حالياً لشاشات سامسونج',
+              style: TextStyle(
+                  fontFamily: 'Cairo',
+                  color: AppColors.textMuted,
+                  fontSize: 13),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              onPressed: onShowAll,
+              icon: const Icon(Icons.photo_library_outlined, size: 18),
+              label: const Text('عرض كل الصور',
+                  style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.w700)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF7B1FA2),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Series Section (folder view) ─────────────────────────────────────────────
+
+class _SeriesSection extends StatelessWidget {
+  final String seriesKey;
+  final String labelAr;
+  final List<Map<String, dynamic>> folders;
+  final void Function(String seriesKey, String? modelKey) onFolderTap;
+
+  const _SeriesSection({
+    required this.seriesKey,
+    required this.labelAr,
+    required this.folders,
+    required this.onFolderTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // عنوان الفئة
+        Padding(
+          padding: const EdgeInsets.fromLTRB(4, 12, 4, 8),
+          child: Row(
+            children: [
+              Container(
+                width: 4,
+                height: 20,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF7B1FA2),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                labelAr,
+                style: const TextStyle(
+                    fontFamily: 'Cairo',
+                    color: Colors.white,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w800),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                '${folders.length} موديل',
+                style: const TextStyle(
+                    fontFamily: 'Cairo',
+                    color: AppColors.textMuted,
+                    fontSize: 12),
+              ),
+            ],
+          ),
+        ),
+        // شبكة المجلدات
+        GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 3,
+            crossAxisSpacing: 8,
+            mainAxisSpacing: 8,
+            childAspectRatio: 0.82,
+          ),
+          itemCount: folders.length,
+          itemBuilder: (ctx, i) {
+            final f = folders[i];
+            final cover = f['cover_image_url'] as String?;
+            final modelKey = f['model_key'] as String?;
+            final labelAr = f['label_ar'] as String? ?? modelKey ?? '';
+            final count = f['image_count'] as int? ?? 0;
+
+            return GestureDetector(
+              onTap: () => onFolderTap(seriesKey, modelKey),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: AppColors.darkCard,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppColors.darkBorder),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: ClipRRect(
+                        borderRadius: const BorderRadius.vertical(
+                            top: Radius.circular(11)),
+                        child: cover != null
+                            ? CachedNetworkImage(
+                                imageUrl: ApiClient.img(cover),
+                                fit: BoxFit.cover,
+                                width: double.infinity,
+                                placeholder: (_, __) => Container(
+                                  color: AppColors.darkSurface,
+                                  child: const Center(
+                                    child: Icon(Icons.folder_outlined,
+                                        color: Color(0xFF7B1FA2), size: 32),
+                                  ),
+                                ),
+                                errorWidget: (_, __, ___) => Container(
+                                  color: AppColors.darkSurface,
+                                  child: const Center(
+                                    child: Icon(Icons.folder_outlined,
+                                        color: Color(0xFF7B1FA2), size: 32),
+                                  ),
+                                ),
+                              )
+                            : Container(
+                                color: AppColors.darkSurface,
+                                child: const Center(
+                                  child: Icon(Icons.folder_outlined,
+                                      color: Color(0xFF7B1FA2), size: 32),
+                                ),
+                              ),
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(6, 4, 6, 5),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            labelAr,
+                            style: const TextStyle(
+                                fontFamily: 'Cairo',
+                                color: Colors.white,
+                                fontSize: 9,
+                                fontWeight: FontWeight.w700),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          Text(
+                            '$count صورة',
+                            style: const TextStyle(
+                                fontFamily: 'Cairo',
+                                color: AppColors.textMuted,
+                                fontSize: 8),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              )
+                  .animate(
+                      delay: Duration(milliseconds: (i % 9) * 30))
+                  .fadeIn(duration: 250.ms)
+                  .scale(begin: const Offset(0.93, 0.93)),
+            );
+          },
+        ),
+        const SizedBox(height: 4),
+      ],
     );
   }
 }
@@ -597,7 +977,7 @@ class _FullScreenViewerState extends State<_FullScreenViewer> {
                     style: const TextStyle(
                         fontFamily: 'Cairo',
                         color: Colors.white,
-                        fontSize: 12,
+                        fontSize: 13,
                         fontWeight: FontWeight.w700),
                   ),
                 ),
@@ -609,7 +989,7 @@ class _FullScreenViewerState extends State<_FullScreenViewer> {
   }
 }
 
-// ─── Empty state ──────────────────────────────────────────────────────────────
+// ─── Empty Gallery ────────────────────────────────────────────────────────────
 
 class _EmptyGallery extends StatelessWidget {
   final String? message;
@@ -621,32 +1001,23 @@ class _EmptyGallery extends StatelessWidget {
   Widget build(BuildContext context) {
     return Center(
       child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
+        mainAxisSize: MainAxisSize.min,
         children: [
           const Icon(Icons.photo_library_outlined,
               color: AppColors.textMuted, size: 64),
           const SizedBox(height: 16),
           Text(
-            message ?? 'المعرض فارغ',
+            message ?? 'تعذّر تحميل المعرض',
             style: const TextStyle(
                 fontFamily: 'Cairo',
-                color: Colors.white,
-                fontSize: 16,
-                fontWeight: FontWeight.w700),
-          ),
-          const SizedBox(height: 6),
-          const Text(
-            'سيتم عرض الصور هنا بعد إضافتها من لوحة التحكم',
-            style: TextStyle(
-                fontFamily: 'Cairo', color: AppColors.textMuted, fontSize: 12),
-            textAlign: TextAlign.center,
+                color: AppColors.textMuted,
+                fontSize: 14),
           ),
           if (onRetry != null) ...[
-            const SizedBox(height: 20),
-            TextButton.icon(
+            const SizedBox(height: 12),
+            TextButton(
               onPressed: onRetry,
-              icon: const Icon(Icons.refresh, color: AppColors.primary),
-              label: const Text('إعادة المحاولة',
+              child: const Text('إعادة المحاولة',
                   style: TextStyle(
                       fontFamily: 'Cairo', color: AppColors.primary)),
             ),

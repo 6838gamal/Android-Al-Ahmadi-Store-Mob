@@ -5,6 +5,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../home/presentation/pages/main_shell.dart';
 import '../../../../core/constants/app_constants.dart';
+import '../../../../core/providers/shared_filters_provider.dart';
 import '../../../../core/network/api_client.dart';
 import '../../../../core/utils/app_utils.dart';
 import '../../../../shared/widgets/loading_widget.dart';
@@ -99,6 +100,7 @@ class _ProductsPageState extends ConsumerState<ProductsPage> {
               selected: _selectedCategory,
               onSelect: (cat) {
                 setState(() => _selectedCategory = cat);
+                ref.read(selectedProductCategoryProvider.notifier).state = cat;
                 ref.read(productsProvider.notifier).load(category: cat);
               },
             ),
