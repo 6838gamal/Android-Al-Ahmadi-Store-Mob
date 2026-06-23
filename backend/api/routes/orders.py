@@ -9,6 +9,8 @@ from backend.models.loyalty import LoyaltyAccount, LoyaltyTransaction, LoyaltyTr
 from backend.schemas.order import OrderCreate, OrderUpdateStatus, OrderResponse
 from backend.api.dependencies import get_admin_user, get_current_user, get_current_user_optional, require_staff_or_above
 from backend.models.user import User, UserRole
+from backend.api.routes.audit import log_action
+from backend.models.audit_log import AuditAction
 import random
 
 router = APIRouter()
@@ -91,6 +93,8 @@ def create_order(
     )
     db.add(update)
     _create_order_notification(db, order, "received")
+    log_action(db, None, AuditAction.create, entity_type="order", entity_id=order.id,
+               description=f"طلب جديد {order.order_number} من {order.customer_name} ({order.order_type.value})")
     db.commit()
     db.refresh(order)
     return order
@@ -259,6 +263,8 @@ def update_order_status(
             )
             db.add(revoke_tx)
 
+    log_action(db, current_user, AuditAction.update, entity_type="order", entity_id=order.id,
+               description=f"تحديث حالة طلب {order.order_number} → {status_label}")
     db.commit()
     db.refresh(order)
     return order

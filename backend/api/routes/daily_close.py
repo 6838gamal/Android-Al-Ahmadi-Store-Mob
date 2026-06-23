@@ -9,6 +9,8 @@ from backend.models.order import Order, OrderStatus, OrderType
 from backend.models.purchase_invoice import PurchaseInvoice
 from backend.models.capital import CapitalTransaction, CapitalTransactionType
 from backend.api.dependencies import get_admin_user, require_staff_or_above
+from backend.api.routes.audit import log_action
+from backend.models.audit_log import AuditAction
 from pydantic import BaseModel
 
 router = APIRouter()
@@ -52,6 +54,9 @@ def add_expense(
     db.add(expense)
     db.commit()
     db.refresh(expense)
+    log_action(db, admin, AuditAction.create, entity_type="expense", entity_id=expense.id,
+               description=f"مصروف جديد: {data.description} — {data.amount} ريال")
+    db.commit()
     return {"id": expense.id, "message": "تم تسجيل المصروف"}
 
 
@@ -90,6 +95,8 @@ def delete_expense(
     expense = db.query(DailyExpense).filter(DailyExpense.id == expense_id).first()
     if not expense:
         raise HTTPException(404, "المصروف غير موجود")
+    log_action(db, admin, AuditAction.delete, entity_type="expense", entity_id=expense_id,
+               description=f"حذف مصروف: {expense.description} — {expense.amount} ريال")
     db.delete(expense)
     db.commit()
     return {"message": "تم حذف المصروف"}
@@ -117,6 +124,9 @@ def add_award(
     db.add(award)
     db.commit()
     db.refresh(award)
+    log_action(db, admin, AuditAction.create, entity_type="award", entity_id=award.id,
+               description=f"جائزة لـ {data.recipient_name} — {data.amount} ريال — {data.reason or ''}")
+    db.commit()
     return {"id": award.id, "message": "تم تسجيل الجائزة"}
 
 
@@ -260,6 +270,9 @@ def create_daily_close(
 
     db.commit()
     db.refresh(dc)
+    log_action(db, admin, AuditAction.create, entity_type="daily_close", entity_id=dc.id,
+               description=f"إغلاق صندوق يوم {target_date} — رصيد ختامي: {round(closing_balance,2)} ريال")
+    db.commit()
 
     return {
         "id": dc.id,

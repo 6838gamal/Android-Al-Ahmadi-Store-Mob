@@ -54,7 +54,7 @@
           <td class="px-4 py-3 text-sm">
             {% if w.ends_at %}
               <span class="{{ 'text-green-400' if w.ends_at > now_dt else 'text-red-400' }}">
-                {{ w.ends_at.strftime('%Y-%m-%d') }}
+                {{ w.ends_at|dtd }}
               </span>
             {% endif %}
           </td>

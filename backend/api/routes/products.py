@@ -9,6 +9,8 @@ from backend.models.user import User
 from backend.core.samsung_catalog import get_catalog_tree, MODEL_TO_SERIES, ALL_MODEL_KEYS
 from backend.core.notifications_helper import push_notification
 from backend.models.notification import NotificationType
+from backend.api.routes.audit import log_action
+from backend.models.audit_log import AuditAction
 
 router = APIRouter()
 
@@ -77,6 +79,9 @@ def create_product(
     db.add(product)
     db.commit()
     db.refresh(product)
+    log_action(db, admin, AuditAction.create, entity_type="product", entity_id=product.id,
+               description=f"إضافة منتج: {product.name}")
+    db.commit()
     return product
 
 
@@ -98,6 +103,9 @@ def update_product(
         setattr(product, field, value)
     db.commit()
     db.refresh(product)
+    log_action(db, admin, AuditAction.update, entity_type="product", entity_id=product.id,
+               description=f"تعديل منتج: {product.name}")
+    db.commit()
     return product
 
 
@@ -110,6 +118,8 @@ def delete_product(
     product = db.query(Product).filter(Product.id == product_id).first()
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
+    log_action(db, admin, AuditAction.delete, entity_type="product", entity_id=product.id,
+               description=f"حذف منتج: {product.name}")
     product.is_active = False
     db.commit()
     return {"message": "Product deleted"}

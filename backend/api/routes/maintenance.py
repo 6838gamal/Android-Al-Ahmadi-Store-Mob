@@ -7,6 +7,8 @@ from backend.models.order import Order, OrderUpdate, OrderType, MaintenanceStatu
 from backend.models.notification import Notification, NotificationType
 from backend.api.dependencies import get_admin_user, require_staff_or_above, get_current_user
 from backend.models.user import User
+from backend.api.routes.audit import log_action
+from backend.models.audit_log import AuditAction
 from pydantic import BaseModel
 
 router = APIRouter()
@@ -122,6 +124,8 @@ def create_maintenance(
     db.flush()
     db.add(OrderUpdate(order_id=order.id, status="received", note="تم استلام الجهاز"))
     _create_maintenance_notification(db, order, "received")
+    log_action(db, current_user, AuditAction.create, entity_type="maintenance", entity_id=order.id,
+               description=f"طلب صيانة جديد {order.order_number} — {data.customer_name} — {data.device_type}")
     db.commit()
     db.refresh(order)
     return order
@@ -236,6 +240,8 @@ def update_maintenance_status(
     )
     db.add(upd)
     _create_maintenance_notification(db, order, data.maintenance_status)
+    log_action(db, current_user, AuditAction.update, entity_type="maintenance", entity_id=order.id,
+               description=f"تحديث حالة صيانة {order.order_number} → {data.maintenance_status}")
     db.commit()
     db.refresh(order)
     return order

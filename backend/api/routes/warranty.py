@@ -9,6 +9,8 @@ from backend.schemas.warranty import WarrantyCreate, WarrantyResponse, ReturnReq
 from backend.api.dependencies import get_current_user, require_staff_or_above
 from backend.core.notifications_helper import push_notification, push_notification_to_admins
 from backend.models.notification import NotificationType
+from backend.api.routes.audit import log_action
+from backend.models.audit_log import AuditAction
 
 router = APIRouter()
 
@@ -43,6 +45,8 @@ def create_warranty(data: WarrantyCreate, db: Session = Depends(get_db), current
             reference_type="warranty",
         )
 
+    log_action(db, current_user, AuditAction.create, entity_type="warranty", entity_id=warranty.id,
+               description=f"إضافة ضمان: {data.product_name} ({data.warranty_days} يوم)")
     db.commit()
     db.refresh(warranty)
     return warranty
@@ -139,6 +143,8 @@ def resolve_return(
                 reference_type="warranty",
             )
 
+    log_action(db, current_user, AuditAction.update, entity_type="warranty", entity_id=warranty_id,
+               description=f"معالجة طلب إرجاع: {w.product_name} — {'موافقة' if data.approved else 'رفض'}")
     db.commit()
     return {"message": "تم معالجة طلب الإرجاع", "approved": data.approved}
 
@@ -178,6 +184,8 @@ def update_warranty_full(
         days = int(data["warranty_days"])
         w.warranty_days = days
         w.ends_at = w.starts_at + timedelta(days=days)
+    log_action(db, current_user, AuditAction.update, entity_type="warranty", entity_id=warranty_id,
+               description=f"تعديل ضمان: {w.product_name}")
     db.commit()
     db.refresh(w)
     return w
@@ -192,6 +200,8 @@ def delete_warranty(
     w = db.query(Warranty).filter(Warranty.id == warranty_id).first()
     if not w:
         raise HTTPException(404, "Warranty not found")
+    log_action(db, current_user, AuditAction.delete, entity_type="warranty", entity_id=warranty_id,
+               description=f"حذف ضمان: {w.product_name}")
     db.delete(w)
     db.commit()
     return {"message": "تم حذف الضمان بنجاح"}

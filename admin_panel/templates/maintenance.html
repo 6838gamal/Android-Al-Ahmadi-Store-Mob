@@ -38,7 +38,7 @@
           <span class="badge" style="background:{{ maint_colors.get(ms,'#6B7280') }}22; color:{{ maint_colors.get(ms,'#6B7280') }}">
             {{ maint_labels.get(ms, ms) }}
           </span>
-          <span class="text-gray-500 text-xs">{{ order.created_at.strftime('%Y-%m-%d') if order.created_at else '' }}</span>
+          <span class="text-gray-500 text-xs">{{ order.created_at|dtd }}</span>
         </div>
         <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
           <div><span class="text-gray-500">العميل:</span> <span class="text-white font-semibold mr-1">{{ order.customer_name }}</span></div>

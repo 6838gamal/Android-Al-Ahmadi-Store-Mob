@@ -7,6 +7,8 @@ from backend.models.user import User, UserRole
 from backend.schemas.auth import UserResponse
 from backend.api.dependencies import get_admin_user
 from backend.core.security import get_password_hash
+from backend.api.routes.audit import log_action
+from backend.models.audit_log import AuditAction
 import random, string
 
 router = APIRouter()
@@ -64,6 +66,9 @@ def add_staff(
     db.add(user)
     db.commit()
     db.refresh(user)
+    log_action(db, admin, AuditAction.create, entity_type="staff", entity_id=user.id,
+               description=f"إضافة موظف: {data.name} — الدور: {data.role}")
+    db.commit()
     return user
 
 
@@ -90,6 +95,9 @@ def edit_staff(
         user.hashed_password = get_password_hash(data.password)
     db.commit()
     db.refresh(user)
+    log_action(db, admin, AuditAction.update, entity_type="staff", entity_id=user_id,
+               description=f"تعديل بيانات موظف: {user.name} — الدور: {user.role.value}")
+    db.commit()
     return user
 
 
@@ -104,6 +112,9 @@ def toggle_staff_active(
         raise HTTPException(404, "Staff not found")
     user.is_active = not user.is_active
     db.commit()
+    log_action(db, admin, AuditAction.update, entity_type="staff", entity_id=user_id,
+               description=f"{'تفعيل' if user.is_active else 'تعطيل'} حساب موظف: {user.name}")
+    db.commit()
     return {"message": "Updated", "is_active": user.is_active}
 
 
@@ -116,6 +127,8 @@ def delete_staff(
     user = db.query(User).filter(User.id == user_id).first()
     if not user or user.role == UserRole.admin:
         raise HTTPException(403, "Cannot delete admin")
+    log_action(db, admin, AuditAction.delete, entity_type="staff", entity_id=user_id,
+               description=f"حذف موظف: {user.name} — الدور: {user.role.value}")
     db.delete(user)
     db.commit()
     return {"message": "Deleted"}

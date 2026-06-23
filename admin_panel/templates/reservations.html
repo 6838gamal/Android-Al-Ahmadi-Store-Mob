@@ -47,7 +47,7 @@
               {{ status_labels[s] }}
             </span>
           </td>
-          <td class="px-5 py-3 text-gray-500 text-xs">{{ res.expires_at.strftime('%Y-%m-%d') if res.expires_at else '—' }}</td>
+          <td class="px-5 py-3 text-gray-500 text-xs">{{ res.expires_at|dtd }}</td>
           <td class="px-5 py-3">
             {% if s == 'pending' %}
             <div class="flex gap-2">
