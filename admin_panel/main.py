@@ -103,6 +103,29 @@ def _bu(path):
 templates.env.filters['bu'] = _bu
 templates.env.globals['bu'] = _bu
 
+
+def _fmt_dt(dt, fmt='%Y-%m-%d %H:%M'):
+    """Jinja2 filter: format a datetime or ISO-string safely."""
+    if dt is None:
+        return '—'
+    if hasattr(dt, 'strftime'):
+        return dt.strftime(fmt)
+    if isinstance(dt, str):
+        if not dt:
+            return '—'
+        try:
+            d = _parse_dt(dt)
+            if hasattr(d, 'strftime'):
+                return d.strftime(fmt)
+        except Exception:
+            pass
+        return dt[:16].replace('T', ' ')
+    return str(dt)
+
+
+templates.env.filters['dt']  = _fmt_dt
+templates.env.filters['dtd'] = lambda x: _fmt_dt(x, '%Y-%m-%d')
+
 # ── Helpers ────────────────────────────────────────────────────────────────────
 
 _DT_KEYS = frozenset({

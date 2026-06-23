@@ -87,14 +87,14 @@
               <!-- Edit button -->
               <button
                 onclick="openEditWarranty({{ w.id }}, '{{ w.product_name|e }}', '{{ w.product_serial or '' }}', {{ w.warranty_days or 7 }})"
-                class="text-primary hover:text-blue-300 p-1.5 rounded-lg hover:bg-primary-light transition text-xs font-bold">
-                <i class="fa-solid fa-pen-to-square"></i>
+                class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition text-xs font-bold">
+                <i class="fa-solid fa-pen-to-square"></i> تعديل
               </button>
               <!-- Delete button -->
               <form method="post" action="/warranty/{{ w.id }}/delete" class="inline"
                     onsubmit="return confirm('هل تريد حذف ضمان {{ w.product_name|e }}؟')">
-                <button type="submit" class="text-red-400 hover:text-red-300 p-1.5 rounded-lg hover:bg-red-500/10 transition text-xs font-bold">
-                  <i class="fa-solid fa-trash"></i>
+                <button type="submit" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 transition text-xs font-bold">
+                  <i class="fa-solid fa-trash"></i> حذف
                 </button>
               </form>
             </div>

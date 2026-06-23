@@ -24,7 +24,7 @@
     </div>
     <div style="text-align:left">
       <div style="font-size:11px;color:#6B7280">التاريخ</div>
-      <div style="color:white;font-weight:700">{{ invoice.created_at[:10] if invoice.created_at else '' }}</div>
+      <div style="color:white;font-weight:700">{{ invoice.created_at|dtd }}</div>
     </div>
   </div>
 

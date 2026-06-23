@@ -63,7 +63,7 @@
           {% if tx.transaction_type == 'deposit' %}⬆️ إيداع{% else %}⬇️ سحب{% endif %}
         </div>
         <div style="color:#9CA3AF;font-size:12px;margin-top:2px">{{ tx.reason or '—' }}</div>
-        <div style="color:#4B5563;font-size:11px">{{ tx.created_at[:10] if tx.created_at else '' }}</div>
+        <div style="color:#4B5563;font-size:11px">{{ tx.created_at|dtd }}</div>
       </div>
       <div style="display:flex;align-items:center;gap:12px">
         <div style="font-size:18px;font-weight:800;color:{% if tx.transaction_type == 'deposit' %}#22C55E{% else %}#EF4444{% endif %}">

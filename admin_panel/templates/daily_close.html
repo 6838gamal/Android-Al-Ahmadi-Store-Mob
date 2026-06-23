@@ -89,7 +89,7 @@
         <tr class="table-row">
           <td style="padding:10px 16px;color:white">{{ e.description }}</td>
           <td style="padding:10px 16px;text-align:center;color:#EF4444;font-weight:700">{{ e.amount|int }} ر</td>
-          <td style="padding:10px 16px;text-align:center;color:#6B7280;font-size:12px">{{ e.created_at[:16].replace('T',' ') if e.created_at else '' }}</td>
+          <td style="padding:10px 16px;text-align:center;color:#6B7280;font-size:12px">{{ e.created_at|dt }}</td>
           <td style="padding:10px 16px;text-align:center">
             <form method="post" action="/daily-close/expenses/{{ e.id }}/delete" onsubmit="return confirm('حذف هذا المصروف؟')">
               <button type="submit" style="background:rgba(239,68,68,.15);border:1px solid #EF4444;color:#EF4444;border-radius:6px;padding:3px 10px;font-size:12px;cursor:pointer">حذف</button>
@@ -131,7 +131,7 @@
       <tbody>
         {% for c in closes %}
         <tr class="table-row">
-          <td style="padding:10px 16px;color:white;font-weight:700">{{ c.close_date or c.created_at[:10] }}</td>
+          <td style="padding:10px 16px;color:white;font-weight:700">{{ c.close_date if c.close_date else c.created_at|dtd }}</td>
           <td style="padding:10px 16px;text-align:center;color:#22C55E;font-weight:700">{{ c.total_sales|int|default(0) }} ر</td>
           <td style="padding:10px 16px;text-align:center;color:#EF4444;font-weight:700">{{ c.total_expenses|int|default(0) }} ر</td>
           <td style="padding:10px 16px;text-align:center;color:#F59E0B;font-weight:700">{{ c.total_awards|int|default(0) }} ر</td>

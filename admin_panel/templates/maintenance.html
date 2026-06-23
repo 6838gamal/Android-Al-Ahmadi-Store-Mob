@@ -48,10 +48,12 @@
           {% endif %}
         </div>
         {% if order.items %}
-        {% set item = order.items[0] if order.items else {} %}
+        {% set item = order.items[0] if order.items else none %}
         <div class="mt-2 text-sm">
-          <span class="text-gray-500">الجهاز:</span> <span class="text-gray-300 mr-1">{{ item.get('device','—') }}</span>
-          <span class="text-gray-500 mr-3">المشكلة:</span> <span class="text-gray-300 mr-1">{{ item.get('problem','—') }}</span>
+          <span class="text-gray-500">الجهاز:</span>
+          <span class="text-gray-300 mr-1">{{ item.device|default('—', true) if item else '—' }}</span>
+          <span class="text-gray-500 mr-3">المشكلة:</span>
+          <span class="text-gray-300 mr-1">{{ item.problem|default('—', true) if item else '—' }}</span>
         </div>
         {% endif %}
         {% if order.admin_notes %}

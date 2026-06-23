@@ -81,6 +81,7 @@
           <th class="px-4 py-3 text-right font-semibold">السعر</th>
           <th class="px-4 py-3 text-right font-semibold">الكمية</th>
           <th class="px-4 py-3 text-right font-semibold">الحالة</th>
+          <th class="px-4 py-3 text-right font-semibold">تاريخ الإضافة</th>
           <th class="px-4 py-3 text-right font-semibold">الإجراءات</th>
         </tr>
       </thead>
@@ -123,7 +124,7 @@
           </td>
 
           <!-- ── الفئة ── -->
-          <td class="px-4 py-3 text-gray-400">{{ cat_map.get(p.category.value, p.category.value) }}</td>
+          <td class="px-4 py-3 text-gray-400">{{ cat_map.get(p.category|v, p.category|v) }}</td>
 
           <!-- ── السعر ── -->
           <td class="px-4 py-3 text-primary font-bold whitespace-nowrap">{{ "%.0f"|format(p.price) }} ر.ي</td>
@@ -143,6 +144,9 @@
             </span>
           </td>
 
+          <!-- ── تاريخ الإضافة ── -->
+          <td class="px-4 py-3 text-gray-500 text-xs whitespace-nowrap">{{ p.created_at|dtd }}</td>
+
           <!-- ── الإجراءات ── -->
           <td class="px-4 py-3">
             <div class="flex items-center gap-1">
@@ -151,7 +155,7 @@
                 class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition text-xs font-bold"
                 title="تعديل المنتج">
                 <i class="fa-solid fa-pen-to-square"></i>
-                <span class="hidden sm:inline">تعديل</span>
+                <span>تعديل</span>
               </a>
               <!-- حذف -->
               <form method="post" action="/products/delete/{{ p.id }}"
@@ -160,7 +164,7 @@
                   class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 transition text-xs font-bold"
                   title="حذف المنتج">
                   <i class="fa-solid fa-trash"></i>
-                  <span class="hidden sm:inline">حذف</span>
+                  <span>حذف</span>
                 </button>
               </form>
             </div>
