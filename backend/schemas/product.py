@@ -11,6 +11,7 @@ class ProductCreate(BaseModel):
     brand: Optional[str] = None
     model: Optional[str] = None
     series: Optional[str] = None   # e.g. "s_series", "note_series"
+    image_url: Optional[str] = None
     price: float
     quantity: int = 0
     status: ProductStatus = ProductStatus.available

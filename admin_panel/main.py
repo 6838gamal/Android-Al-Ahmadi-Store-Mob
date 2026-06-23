@@ -394,8 +394,26 @@ async def products_list(request: Request, search: str = ""):
     params = {"limit": 500}
     if search:
         params["search"] = search
-    raw, err = await api_ex("get", "/api/products/", token=_token(request), params=params)
-    server_down = raw is None  # فشل الاتصال بالخادم
+
+    # Try local backend first (always running, fast) — fall back to external API
+    raw = None
+    err = None
+    try:
+        async with httpx.AsyncClient(timeout=6.0) as _lc:
+            _r = await _lc.get(
+                "http://localhost:8000/api/products/",
+                headers={"Authorization": f"Bearer {_token(request)}"},
+                params=params,
+            )
+            if _r.status_code == 200:
+                raw = _r.json()
+    except Exception:
+        pass
+
+    if raw is None:
+        raw, err = await api_ex("get", "/api/products/", token=_token(request), params=params)
+
+    server_down = raw is None  # فشل الاتصال بكلا الخادمَين
     products = to_obj(raw or [])
     status_map = {"available": "متوفر", "reserved": "محجوز", "sold": "مباع", "unavailable": "غير متوفر"}
     cat_map    = {"screen": "شاشة", "battery": "بطارية", "camera": "كاميرا", "speaker": "سماعة",
