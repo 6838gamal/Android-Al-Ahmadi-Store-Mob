@@ -291,10 +291,10 @@ class _ProductCard extends StatelessWidget {
                     ? CachedNetworkImage(
                         imageUrl: ApiClient.img(product['image_url'] as String?),
                         fit: BoxFit.cover,
-                        placeholder: (_, __) => _placeholder(),
-                        errorWidget: (_, __, ___) => _placeholder(),
+                        placeholder: (_, __) => _loadingPlaceholder(),
+                        errorWidget: (_, __, ___) => _noImagePlaceholder(),
                       )
-                    : _placeholder(),
+                    : _noImagePlaceholder(),
               ),
             ),
             Expanded(
@@ -357,10 +357,40 @@ class _ProductCard extends StatelessWidget {
     );
   }
 
-  Widget _placeholder() {
+  Widget _loadingPlaceholder() {
     return Container(
       color: AppColors.darkCardAlt,
-      child: const Center(child: Icon(Icons.phone_android, size: 48, color: AppColors.textMuted)),
+      child: const Center(
+        child: SizedBox(
+          width: 28,
+          height: 28,
+          child: CircularProgressIndicator(
+            strokeWidth: 2.5,
+            color: AppColors.primary,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _noImagePlaceholder() {
+    return Container(
+      color: AppColors.darkCardAlt,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: const [
+          Icon(Icons.image_not_supported_outlined, size: 36, color: AppColors.textMuted),
+          SizedBox(height: 6),
+          Text(
+            'لا تتوفر صورة',
+            style: TextStyle(
+              fontFamily: 'Cairo',
+              fontSize: 11,
+              color: AppColors.textMuted,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

@@ -79,11 +79,11 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
                           child: CachedNetworkImage(
                               imageUrl: ApiClient.img(p['image_url'] as String?),
                               fit: BoxFit.cover,
-                              placeholder: (_, __) => _imagePlaceholder(),
-                              errorWidget: (_, __, ___) => _imagePlaceholder()),
+                              placeholder: (_, __) => _loadingImagePlaceholder(),
+                              errorWidget: (_, __, ___) => _noImagePlaceholder()),
                         ),
                       )
-                    : _imagePlaceholder(),
+                    : _noImagePlaceholder(),
                 // Sold-out overlay
                 if (isSoldOut)
                   Container(
@@ -225,9 +225,34 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
     );
   }
 
-  Widget _imagePlaceholder() => Container(
+  Widget _loadingImagePlaceholder() => Container(
     color: AppColors.darkCardAlt,
-    child: const Center(child: Icon(Icons.phone_android, size: 80, color: AppColors.textMuted)),
+    child: const Center(
+      child: SizedBox(
+        width: 36,
+        height: 36,
+        child: CircularProgressIndicator(strokeWidth: 2.5, color: AppColors.primary),
+      ),
+    ),
+  );
+
+  Widget _noImagePlaceholder() => Container(
+    color: AppColors.darkCardAlt,
+    child: Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: const [
+        Icon(Icons.image_not_supported_outlined, size: 64, color: AppColors.textMuted),
+        SizedBox(height: 10),
+        Text(
+          'لا تتوفر صورة',
+          style: TextStyle(
+            fontFamily: 'Cairo',
+            fontSize: 14,
+            color: AppColors.textMuted,
+          ),
+        ),
+      ],
+    ),
   );
 
   void _showImageZoom(BuildContext context, String imageUrl) {
@@ -250,8 +275,8 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
                   child: CachedNetworkImage(
                     imageUrl: imageUrl,
                     fit: BoxFit.contain,
-                    placeholder: (_, __) => _imagePlaceholder(),
-                    errorWidget: (_, __, ___) => _imagePlaceholder(),
+                    placeholder: (_, __) => _loadingImagePlaceholder(),
+                    errorWidget: (_, __, ___) => _noImagePlaceholder(),
                   ),
                 ),
               ),
