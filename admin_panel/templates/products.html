@@ -27,6 +27,36 @@
 </div>
 {% endif %}
 
+<!-- ⚠️ بانر الخادم النائم -->
+{% if server_down %}
+<div id="server-down-banner" class="bg-yellow-500/10 border border-yellow-500/40 text-yellow-300 rounded-xl p-4 mb-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+  <div class="flex items-center gap-3">
+    <i class="fa-solid fa-moon text-yellow-400 text-xl"></i>
+    <div>
+      <p class="font-bold text-base">الخادم في وضع الاستعداد</p>
+      <p class="text-yellow-300/70 text-sm mt-0.5">يستيقظ الخادم الآن، قد يستغرق ذلك 30–60 ثانية. سيتم تحديث الصفحة تلقائياً...</p>
+    </div>
+  </div>
+  <div class="flex items-center gap-3 shrink-0">
+    <span id="countdown-text" class="text-yellow-400 font-bold text-sm"></span>
+    <button onclick="location.reload()" class="flex items-center gap-2 px-4 py-2 bg-yellow-500 hover:bg-yellow-400 text-black font-bold rounded-lg text-sm transition">
+      <i class="fa-solid fa-rotate-right"></i> تحديث الآن
+    </button>
+  </div>
+</div>
+<script>
+(function(){
+  var secs = 30;
+  var el = document.getElementById('countdown-text');
+  var t = setInterval(function(){
+    secs--;
+    el.textContent = 'تحديث تلقائي خلال ' + secs + 'ث';
+    if(secs <= 0){ clearInterval(t); location.reload(); }
+  }, 1000);
+})();
+</script>
+{% endif %}
+
 <!-- Toast notification -->
 <div id="toast" class="hidden fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-5 py-3 rounded-xl shadow-xl text-sm font-bold font-cairo flex items-center gap-2"></div>
 
@@ -142,11 +172,22 @@
   </div>
 </div>
 {% else %}
+{% if server_down %}
+<div class="card p-16 text-center">
+  <i class="fa-solid fa-moon text-5xl text-yellow-500/60 mb-4 block"></i>
+  <p class="text-yellow-300 font-bold text-lg mb-2">الخادم في وضع الاستعداد</p>
+  <p class="text-gray-500 text-sm mb-6">انتظر قليلاً ثم حدّث الصفحة لتحميل المنتجات</p>
+  <button onclick="location.reload()" class="btn-primary">
+    <i class="fa-solid fa-rotate-right"></i> تحديث الصفحة
+  </button>
+</div>
+{% else %}
 <div class="card p-16 text-center">
   <i class="fa-solid fa-box-open text-5xl text-gray-600 mb-4 block"></i>
   <p class="text-gray-500 font-semibold mb-4">لا توجد منتجات{% if search %} تطابق البحث{% endif %}</p>
   <a href="/products/add" class="btn-primary">إضافة منتج جديد</a>
 </div>
+{% endif %}
 {% endif %}
 {% endblock %}
 

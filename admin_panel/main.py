@@ -394,8 +394,9 @@ async def products_list(request: Request, search: str = ""):
     params = {"limit": 500}
     if search:
         params["search"] = search
-    raw = await api("get", "/api/products/", token=_token(request), params=params) or []
-    products = to_obj(raw)
+    raw, err = await api_ex("get", "/api/products/", token=_token(request), params=params)
+    server_down = raw is None  # فشل الاتصال بالخادم
+    products = to_obj(raw or [])
     status_map = {"available": "متوفر", "reserved": "محجوز", "sold": "مباع", "unavailable": "غير متوفر"}
     cat_map    = {"screen": "شاشة", "battery": "بطارية", "camera": "كاميرا", "speaker": "سماعة",
                   "charger": "شاحن", "device": "جهاز", "spare_part": "قطعة غيار", "other": "أخرى"}
@@ -403,6 +404,7 @@ async def products_list(request: Request, search: str = ""):
         "admin_name": _name(request), "active": "products",
         "products": products, "search": search,
         "status_map": status_map, "cat_map": cat_map,
+        "server_down": server_down, "server_err": err or "",
     })
 
 
