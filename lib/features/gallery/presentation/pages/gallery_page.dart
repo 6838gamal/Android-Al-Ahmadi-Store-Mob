@@ -3,13 +3,17 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../../../core/theme/app_colors.dart';
-import '../../../../core/constants/app_constants.dart';
 import '../../../../core/network/api_client.dart';
 import '../../../home/presentation/pages/main_shell.dart';
 
-// ─── Providers ────────────────────────────────────────────────────────────────
+// ─── Filter state ─────────────────────────────────────────────────────────────
 
-final _gallerySeriesProvider =
+final _selectedSeriesProvider = StateProvider.autoDispose<String?>((ref) => null);
+final _selectedModelProvider  = StateProvider.autoDispose<String?>((ref) => null);
+
+// ─── Data providers ───────────────────────────────────────────────────────────
+
+final _galleryMetaProvider =
     FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) async {
   final api = ref.read(apiClientProvider);
   try {
@@ -20,395 +24,364 @@ final _gallerySeriesProvider =
   }
 });
 
-final _folderImagesProvider =
-    FutureProvider.autoDispose.family<Map<String, dynamic>, int>((ref, folderId) async {
+final _galleryImagesProvider =
+    FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) async {
+  final seriesKey = ref.watch(_selectedSeriesProvider);
+  final modelKey  = ref.watch(_selectedModelProvider);
   final api = ref.read(apiClientProvider);
   try {
-    final res = await api.get('/gallery/folders/$folderId');
-    return Map<String, dynamic>.from(res.data);
+    final params = <String, dynamic>{};
+    if (seriesKey != null) params['series_key'] = seriesKey;
+    if (modelKey  != null) params['model_key']  = modelKey;
+    final res = await api.get('/gallery/images',
+        queryParameters: params.isNotEmpty ? params : null);
+    return List<Map<String, dynamic>>.from(res.data);
   } catch (_) {
-    return {'images': [], 'folder': {}};
+    return [];
   }
 });
 
-// ─── Page (Level 1 — series list) ────────────────────────────────────────────
+// ─── Page ─────────────────────────────────────────────────────────────────────
 
 class GalleryPage extends ConsumerWidget {
   const GalleryPage({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final seriesAsync = ref.watch(_gallerySeriesProvider);
+    final metaAsync   = ref.watch(_galleryMetaProvider);
+    final imagesAsync = ref.watch(_galleryImagesProvider);
+    final selSeries   = ref.watch(_selectedSeriesProvider);
+    final selModel    = ref.watch(_selectedModelProvider);
+
+    final seriesList = metaAsync.valueOrNull ?? [];
+
+    // النماذج الخاصة بالفئة المختارة
+    List<Map<String, dynamic>> modelFolders = [];
+    if (selSeries != null) {
+      final seriesEntry = seriesList.cast<Map<String, dynamic>>().firstWhere(
+        (s) => s['series_key'] == selSeries,
+        orElse: () => <String, dynamic>{},
+      );
+      modelFolders = List<Map<String, dynamic>>.from(
+          seriesEntry['folders'] as List? ?? []);
+    }
 
     return Scaffold(
       backgroundColor: AppColors.darkBg,
-      appBar: AppBar(
-        backgroundColor: AppColors.darkSurface,
-        leading: IconButton(
-          icon: const Icon(Icons.menu, color: Colors.white),
-          onPressed: () => MainShell.scaffoldKey.currentState?.openDrawer(),
-        ),
-        title: const Text('معرض الصور',
-            style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.w700)),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh, color: AppColors.primary),
-            onPressed: () => ref.invalidate(_gallerySeriesProvider),
-          ),
-        ],
-      ),
-      body: seriesAsync.when(
-        loading: () =>
-            const Center(child: CircularProgressIndicator(color: AppColors.primary)),
-        error: (_, __) => _EmptyGallery(onRetry: () => ref.invalidate(_gallerySeriesProvider)),
-        data: (seriesList) {
-          if (seriesList.isEmpty) {
-            return _EmptyGallery(onRetry: () => ref.invalidate(_gallerySeriesProvider));
-          }
-          return ListView.builder(
-            padding: const EdgeInsets.all(12),
-            itemCount: seriesList.length,
-            itemBuilder: (ctx, si) {
-              final series = seriesList[si];
-              final folders =
-                  List<Map<String, dynamic>>.from(series['folders'] as List? ?? []);
-              return _SeriesSection(
-                  series: series, folders: folders, seriesIndex: si);
-            },
-          );
-        },
-      ),
-    );
-  }
-}
-
-// ─── Series Section ────────────────────────────────────────────────────────────
-
-class _SeriesSection extends StatelessWidget {
-  final Map<String, dynamic> series;
-  final List<Map<String, dynamic>> folders;
-  final int seriesIndex;
-
-  const _SeriesSection(
-      {required this.series, required this.folders, required this.seriesIndex});
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Series header
-        Container(
-          margin: const EdgeInsets.only(bottom: 12, top: 8),
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [Color(0xFF7B1FA2), AppColors.primary],
-              begin: Alignment.centerRight,
-              end: Alignment.centerLeft,
+      body: CustomScrollView(
+        slivers: [
+          // ── AppBar ──────────────────────────────────────────────────────────
+          SliverAppBar(
+            expandedHeight: 120,
+            pinned: true,
+            backgroundColor: AppColors.darkSurface,
+            leading: IconButton(
+              icon: const Icon(Icons.menu, color: Colors.white),
+              onPressed: () => MainShell.scaffoldKey.currentState?.openDrawer(),
             ),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Row(
-            children: [
-              const Icon(Icons.folder_special, color: Colors.white, size: 20),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      series['label_ar'] as String? ?? '',
-                      style: const TextStyle(
-                          fontFamily: 'Cairo',
-                          color: Colors.white,
-                          fontWeight: FontWeight.w800,
-                          fontSize: 15),
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.refresh, color: AppColors.primary),
+                onPressed: () {
+                  ref.invalidate(_galleryMetaProvider);
+                  ref.invalidate(_galleryImagesProvider);
+                },
+              ),
+            ],
+            flexibleSpace: FlexibleSpaceBar(
+              background: Container(
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [Color(0xFF7B1FA2), AppColors.primary],
+                    begin: Alignment.topRight,
+                    end: Alignment.bottomLeft,
+                  ),
+                ),
+                child: const SafeArea(
+                  child: Padding(
+                    padding: EdgeInsets.fromLTRB(20, 50, 20, 16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        Text('معرض الصور',
+                            style: TextStyle(
+                                fontFamily: 'Cairo',
+                                fontSize: 22,
+                                fontWeight: FontWeight.w800,
+                                color: Colors.white)),
+                        Text('اختر الفئة والموديل لعرض الشاشات',
+                            style: TextStyle(
+                                fontFamily: 'Cairo',
+                                fontSize: 12,
+                                color: Colors.white70)),
+                      ],
                     ),
+                  ),
+                ),
+              ),
+              title: const Text('معرض الصور',
+                  style: TextStyle(
+                      fontFamily: 'Cairo',
+                      fontWeight: FontWeight.w800,
+                      fontSize: 16,
+                      color: Colors.white)),
+            ),
+          ),
+
+          // ── Series chips (الفئة) ────────────────────────────────────────────
+          SliverToBoxAdapter(
+            child: _SeriesChips(
+              seriesList: seriesList,
+              selected: selSeries,
+              onSelect: (key) {
+                ref.read(_selectedSeriesProvider.notifier).state = key;
+                ref.read(_selectedModelProvider.notifier).state  = null;
+              },
+            ),
+          ),
+
+          // ── Model chips (نوع الشاشة) ────────────────────────────────────────
+          if (selSeries != null && modelFolders.isNotEmpty)
+            SliverToBoxAdapter(
+              child: _ModelChips(
+                folders: modelFolders,
+                selected: selModel,
+                onSelect: (key) =>
+                    ref.read(_selectedModelProvider.notifier).state = key,
+              ),
+            ),
+
+          // ── Divider / info ──────────────────────────────────────────────────
+          SliverToBoxAdapter(
+            child: imagesAsync.when(
+              loading: () => const SizedBox.shrink(),
+              error: (_, __) => const SizedBox.shrink(),
+              data: (images) => Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: Row(
+                  children: [
+                    const Icon(Icons.photo_library_outlined,
+                        color: AppColors.textMuted, size: 15),
+                    const SizedBox(width: 6),
                     Text(
-                      '${folders.length} موديل',
+                      '${images.length} صورة'
+                      '${selSeries != null ? " في ${_seriesLabel(seriesList, selSeries)}" : ""}'
+                      '${selModel  != null ? " · ${selModel}" : ""}',
                       style: const TextStyle(
                           fontFamily: 'Cairo',
-                          color: Colors.white70,
+                          color: AppColors.textMuted,
                           fontSize: 12),
                     ),
                   ],
                 ),
               ),
-            ],
+            ),
           ),
-        ).animate(delay: Duration(milliseconds: seriesIndex * 80)).fadeIn().slideY(begin: -0.1),
 
-        // Folder grid
-        GridView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 3,
-            crossAxisSpacing: 8,
-            mainAxisSpacing: 8,
-            childAspectRatio: 0.78,
-          ),
-          itemCount: folders.length,
-          itemBuilder: (ctx, fi) {
-            final folder = folders[fi];
-            return _FolderCard(
-              folder: folder,
-              index: fi,
-              onTap: () {
-                Navigator.push(
-                  ctx,
-                  MaterialPageRoute(
-                    builder: (_) => _FolderPage(folder: folder),
-                  ),
+          // ── Images grid ─────────────────────────────────────────────────────
+          imagesAsync.when(
+            loading: () => const SliverFillRemaining(
+              child: Center(
+                  child: CircularProgressIndicator(color: AppColors.primary)),
+            ),
+            error: (_, __) => SliverFillRemaining(
+              child: _EmptyGallery(
+                  onRetry: () => ref.invalidate(_galleryImagesProvider)),
+            ),
+            data: (images) {
+              if (images.isEmpty) {
+                return SliverFillRemaining(
+                  child: _EmptyGallery(
+                      message: selSeries != null
+                          ? 'لا توجد صور لهذه الفئة بعد'
+                          : 'لا توجد صور في المعرض بعد',
+                      onRetry: null),
                 );
-              },
-            );
-          },
-        ),
-        const SizedBox(height: 20),
-      ],
-    );
-  }
-}
-
-// ─── Folder Card ──────────────────────────────────────────────────────────────
-
-class _FolderCard extends StatelessWidget {
-  final Map<String, dynamic> folder;
-  final int index;
-  final VoidCallback onTap;
-
-  const _FolderCard(
-      {required this.folder, required this.index, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    final cover = folder['cover_image_url'] as String?;
-    final fullCover = cover != null && cover.isNotEmpty
-        ? ApiClient.img(cover)
-        : null;
-    final count = folder['image_count'] as int? ?? 0;
-
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        decoration: BoxDecoration(
-          color: AppColors.darkCard,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppColors.darkBorder),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Cover
-            Expanded(
-              child: ClipRRect(
-                borderRadius:
-                    const BorderRadius.vertical(top: Radius.circular(11)),
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    if (fullCover != null)
-                      CachedNetworkImage(
-                        imageUrl: fullCover,
-                        fit: BoxFit.cover,
-                        placeholder: (_, __) => Container(
-                          color: AppColors.darkSurface,
-                          child: const Center(
-                            child: SizedBox(
-                              width: 18,
-                              height: 18,
-                              child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: AppColors.primary),
-                            ),
-                          ),
-                        ),
-                        errorWidget: (_, __, ___) => _emptyFolder(),
-                      )
-                    else
-                      _emptyFolder(),
-                    // Count badge
-                    Positioned(
-                      top: 5,
-                      left: 5,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: Colors.black.withOpacity(0.7),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Text(
-                          '$count',
-                          style: const TextStyle(
-                              fontFamily: 'Cairo',
-                              color: Colors.white,
-                              fontSize: 10,
-                              fontWeight: FontWeight.w700),
-                        ),
-                      ),
+              }
+              return SliverPadding(
+                padding: const EdgeInsets.fromLTRB(12, 0, 12, 32),
+                sliver: SliverGrid(
+                  delegate: SliverChildBuilderDelegate(
+                    (ctx, i) => _ImageCard(
+                      image: images[i],
+                      index: i,
+                      onTap: () =>
+                          _showFullScreen(ctx, images, i),
                     ),
-                  ],
+                    childCount: images.length,
+                  ),
+                  gridDelegate:
+                      const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 3,
+                    crossAxisSpacing: 8,
+                    mainAxisSpacing: 8,
+                    childAspectRatio: 0.78,
+                  ),
                 ),
-              ),
-            ),
-            // Label
-            Padding(
-              padding: const EdgeInsets.fromLTRB(7, 5, 7, 6),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    folder['label_ar'] as String? ?? '',
-                    style: const TextStyle(
-                        fontFamily: 'Cairo',
-                        color: Colors.white,
-                        fontSize: 10,
-                        fontWeight: FontWeight.w700),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  Text(
-                    folder['model_key'] as String? ?? '',
-                    style: const TextStyle(
-                        fontFamily: 'Cairo',
-                        color: AppColors.textMuted,
-                        fontSize: 9),
-                    maxLines: 1,
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      )
-          .animate(delay: Duration(milliseconds: (index % 9) * 40))
-          .fadeIn(duration: 300.ms)
-          .scale(begin: const Offset(0.92, 0.92), end: const Offset(1, 1)),
-    );
-  }
-
-  Widget _emptyFolder() => Container(
-        color: AppColors.darkSurface,
-        child: const Center(
-          child: Icon(Icons.folder_open_outlined,
-              color: AppColors.textMuted, size: 32),
-        ),
-      );
-}
-
-// ─── Folder Page (Level 2 — images in folder) ─────────────────────────────────
-
-class _FolderPage extends ConsumerWidget {
-  final Map<String, dynamic> folder;
-  const _FolderPage({required this.folder});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final folderId = folder['id'] as int;
-    final folderAsync = ref.watch(_folderImagesProvider(folderId));
-
-    return Scaffold(
-      backgroundColor: AppColors.darkBg,
-      appBar: AppBar(
-        backgroundColor: AppColors.darkSurface,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              folder['label_ar'] as String? ?? '',
-              style: const TextStyle(
-                  fontFamily: 'Cairo',
-                  fontWeight: FontWeight.w800,
-                  fontSize: 15),
-            ),
-            Text(
-              folder['label_en'] as String? ?? '',
-              style: const TextStyle(
-                  fontFamily: 'Cairo', color: Colors.white60, fontSize: 11),
-            ),
-          ],
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh, color: AppColors.primary),
-            onPressed: () => ref.invalidate(_folderImagesProvider(folderId)),
+              );
+            },
           ),
         ],
       ),
-      body: folderAsync.when(
-        loading: () =>
-            const Center(child: CircularProgressIndicator(color: AppColors.primary)),
-        error: (_, __) => _EmptyFolder(
-          folderName: folder['label_ar'] as String? ?? '',
-          onRetry: () => ref.invalidate(_folderImagesProvider(folderId)),
-        ),
-        data: (data) {
-          final images =
-              List<Map<String, dynamic>>.from(data['images'] as List? ?? []);
-
-          if (images.isEmpty) {
-            return _EmptyFolder(
-              folderName: folder['label_ar'] as String? ?? '',
-              onRetry: null,
-            );
-          }
-
-          return GridView.builder(
-            padding: const EdgeInsets.all(12),
-            gridDelegate:
-                const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 3,
-              crossAxisSpacing: 8,
-              mainAxisSpacing: 8,
-              childAspectRatio: 0.82,
-            ),
-            itemCount: images.length,
-            itemBuilder: (ctx, i) => _GalleryImage(
-              image: images[i],
-              index: i,
-              onTap: () => _showFullScreen(ctx, images, i),
-            ),
-          );
-        },
-      ),
     );
   }
 
-  void _showFullScreen(BuildContext context,
-      List<Map<String, dynamic>> images, int startIndex) {
+  String _seriesLabel(List seriesList, String? key) {
+    if (key == null) return '';
+    try {
+      return (seriesList as List<dynamic>)
+          .cast<Map<String, dynamic>>()
+          .firstWhere((s) => s['series_key'] == key,
+              orElse: () => {'label_ar': key})['label_ar'] as String? ?? key;
+    } catch (_) {
+      return key;
+    }
+  }
+
+  void _showFullScreen(
+      BuildContext context, List<Map<String, dynamic>> images, int index) {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) =>
-            _FullScreenViewer(images: images, initialIndex: startIndex, folderLabel: folder['label_ar'] as String? ?? ''),
+        builder: (_) => _FullScreenViewer(images: images, initialIndex: index),
       ),
     );
   }
 }
 
-// ─── Image card ───────────────────────────────────────────────────────────────
+// ─── Series Chips ─────────────────────────────────────────────────────────────
 
-class _GalleryImage extends StatelessWidget {
+class _SeriesChips extends StatelessWidget {
+  final List<Map<String, dynamic>> seriesList;
+  final String? selected;
+  final void Function(String?) onSelect;
+
+  const _SeriesChips(
+      {required this.seriesList,
+      required this.selected,
+      required this.onSelect});
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 52,
+      child: ListView(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        scrollDirection: Axis.horizontal,
+        children: [
+          _Chip(
+              label: 'الكل',
+              selected: selected == null,
+              onTap: () => onSelect(null)),
+          ...seriesList.map((s) => _Chip(
+                label: s['label_ar'] as String? ?? '',
+                selected: selected == s['series_key'],
+                onTap: () => onSelect(
+                    selected == s['series_key'] ? null : s['series_key'] as String?),
+              )),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── Model Chips ──────────────────────────────────────────────────────────────
+
+class _ModelChips extends StatelessWidget {
+  final List<Map<String, dynamic>> folders;
+  final String? selected;
+  final void Function(String?) onSelect;
+
+  const _ModelChips(
+      {required this.folders,
+      required this.selected,
+      required this.onSelect});
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 48,
+      child: ListView(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        scrollDirection: Axis.horizontal,
+        children: [
+          _Chip(
+              label: 'كل الموديلات',
+              selected: selected == null,
+              color: const Color(0xFF7B1FA2),
+              onTap: () => onSelect(null)),
+          ...folders.map((f) => _Chip(
+                label: f['label_ar'] as String? ?? f['model_key'] as String? ?? '',
+                selected: selected == f['model_key'],
+                color: const Color(0xFF7B1FA2),
+                onTap: () => onSelect(
+                    selected == f['model_key'] ? null : f['model_key'] as String?),
+              )),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── Chip widget ──────────────────────────────────────────────────────────────
+
+class _Chip extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+  final Color? color;
+
+  const _Chip(
+      {required this.label,
+      required this.selected,
+      required this.onTap,
+      this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    final activeColor = color ?? AppColors.primary;
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        margin: const EdgeInsets.only(right: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
+        decoration: BoxDecoration(
+          color: selected ? activeColor : AppColors.darkCard,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+              color: selected ? activeColor : AppColors.darkBorder),
+        ),
+        child: Text(label,
+            style: TextStyle(
+                fontFamily: 'Cairo',
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: selected ? Colors.white : AppColors.textSecondary)),
+      ),
+    );
+  }
+}
+
+// ─── Image Card ───────────────────────────────────────────────────────────────
+
+class _ImageCard extends StatelessWidget {
   final Map<String, dynamic> image;
   final int index;
   final VoidCallback onTap;
 
-  const _GalleryImage(
+  const _ImageCard(
       {required this.image, required this.index, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    final url = image['image_url'] as String? ?? '';
-    final fullUrl = ApiClient.img(url);
+    final url       = image['image_url'] as String? ?? '';
+    final fullUrl   = ApiClient.img(url);
     final watermark = image['watermark_number'] as String?;
-    final title = image['title'] as String?;
+    final label     = image['folder_label_ar'] as String?;
+    final model     = image['model_key'] as String?;
 
     return GestureDetector(
       onTap: onTap,
@@ -444,19 +417,21 @@ class _GalleryImage extends StatelessWidget {
                       ),
                       errorWidget: (_, __, ___) => Container(
                         color: AppColors.darkSurface,
-                        child: const Icon(Icons.image_not_supported_outlined,
-                            color: AppColors.textMuted, size: 28),
+                        child: const Center(
+                          child: Icon(Icons.image_not_supported_outlined,
+                              color: AppColors.textMuted, size: 26),
+                        ),
                       ),
                     ),
                     if (watermark != null)
                       Positioned(
-                        top: 5,
-                        right: 5,
+                        top: 4,
+                        right: 4,
                         child: Container(
                           padding: const EdgeInsets.symmetric(
                               horizontal: 5, vertical: 2),
                           decoration: BoxDecoration(
-                            color: AppColors.primary.withOpacity(0.85),
+                            color: AppColors.primary.withOpacity(0.88),
                             borderRadius: BorderRadius.circular(6),
                           ),
                           child: Text(
@@ -464,7 +439,7 @@ class _GalleryImage extends StatelessWidget {
                             style: const TextStyle(
                                 fontFamily: 'Cairo',
                                 color: Colors.white,
-                                fontSize: 8,
+                                fontSize: 7,
                                 fontWeight: FontWeight.w700),
                           ),
                         ),
@@ -473,28 +448,40 @@ class _GalleryImage extends StatelessWidget {
                 ),
               ),
             ),
-            if (title != null && title.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(6, 4, 6, 5),
-                child: Text(
-                  title,
-                  style: const TextStyle(
-                      fontFamily: 'Cairo',
-                      color: Colors.white,
-                      fontSize: 9,
-                      fontWeight: FontWeight.w600),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              )
-            else
-              const SizedBox(height: 6),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(6, 4, 6, 5),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (label != null && label.isNotEmpty)
+                    Text(
+                      label,
+                      style: const TextStyle(
+                          fontFamily: 'Cairo',
+                          color: Colors.white,
+                          fontSize: 9,
+                          fontWeight: FontWeight.w700),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  if (model != null && model.isNotEmpty)
+                    Text(
+                      model,
+                      style: const TextStyle(
+                          fontFamily: 'Cairo',
+                          color: AppColors.textMuted,
+                          fontSize: 8),
+                      maxLines: 1,
+                    ),
+                ],
+              ),
+            ),
           ],
         ),
       )
-          .animate(delay: Duration(milliseconds: (index % 12) * 40))
-          .fadeIn(duration: 300.ms)
-          .scale(begin: const Offset(0.92, 0.92), end: const Offset(1, 1)),
+          .animate(delay: Duration(milliseconds: (index % 12) * 35))
+          .fadeIn(duration: 280.ms)
+          .scale(begin: const Offset(0.93, 0.93)),
     );
   }
 }
@@ -504,12 +491,8 @@ class _GalleryImage extends StatelessWidget {
 class _FullScreenViewer extends StatefulWidget {
   final List<Map<String, dynamic>> images;
   final int initialIndex;
-  final String folderLabel;
 
-  const _FullScreenViewer(
-      {required this.images,
-      required this.initialIndex,
-      required this.folderLabel});
+  const _FullScreenViewer({required this.images, required this.initialIndex});
 
   @override
   State<_FullScreenViewer> createState() => _FullScreenViewerState();
@@ -534,10 +517,10 @@ class _FullScreenViewerState extends State<_FullScreenViewer> {
 
   @override
   Widget build(BuildContext context) {
-    final img = widget.images[_current];
+    final img       = widget.images[_current];
     final watermark = img['watermark_number'] as String?;
-    final title = img['title'] as String?;
-    final createdAt = (img['created_at'] as String? ?? '').replaceFirst('T', ' ');
+    final label     = img['folder_label_ar'] as String?;
+    final model     = img['model_key'] as String?;
 
     return Scaffold(
       backgroundColor: Colors.black,
@@ -551,7 +534,7 @@ class _FullScreenViewerState extends State<_FullScreenViewer> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              title ?? watermark ?? widget.folderLabel,
+              label ?? watermark ?? '',
               style: const TextStyle(
                   fontFamily: 'Cairo',
                   color: Colors.white,
@@ -561,7 +544,7 @@ class _FullScreenViewerState extends State<_FullScreenViewer> {
               overflow: TextOverflow.ellipsis,
             ),
             Text(
-              '${_current + 1} / ${widget.images.length}  •  ${widget.folderLabel}',
+              '${_current + 1} / ${widget.images.length}  •  ${model ?? ""}',
               style: const TextStyle(
                   fontFamily: 'Cairo', color: Colors.white60, fontSize: 11),
             ),
@@ -575,7 +558,7 @@ class _FullScreenViewerState extends State<_FullScreenViewer> {
             itemCount: widget.images.length,
             onPageChanged: (i) => setState(() => _current = i),
             itemBuilder: (ctx, i) {
-              final p = widget.images[i];
+              final p      = widget.images[i];
               final imgUrl = p['image_url'] as String? ?? '';
               final fullUrl = ApiClient.img(imgUrl);
               return InteractiveViewer(
@@ -596,95 +579,26 @@ class _FullScreenViewerState extends State<_FullScreenViewer> {
               );
             },
           ),
-
-          // Bottom info bar
-          Positioned(
-            bottom: 0,
-            left: 0,
-            right: 0,
-            child: Container(
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.bottomCenter,
-                  end: Alignment.topCenter,
-                  colors: [Colors.black87, Colors.transparent],
-                ),
-              ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        if (watermark != null)
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 8, vertical: 3),
-                            decoration: BoxDecoration(
-                              color: AppColors.primary.withOpacity(0.9),
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: Text(
-                              watermark,
-                              style: const TextStyle(
-                                  fontFamily: 'Cairo',
-                                  color: Colors.white,
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w700),
-                            ),
-                          ),
-                        if (title != null && title.isNotEmpty) ...[
-                          const SizedBox(height: 4),
-                          Text(
-                            title,
-                            style: const TextStyle(
-                                fontFamily: 'Cairo',
-                                color: Colors.white,
-                                fontSize: 14,
-                                fontWeight: FontWeight.w700),
-                          ),
-                        ],
-                        if (createdAt.isNotEmpty)
-                          Text(
-                            createdAt.length > 10
-                                ? createdAt.substring(0, 16)
-                                : createdAt,
-                            style: const TextStyle(
-                                fontFamily: 'Cairo',
-                                color: Colors.white54,
-                                fontSize: 11),
-                          ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-
-          // Dots indicator
-          if (widget.images.length > 1)
+          if (watermark != null)
             Positioned(
-              bottom: 80,
+              bottom: 32,
               left: 0,
               right: 0,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: List.generate(
-                  widget.images.length.clamp(0, 8),
-                  (i) => AnimatedContainer(
-                    duration: const Duration(milliseconds: 200),
-                    width: i == _current % 8 ? 16 : 6,
-                    height: 6,
-                    margin: const EdgeInsets.symmetric(horizontal: 3),
-                    decoration: BoxDecoration(
-                      color: i == _current % 8
-                          ? AppColors.primary
-                          : Colors.white38,
-                      borderRadius: BorderRadius.circular(3),
-                    ),
+              child: Center(
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withOpacity(0.9),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    watermark,
+                    style: const TextStyle(
+                        fontFamily: 'Cairo',
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700),
                   ),
                 ),
               ),
@@ -695,127 +609,49 @@ class _FullScreenViewerState extends State<_FullScreenViewer> {
   }
 }
 
-// ─── Empty state — main gallery ───────────────────────────────────────────────
+// ─── Empty state ──────────────────────────────────────────────────────────────
 
 class _EmptyGallery extends StatelessWidget {
-  final VoidCallback onRetry;
-  const _EmptyGallery({required this.onRetry});
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 96,
-              height: 96,
-              decoration: BoxDecoration(
-                color: AppColors.darkSurface,
-                shape: BoxShape.circle,
-                border: Border.all(color: AppColors.primary.withOpacity(0.3), width: 2),
-              ),
-              child: const Icon(Icons.photo_library_outlined,
-                  color: AppColors.primary, size: 44),
-            ),
-            const SizedBox(height: 20),
-            const Text(
-              'المعرض فارغ حالياً',
-              style: TextStyle(
-                  fontFamily: 'Cairo',
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700),
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'سيتم إضافة صور المنتجات والعروض قريباً',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                  fontFamily: 'Cairo',
-                  color: AppColors.textMuted,
-                  fontSize: 13),
-            ),
-            const SizedBox(height: 24),
-            OutlinedButton.icon(
-              onPressed: onRetry,
-              style: OutlinedButton.styleFrom(
-                foregroundColor: AppColors.primary,
-                side: const BorderSide(color: AppColors.primary),
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-              ),
-              icon: const Icon(Icons.refresh, size: 18),
-              label: const Text('تحديث', style: TextStyle(fontFamily: 'Cairo')),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// ─── Empty state — folder detail ─────────────────────────────────────────────
-
-class _EmptyFolder extends StatelessWidget {
-  final String folderName;
+  final String? message;
   final VoidCallback? onRetry;
-  const _EmptyFolder({required this.folderName, this.onRetry});
+
+  const _EmptyGallery({this.message, this.onRetry});
 
   @override
   Widget build(BuildContext context) {
     return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 96,
-              height: 96,
-              decoration: BoxDecoration(
-                color: AppColors.darkSurface,
-                shape: BoxShape.circle,
-                border: Border.all(color: AppColors.textMuted.withOpacity(0.3), width: 2),
-              ),
-              child: const Icon(Icons.folder_open_outlined,
-                  color: AppColors.textMuted, size: 44),
-            ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.photo_library_outlined,
+              color: AppColors.textMuted, size: 64),
+          const SizedBox(height: 16),
+          Text(
+            message ?? 'المعرض فارغ',
+            style: const TextStyle(
+                fontFamily: 'Cairo',
+                color: Colors.white,
+                fontSize: 16,
+                fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 6),
+          const Text(
+            'سيتم عرض الصور هنا بعد إضافتها من لوحة التحكم',
+            style: TextStyle(
+                fontFamily: 'Cairo', color: AppColors.textMuted, fontSize: 12),
+            textAlign: TextAlign.center,
+          ),
+          if (onRetry != null) ...[
             const SizedBox(height: 20),
-            Text(
-              'لا توجد صور في $folderName',
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                  fontFamily: 'Cairo',
-                  color: Colors.white,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w700),
+            TextButton.icon(
+              onPressed: onRetry,
+              icon: const Icon(Icons.refresh, color: AppColors.primary),
+              label: const Text('إعادة المحاولة',
+                  style: TextStyle(
+                      fontFamily: 'Cairo', color: AppColors.primary)),
             ),
-            const SizedBox(height: 8),
-            const Text(
-              'سيتم إضافة صور لهذا الموديل قريباً',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                  fontFamily: 'Cairo',
-                  color: AppColors.textMuted,
-                  fontSize: 13),
-            ),
-            if (onRetry != null) ...[
-              const SizedBox(height: 24),
-              OutlinedButton.icon(
-                onPressed: onRetry,
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: AppColors.primary,
-                  side: const BorderSide(color: AppColors.primary),
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                ),
-                icon: const Icon(Icons.refresh, size: 18),
-                label: const Text('تحديث', style: TextStyle(fontFamily: 'Cairo')),
-              ),
-            ],
           ],
-        ),
+        ],
       ),
     );
   }

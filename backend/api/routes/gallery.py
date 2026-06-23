@@ -127,6 +127,46 @@ def list_folders(db: Session = Depends(get_db)):
     return list(grouped.values())
 
 
+# ── GET /api/gallery/images  (كل صور المعرض مع فلاتر اختيارية) ──────────────
+@router.get("/images")
+def get_all_gallery_images(
+    series_key: Optional[str] = Query(None),
+    model_key: Optional[str]  = Query(None),
+    db: Session = Depends(get_db),
+):
+    """جلب كل صور المعرض مع فلاتر اختيارية حسب الفئة (series_key) والموديل (model_key)."""
+    q = (
+        db.query(GalleryImage)
+        .join(GalleryFolder, GalleryImage.folder_id == GalleryFolder.id)
+        .filter(GalleryFolder.is_active == True)
+    )
+    if series_key:
+        q = q.filter(GalleryFolder.series_key == series_key)
+    if model_key:
+        q = q.filter(GalleryFolder.model_key == model_key)
+
+    images = q.order_by(
+        GalleryFolder.sort_order,
+        GalleryImage.sort_order,
+        GalleryImage.created_at,
+    ).all()
+
+    return [
+        {
+            "id": img.id,
+            "image_url": img.image_url,
+            "watermark_number": img.watermark_number,
+            "title": img.title,
+            "folder_id": img.folder_id,
+            "folder_label_ar": img.folder.label_ar,
+            "series_key": img.folder.series_key,
+            "model_key": img.folder.model_key,
+            "created_at": img.created_at.isoformat() if img.created_at else None,
+        }
+        for img in images
+    ]
+
+
 # ── GET /api/gallery/folders/{folder_id}  (images in folder) ──────────────────
 @router.get("/folders/{folder_id}")
 def get_folder_images(folder_id: int, db: Session = Depends(get_db)):
