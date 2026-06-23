@@ -163,39 +163,23 @@ async function uploadImage(productId, input) {
   if (!input.files || !input.files[0]) return;
   const file = input.files[0];
 
-  // Show spinner, hide image
   document.getElementById('spin-' + productId).classList.remove('hidden');
 
   try {
-    // 1. Upload the image file
     const formData = new FormData();
-    formData.append('file', file);
+    formData.append('image', file);
 
-    const upRes = await fetch('/api/uploads/image', {
+    const res = await fetch('/products/' + productId + '/upload-image', {
       method: 'POST',
-      headers: { 'Authorization': 'Bearer ' + AUTH_TOKEN },
       body: formData,
     });
 
-    if (!upRes.ok) throw new Error('فشل رفع الصورة (' + upRes.status + ')');
-    const upData = await upRes.json();
-    const imageUrl = upData.url;
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error || 'فشل رفع الصورة');
 
-    // 2. Update product image_url
-    const putRes = await fetch('/api/products/' + productId, {
-      method: 'PUT',
-      headers: {
-        'Authorization': 'Bearer ' + AUTH_TOKEN,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ image_url: imageUrl }),
-    });
-
-    if (!putRes.ok) throw new Error('فشل تحديث المنتج (' + putRes.status + ')');
-
-    // 3. Update image in row without page reload
-    const imgEl  = document.getElementById('img-' + productId);
-    const noImg  = document.getElementById('noimg-' + productId);
+    const imageUrl = data.url;
+    const imgEl = document.getElementById('img-' + productId);
+    const noImg = document.getElementById('noimg-' + productId);
     const fullUrl = imageUrl.startsWith('http') ? imageUrl : (window.location.origin + imageUrl);
     imgEl.src = fullUrl;
     imgEl.classList.remove('hidden');

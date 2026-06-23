@@ -526,6 +526,73 @@ async def product_delete(product_id: int, request: Request):
     return RedirectResponse("/products?success=تم+حذف+المنتج+بنجاح", status_code=302)
 
 
+@app.post("/products/{product_id}/upload-image")
+async def product_upload_image(product_id: int, request: Request, image: UploadFile = File(...)):
+    from fastapi.responses import JSONResponse
+    import uuid as _uuid
+    from PIL import Image as _PIL
+    import io as _io
+    if not _logged(request):
+        return JSONResponse({"ok": False, "error": "غير مصرح"}, status_code=401)
+    try:
+        file_bytes = await image.read()
+        mime = image.content_type or "image/jpeg"
+
+        # ── ضغط الصورة ──────────────────────────────────────────────────────
+        try:
+            pil = _PIL.open(_io.BytesIO(file_bytes))
+            pil.thumbnail((800, 800), _PIL.LANCZOS)
+            buf = _io.BytesIO()
+            fmt = "JPEG" if "jpeg" in mime or "jpg" in mime else "PNG"
+            pil.save(buf, format=fmt, optimize=True, quality=85)
+            file_bytes = buf.getvalue()
+            mime = "image/jpeg" if fmt == "JPEG" else "image/png"
+        except Exception:
+            pass  # استخدام الملف الأصلي إذا فشل الضغط
+
+        # ── رفع مباشرة إلى Supabase (المتغيرات موجودة في Replit) ──────────
+        from backend.core import supabase_storage
+        img_uuid = str(_uuid.uuid4())
+        image_url = supabase_storage.upload_image(img_uuid, file_bytes, mime)
+
+        # ── احتياطي: رفع عبر الـ backend API ───────────────────────────────
+        if not image_url:
+            img_data = await api(
+                "post", "/api/uploads/image", token=_token(request),
+                files={"file": (image.filename, file_bytes, mime)},
+            )
+            image_url = (img_data or {}).get("url")
+
+        if not image_url:
+            return JSONResponse({"ok": False, "error": "فشل رفع الصورة — تحقق من إعدادات Supabase"}, status_code=500)
+
+        # ── تحديث المنتج (local backend أولاً — دائم التشغيل) ───────────────
+        tok = _token(request)
+        update_ok = False
+        try:
+            async with httpx.AsyncClient(timeout=10) as _lc:
+                _r = await _lc.put(
+                    f"http://localhost:8000/api/products/{product_id}",
+                    headers={"Authorization": f"Bearer {tok}", "Content-Type": "application/json"},
+                    json={"image_url": image_url},
+                )
+                update_ok = _r.status_code < 300
+        except Exception:
+            pass
+
+        if not update_ok:
+            _, err = await api_ex(
+                "put", f"/api/products/{product_id}",
+                token=tok, json={"image_url": image_url},
+            )
+            if err:
+                return JSONResponse({"ok": False, "error": err}, status_code=500)
+
+        return JSONResponse({"ok": True, "url": image_url})
+    except Exception as e:
+        return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
+
+
 # ── Orders ──────────────────────────────────────────────────────────────────────
 
 @app.get("/orders", response_class=HTMLResponse)
