@@ -4,7 +4,8 @@ const fs = require('fs');
 const path = require('path');
 
 const PORT = 5000;
-const EXTERNAL_API = (process.env.BACKEND_API_URL || 'http://localhost:8000').replace(/\/$/, '');
+// On Replit, always proxy to the local backend regardless of BACKEND_API_URL env var
+const EXTERNAL_API = 'http://localhost:8000';
 const WEB_DIR = path.join(__dirname, 'build', 'web');
 
 const mimeTypes = {
