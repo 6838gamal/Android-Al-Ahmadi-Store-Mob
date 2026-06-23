@@ -2004,7 +2004,7 @@ async def daily_award_add(request: Request):
     payload = {
         "recipient_name": form.get("recipient_name"),
         "amount": float(form.get("amount") or 0),
-        "description": form.get("description") or None,
+        "reason": form.get("description") or None,
     }
     _, err = await api_ex("post", "/api/daily/awards", token=_token(request), json=payload)
     if err:

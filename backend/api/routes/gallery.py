@@ -211,6 +211,7 @@ async def upload_image(
 
     if not folder.cover_image_url:
         folder.cover_image_url = image_url
+    folder.updated_at = datetime.utcnow()
 
     db.commit()
     db.refresh(img)
@@ -254,6 +255,7 @@ def add_image_by_url(
 
     if not folder.cover_image_url:
         folder.cover_image_url = image_url
+    folder.updated_at = datetime.utcnow()
 
     db.commit()
     db.refresh(img)
@@ -306,6 +308,7 @@ async def batch_upload_images(
 
     if not folder.cover_image_url and first_url:
         folder.cover_image_url = first_url
+    folder.updated_at = datetime.utcnow()
 
     db.commit()
     return {

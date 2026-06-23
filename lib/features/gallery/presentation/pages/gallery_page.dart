@@ -9,7 +9,8 @@ import '../../../home/presentation/pages/main_shell.dart';
 
 // ─── Providers ────────────────────────────────────────────────────────────────
 
-final _gallerySeriesProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
+final _gallerySeriesProvider =
+    FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) async {
   final api = ref.read(apiClientProvider);
   try {
     final res = await api.get('/gallery/folders');
@@ -20,7 +21,7 @@ final _gallerySeriesProvider = FutureProvider<List<Map<String, dynamic>>>((ref) 
 });
 
 final _folderImagesProvider =
-    FutureProvider.family<Map<String, dynamic>, int>((ref, folderId) async {
+    FutureProvider.autoDispose.family<Map<String, dynamic>, int>((ref, folderId) async {
   final api = ref.read(apiClientProvider);
   try {
     final res = await api.get('/gallery/folders/$folderId');

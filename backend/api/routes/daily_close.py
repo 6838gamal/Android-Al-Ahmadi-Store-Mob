@@ -79,6 +79,7 @@ def list_expenses(
             "amount": e.amount,
             "category": e.category,
             "expense_date": str(e.expense_date),
+            "created_at": e.created_at.isoformat() if e.created_at else None,
             "notes": e.notes,
             "recorded_by": e.recorded_by.name if e.recorded_by else None,
         }
