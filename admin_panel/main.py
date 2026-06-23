@@ -132,6 +132,51 @@ def to_obj(data):
 
 
 _API_TIMEOUT = 10.0  # Keep well below Replit proxy timeout (~30s)
+_LOCAL_BASE = "http://127.0.0.1:8000"
+
+
+async def _local_upload_image(token: str, filename: str, img_bytes: bytes, content_type: str) -> str | None:
+    """Upload image to local backend (Supabase CDN). Falls back to Render API on failure."""
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as _lc:
+            _r = await _lc.post(
+                f"{_LOCAL_BASE}/api/uploads/image",
+                headers={"Authorization": f"Bearer {token}"},
+                files={"file": (filename, img_bytes, content_type)},
+            )
+            if _r.status_code in (200, 201):
+                return _r.json().get("url")
+    except Exception as _e:
+        print(f"[upload] local failed ({_e}), trying Render API...")
+    img_data = await api("post", "/api/uploads/image", token=token,
+                         files={"file": (filename, img_bytes, content_type)})
+    return (img_data or {}).get("url")
+
+
+async def _local_json(method: str, path: str, token: str, **kwargs):
+    """POST/PUT JSON to local backend with automatic fallback to Render API.
+    Returns (result_dict_or_None, error_str_or_None)."""
+    try:
+        async with httpx.AsyncClient(timeout=15.0) as _lc:
+            _r = await getattr(_lc, method)(
+                f"{_LOCAL_BASE}{path}",
+                headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
+                **kwargs,
+            )
+            if _r.status_code in (200, 201):
+                return _r.json(), None
+            # Auth failure → token from Render may differ; retry via Render API
+            if _r.status_code == 401:
+                print(f"[local_json] 401 on local, falling back to Render API")
+            else:
+                try:
+                    detail = _r.json().get("detail", f"خطأ {_r.status_code}")
+                except Exception:
+                    detail = f"خطأ {_r.status_code}"
+                return None, detail
+    except Exception as _e:
+        print(f"[local_json] connection error ({_e}), falling back to Render API")
+    return await api_ex(method, path, token=token, **kwargs)
 
 
 async def api(method: str, path: str, token: str = None, real_ip: str = None, **kwargs):
@@ -466,17 +511,7 @@ async def product_add_post(
     image_url = None
     if image and image.filename:
         img_bytes = await image.read()
-        try:
-            async with httpx.AsyncClient(timeout=30.0) as _lc:
-                _r = await _lc.post(
-                    "http://localhost:8000/api/uploads/image",
-                    headers={"Authorization": f"Bearer {_token(request)}"},
-                    files={"file": (image.filename, img_bytes, image.content_type)},
-                )
-                if _r.status_code in (200, 201):
-                    image_url = _r.json().get("url")
-        except Exception as _e:
-            print(f"[product_add] local upload failed: {_e}")
+        image_url = await _local_upload_image(_token(request), image.filename, img_bytes, image.content_type)
 
     payload = {
         "name": name, "name_ar": name_ar or None, "brand": brand or None,
@@ -486,19 +521,7 @@ async def product_add_post(
         "notes": notes or None, "is_featured": bool(is_featured),
         "image_url": image_url,
     }
-    err = None
-    try:
-        async with httpx.AsyncClient(timeout=15.0) as _lc:
-            _r = await _lc.post(
-                "http://localhost:8000/api/products/",
-                headers={"Authorization": f"Bearer {_token(request)}", "Content-Type": "application/json"},
-                json=payload,
-            )
-            if _r.status_code not in (200, 201):
-                err = _r.json().get("detail", f"خطأ {_r.status_code}") if _r.content else f"خطأ {_r.status_code}"
-    except Exception as _e:
-        err = str(_e)
-
+    _, err = await _local_json("post", "/api/products/", token=_token(request), json=payload)
     if err:
         return RedirectResponse(f"/products?error={_q(err)}", status_code=302)
     return RedirectResponse("/products?success=تم+إضافة+المنتج+بنجاح", status_code=302)
@@ -545,17 +568,7 @@ async def product_edit_post(
     image_url = None
     if image and image.filename:
         img_bytes = await image.read()
-        try:
-            async with httpx.AsyncClient(timeout=30.0) as _lc:
-                _r = await _lc.post(
-                    "http://localhost:8000/api/uploads/image",
-                    headers={"Authorization": f"Bearer {_token(request)}"},
-                    files={"file": (image.filename, img_bytes, image.content_type)},
-                )
-                if _r.status_code in (200, 201):
-                    image_url = _r.json().get("url")
-        except Exception as _e:
-            print(f"[product_edit] local upload failed: {_e}")
+        image_url = await _local_upload_image(_token(request), image.filename, img_bytes, image.content_type)
 
     payload = {
         "name": name, "name_ar": name_ar or None, "brand": brand or None,
@@ -567,19 +580,7 @@ async def product_edit_post(
     if image_url:
         payload["image_url"] = image_url
 
-    err = None
-    try:
-        async with httpx.AsyncClient(timeout=15.0) as _lc:
-            _r = await _lc.put(
-                f"http://localhost:8000/api/products/{product_id}",
-                headers={"Authorization": f"Bearer {_token(request)}", "Content-Type": "application/json"},
-                json=payload,
-            )
-            if _r.status_code not in (200, 201):
-                err = _r.json().get("detail", f"خطأ {_r.status_code}") if _r.content else f"خطأ {_r.status_code}"
-    except Exception as _e:
-        err = str(_e)
-
+    _, err = await _local_json("put", f"/api/products/{product_id}", token=_token(request), json=payload)
     if err:
         return RedirectResponse(f"/products?error={_q(err)}", status_code=302)
     return RedirectResponse("/products?success=تم+تحديث+المنتج+بنجاح", status_code=302)
