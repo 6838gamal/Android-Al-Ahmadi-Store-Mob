@@ -15,6 +15,21 @@
   </div>
 </div>
 
+<!-- Flash messages -->
+{% if request.query_params.get('success') %}
+<div class="bg-green-500/10 border border-green-500/30 text-green-400 rounded-xl p-4 mb-4 flex items-center gap-3">
+  <i class="fa-solid fa-circle-check"></i> {{ request.query_params.get('success') }}
+</div>
+{% endif %}
+{% if request.query_params.get('error') %}
+<div class="bg-red-500/10 border border-red-500/30 text-red-400 rounded-xl p-4 mb-4 flex items-center gap-3">
+  <i class="fa-solid fa-circle-exclamation"></i> {{ request.query_params.get('error') }}
+</div>
+{% endif %}
+
+<!-- Toast notification -->
+<div id="toast" class="hidden fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-5 py-3 rounded-xl shadow-xl text-sm font-bold font-cairo flex items-center gap-2"></div>
+
 <!-- Search -->
 <form method="get" class="mb-5">
   <div class="relative max-w-sm">
@@ -30,13 +45,13 @@
     <table class="w-full text-sm">
       <thead>
         <tr class="border-b border-dark-border text-gray-500 text-xs">
-          <th class="px-5 py-3 text-right font-semibold">المنتج</th>
-          <th class="px-5 py-3 text-right font-semibold">الفئة</th>
-          <th class="px-5 py-3 text-right font-semibold">السعر</th>
-          <th class="px-5 py-3 text-right font-semibold">الكمية</th>
-          <th class="px-5 py-3 text-right font-semibold">الحالة</th>
-          <th class="px-5 py-3 text-right font-semibold">تاريخ الإضافة</th>
-          <th class="px-5 py-3 text-right font-semibold">إجراءات</th>
+          <th class="px-4 py-3 text-right font-semibold w-20">الصورة</th>
+          <th class="px-4 py-3 text-right font-semibold">المنتج</th>
+          <th class="px-4 py-3 text-right font-semibold">الفئة</th>
+          <th class="px-4 py-3 text-right font-semibold">السعر</th>
+          <th class="px-4 py-3 text-right font-semibold">الكمية</th>
+          <th class="px-4 py-3 text-right font-semibold">الحالة</th>
+          <th class="px-4 py-3 text-right font-semibold">الإجراءات</th>
         </tr>
       </thead>
       <tbody>
@@ -44,44 +59,78 @@
         {% set s = p.status|v %}
         {% set status_colors = {'available':'#22C55E','reserved':'#F59E0B','sold':'#6B7280','unavailable':'#EF4444'} %}
         {% set status_labels_map = {'available':'متوفر','reserved':'محجوز','sold':'مباع','unavailable':'غير متوفر'} %}
-        <tr class="table-row">
-          <td class="px-5 py-3">
-            <div class="flex items-center gap-3">
-              {% if p.image_url %}
-              <img src="{{ p.image_url|bu }}" class="w-10 h-10 rounded-xl object-cover bg-dark-alt" onerror="this.style.display='none'">
-              {% else %}
-              <div class="w-10 h-10 rounded-xl bg-dark-alt flex items-center justify-center">
-                <i class="fa-solid fa-mobile-screen text-gray-500"></i>
+        <tr class="table-row" id="row-{{ p.id }}">
+
+          <!-- ── عمود الصورة ── -->
+          <td class="px-4 py-3">
+            <div class="relative group w-16 h-16 cursor-pointer" onclick="triggerUpload({{ p.id }})" title="اضغط لتغيير الصورة">
+              <!-- الصورة الحالية أو placeholder -->
+              <img id="img-{{ p.id }}"
+                src="{% if p.image_url %}{{ p.image_url|bu }}{% else %}{% endif %}"
+                class="w-16 h-16 rounded-xl object-cover bg-dark-alt border border-dark-border {% if not p.image_url %}hidden{% endif %}"
+                onerror="this.classList.add('hidden'); document.getElementById('noimg-{{ p.id }}').classList.remove('hidden')">
+              <div id="noimg-{{ p.id }}" class="w-16 h-16 rounded-xl bg-dark-alt border border-dark-border flex flex-col items-center justify-center gap-1 {% if p.image_url %}hidden{% endif %}">
+                <i class="fa-solid fa-image text-gray-600 text-lg"></i>
+                <span class="text-gray-600 text-[9px]">لا صورة</span>
               </div>
-              {% endif %}
-              <div>
-                <div class="text-white font-bold">{{ p.name }}</div>
-                {% if p.brand %}<div class="text-gray-500 text-xs">{{ p.brand }} {% if p.model %}· {{ p.model }}{% endif %}</div>{% endif %}
+              <!-- Overlay عند hover -->
+              <div class="absolute inset-0 rounded-xl bg-black/60 opacity-0 group-hover:opacity-100 transition flex items-center justify-center">
+                <i class="fa-solid fa-camera text-white text-lg"></i>
+              </div>
+              <!-- Spinner أثناء الرفع -->
+              <div id="spin-{{ p.id }}" class="hidden absolute inset-0 rounded-xl bg-black/70 flex items-center justify-center">
+                <i class="fa-solid fa-spinner fa-spin text-white text-lg"></i>
               </div>
             </div>
+            <input type="file" id="file-{{ p.id }}" accept="image/*" class="hidden"
+              onchange="uploadImage({{ p.id }}, this)">
           </td>
-          <td class="px-5 py-3 text-gray-400">{{ cat_map.get(p.category.value, p.category.value) }}</td>
-          <td class="px-5 py-3 text-primary font-bold">{{ "%.2f"|format(p.price) }} ر.س</td>
-          <td class="px-5 py-3">
+
+          <!-- ── عمود المنتج ── -->
+          <td class="px-4 py-3">
+            <div class="text-white font-bold">{{ p.name }}</div>
+            {% if p.brand %}<div class="text-gray-500 text-xs mt-0.5">{{ p.brand }}{% if p.model %} · {{ p.model }}{% endif %}</div>{% endif %}
+          </td>
+
+          <!-- ── الفئة ── -->
+          <td class="px-4 py-3 text-gray-400">{{ cat_map.get(p.category.value, p.category.value) }}</td>
+
+          <!-- ── السعر ── -->
+          <td class="px-4 py-3 text-primary font-bold whitespace-nowrap">{{ "%.0f"|format(p.price) }} ر.ي</td>
+
+          <!-- ── الكمية ── -->
+          <td class="px-4 py-3">
             <span class="font-bold {% if p.quantity <= 3 %}text-yellow-400{% else %}text-white{% endif %}">
               {{ p.quantity }}
               {% if p.quantity <= 3 %}<i class="fa-solid fa-triangle-exclamation ms-1 text-xs"></i>{% endif %}
             </span>
           </td>
-          <td class="px-5 py-3">
+
+          <!-- ── الحالة ── -->
+          <td class="px-4 py-3">
             <span class="badge" style="background:{{ status_colors.get(s,'#6B7280') }}22; color:{{ status_colors.get(s,'#6B7280') }}">
               {{ status_labels_map.get(s, s) }}
             </span>
           </td>
-          <td class="px-5 py-3 text-gray-500 text-xs">{{ p.created_at.strftime('%Y-%m-%d %H:%M') if p.created_at else '—' }}</td>
-          <td class="px-5 py-3">
-            <div class="flex items-center gap-2">
-              <a href="/products/edit/{{ p.id }}" class="text-primary hover:text-blue-300 p-2 rounded-lg hover:bg-primary-light transition">
+
+          <!-- ── الإجراءات ── -->
+          <td class="px-4 py-3">
+            <div class="flex items-center gap-1">
+              <!-- تعديل -->
+              <a href="/products/edit/{{ p.id }}"
+                class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition text-xs font-bold"
+                title="تعديل المنتج">
                 <i class="fa-solid fa-pen-to-square"></i>
+                <span class="hidden sm:inline">تعديل</span>
               </a>
-              <form method="post" action="/products/delete/{{ p.id }}" onsubmit="return confirm('هل تريد حذف هذا المنتج؟')">
-                <button type="submit" class="text-red-400 hover:text-red-300 p-2 rounded-lg hover:bg-red-500/10 transition">
+              <!-- حذف -->
+              <form method="post" action="/products/delete/{{ p.id }}"
+                onsubmit="return confirm('هل تريد حذف منتج: {{ p.name }}؟\nهذا الإجراء لا يمكن التراجع عنه.')">
+                <button type="submit"
+                  class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 transition text-xs font-bold"
+                  title="حذف المنتج">
                   <i class="fa-solid fa-trash"></i>
+                  <span class="hidden sm:inline">حذف</span>
                 </button>
               </form>
             </div>
@@ -99,4 +148,75 @@
   <a href="/products/add" class="btn-primary">إضافة منتج جديد</a>
 </div>
 {% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+const AUTH_TOKEN = "{{ request.session.get('token', '') }}";
+const API_BASE   = "";   // same origin
+
+function triggerUpload(productId) {
+  document.getElementById('file-' + productId).click();
+}
+
+async function uploadImage(productId, input) {
+  if (!input.files || !input.files[0]) return;
+  const file = input.files[0];
+
+  // Show spinner, hide image
+  document.getElementById('spin-' + productId).classList.remove('hidden');
+
+  try {
+    // 1. Upload the image file
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const upRes = await fetch('/api/uploads/image', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + AUTH_TOKEN },
+      body: formData,
+    });
+
+    if (!upRes.ok) throw new Error('فشل رفع الصورة (' + upRes.status + ')');
+    const upData = await upRes.json();
+    const imageUrl = upData.url;
+
+    // 2. Update product image_url
+    const putRes = await fetch('/api/products/' + productId, {
+      method: 'PUT',
+      headers: {
+        'Authorization': 'Bearer ' + AUTH_TOKEN,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ image_url: imageUrl }),
+    });
+
+    if (!putRes.ok) throw new Error('فشل تحديث المنتج (' + putRes.status + ')');
+
+    // 3. Update image in row without page reload
+    const imgEl  = document.getElementById('img-' + productId);
+    const noImg  = document.getElementById('noimg-' + productId);
+    const fullUrl = imageUrl.startsWith('http') ? imageUrl : (window.location.origin + imageUrl);
+    imgEl.src = fullUrl;
+    imgEl.classList.remove('hidden');
+    noImg.classList.add('hidden');
+
+    showToast('✓ تم تحديث الصورة بنجاح', 'green');
+  } catch (e) {
+    showToast('✗ ' + e.message, 'red');
+  } finally {
+    document.getElementById('spin-' + productId).classList.add('hidden');
+    input.value = '';
+  }
+}
+
+function showToast(msg, color) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-5 py-3 rounded-xl shadow-xl text-sm font-bold font-cairo flex items-center gap-2 '
+    + (color === 'green' ? 'bg-green-600 text-white' : 'bg-red-600 text-white');
+  t.classList.remove('hidden');
+  setTimeout(() => t.classList.add('hidden'), 3500);
+}
+</script>
 {% endblock %}
