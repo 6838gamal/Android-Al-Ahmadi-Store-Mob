@@ -22,8 +22,12 @@ final _gallerySeriesProvider = FutureProvider<List<Map<String, dynamic>>>((ref) 
 final _folderImagesProvider =
     FutureProvider.family<Map<String, dynamic>, int>((ref, folderId) async {
   final api = ref.read(apiClientProvider);
-  final res = await api.get('/gallery/folders/$folderId');
-  return Map<String, dynamic>.from(res.data);
+  try {
+    final res = await api.get('/gallery/folders/$folderId');
+    return Map<String, dynamic>.from(res.data);
+  } catch (_) {
+    return {'images': [], 'folder': {}};
+  }
 });
 
 // ─── Page (Level 1 — series list) ────────────────────────────────────────────
@@ -55,31 +59,10 @@ class GalleryPage extends ConsumerWidget {
       body: seriesAsync.when(
         loading: () =>
             const Center(child: CircularProgressIndicator(color: AppColors.primary)),
-        error: (_, __) => Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.error_outline, color: AppColors.error, size: 48),
-              const SizedBox(height: 12),
-              const Text('تعذر تحميل المعرض',
-                  style: TextStyle(fontFamily: 'Cairo', color: Colors.white)),
-              const SizedBox(height: 12),
-              ElevatedButton.icon(
-                onPressed: () => ref.invalidate(_gallerySeriesProvider),
-                icon: const Icon(Icons.refresh),
-                label: const Text('إعادة المحاولة',
-                    style: TextStyle(fontFamily: 'Cairo')),
-              ),
-            ],
-          ),
-        ),
+        error: (_, __) => _EmptyGallery(onRetry: () => ref.invalidate(_gallerySeriesProvider)),
         data: (seriesList) {
           if (seriesList.isEmpty) {
-            return const Center(
-              child: Text('لا توجد مجلدات بعد',
-                  style: TextStyle(
-                      fontFamily: 'Cairo', color: AppColors.textMuted, fontSize: 16)),
-            );
+            return _EmptyGallery(onRetry: () => ref.invalidate(_gallerySeriesProvider));
           }
           return ListView.builder(
             padding: const EdgeInsets.all(12),
@@ -361,43 +344,18 @@ class _FolderPage extends ConsumerWidget {
       body: folderAsync.when(
         loading: () =>
             const Center(child: CircularProgressIndicator(color: AppColors.primary)),
-        error: (_, __) => Center(
-          child: ElevatedButton.icon(
-            onPressed: () =>
-                ref.invalidate(_folderImagesProvider(folderId)),
-            icon: const Icon(Icons.refresh),
-            label: const Text('إعادة المحاولة',
-                style: TextStyle(fontFamily: 'Cairo')),
-          ),
+        error: (_, __) => _EmptyFolder(
+          folderName: folder['label_ar'] as String? ?? '',
+          onRetry: () => ref.invalidate(_folderImagesProvider(folderId)),
         ),
         data: (data) {
           final images =
               List<Map<String, dynamic>>.from(data['images'] as List? ?? []);
 
           if (images.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.folder_open,
-                      color: AppColors.textMuted, size: 64),
-                  const SizedBox(height: 16),
-                  Text(
-                    'لا توجد صور في ${folder['label_ar']}',
-                    style: const TextStyle(
-                        fontFamily: 'Cairo',
-                        color: Colors.white,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700),
-                  ),
-                  const SizedBox(height: 8),
-                  const Text('سيتم إضافة صور لهذا الموديل قريباً',
-                      style: TextStyle(
-                          fontFamily: 'Cairo',
-                          color: AppColors.textMuted,
-                          fontSize: 13)),
-                ],
-              ),
+            return _EmptyFolder(
+              folderName: folder['label_ar'] as String? ?? '',
+              onRetry: null,
             );
           }
 
@@ -731,6 +689,132 @@ class _FullScreenViewerState extends State<_FullScreenViewer> {
               ),
             ),
         ],
+      ),
+    );
+  }
+}
+
+// ─── Empty state — main gallery ───────────────────────────────────────────────
+
+class _EmptyGallery extends StatelessWidget {
+  final VoidCallback onRetry;
+  const _EmptyGallery({required this.onRetry});
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 96,
+              height: 96,
+              decoration: BoxDecoration(
+                color: AppColors.darkSurface,
+                shape: BoxShape.circle,
+                border: Border.all(color: AppColors.primary.withOpacity(0.3), width: 2),
+              ),
+              child: const Icon(Icons.photo_library_outlined,
+                  color: AppColors.primary, size: 44),
+            ),
+            const SizedBox(height: 20),
+            const Text(
+              'المعرض فارغ حالياً',
+              style: TextStyle(
+                  fontFamily: 'Cairo',
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'سيتم إضافة صور المنتجات والعروض قريباً',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                  fontFamily: 'Cairo',
+                  color: AppColors.textMuted,
+                  fontSize: 13),
+            ),
+            const SizedBox(height: 24),
+            OutlinedButton.icon(
+              onPressed: onRetry,
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.primary,
+                side: const BorderSide(color: AppColors.primary),
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+              ),
+              icon: const Icon(Icons.refresh, size: 18),
+              label: const Text('تحديث', style: TextStyle(fontFamily: 'Cairo')),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Empty state — folder detail ─────────────────────────────────────────────
+
+class _EmptyFolder extends StatelessWidget {
+  final String folderName;
+  final VoidCallback? onRetry;
+  const _EmptyFolder({required this.folderName, this.onRetry});
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 96,
+              height: 96,
+              decoration: BoxDecoration(
+                color: AppColors.darkSurface,
+                shape: BoxShape.circle,
+                border: Border.all(color: AppColors.textMuted.withOpacity(0.3), width: 2),
+              ),
+              child: const Icon(Icons.folder_open_outlined,
+                  color: AppColors.textMuted, size: 44),
+            ),
+            const SizedBox(height: 20),
+            Text(
+              'لا توجد صور في $folderName',
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                  fontFamily: 'Cairo',
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'سيتم إضافة صور لهذا الموديل قريباً',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                  fontFamily: 'Cairo',
+                  color: AppColors.textMuted,
+                  fontSize: 13),
+            ),
+            if (onRetry != null) ...[
+              const SizedBox(height: 24),
+              OutlinedButton.icon(
+                onPressed: onRetry,
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.primary,
+                  side: const BorderSide(color: AppColors.primary),
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                ),
+                icon: const Icon(Icons.refresh, size: 18),
+                label: const Text('تحديث', style: TextStyle(fontFamily: 'Cairo')),
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }
