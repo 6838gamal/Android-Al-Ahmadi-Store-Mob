@@ -7,6 +7,7 @@ from backend.api.dependencies import get_admin_user, get_current_user
 from backend.models.user import User
 from backend.core.samsung_catalog import SAMSUNG_CATALOG
 from backend.core import supabase_storage
+from backend.api.routes.uploads import _store_image
 import os, uuid
 from datetime import datetime
 
@@ -23,31 +24,19 @@ _MIME_TO_EXT = {
 }
 
 
-def _save_gallery_image(fname: str, file_bytes: bytes, content_type: str) -> str:
+def _save_gallery_image(db: Session, fname: str, file_bytes: bytes, content_type: str) -> str:
     """
-    رفع صورة المعرض إلى Supabase Storage أولاً، ثم الـ filesystem كـ fallback.
-    يُعيد الـ URL الذي يُخزَّن في قاعدة البيانات.
+    رفع صورة المعرض مع ضمان الاستمرارية:
+    1. Supabase Storage (CDN دائم) — إذا مُهيَّأ
+    2. قاعدة البيانات كـ base64 + filesystem (fallback دائم لا يختفي بعد إعادة التشغيل)
+    يُعيد الـ URL المناسب المخزَّن في قاعدة البيانات.
     """
-    storage_path = f"gallery/{fname}"
+    img_uuid = os.path.splitext(fname)[0]
     mime = content_type or "image/jpeg"
+    ext = _MIME_TO_EXT.get(mime, ".jpg")
+    filepath = os.path.join(UPLOAD_DIR, f"{img_uuid}{ext}")
 
-    # 1) Try Supabase Storage
-    supabase_url = supabase_storage.upload_file(storage_path, file_bytes, mime)
-    if supabase_url:
-        # Also cache locally
-        try:
-            dest = os.path.join(UPLOAD_DIR, fname)
-            with open(dest, "wb") as f:
-                f.write(file_bytes)
-        except Exception:
-            pass
-        return supabase_url
-
-    # 2) Fallback: local filesystem
-    dest = os.path.join(UPLOAD_DIR, fname)
-    with open(dest, "wb") as f:
-        f.write(file_bytes)
-    return f"/uploads/gallery/{fname}"
+    return _store_image(db, img_uuid, file_bytes, mime, filepath)
 
 
 def _delete_gallery_file(image_url: str) -> None:
@@ -193,7 +182,7 @@ async def upload_image(
     file_bytes = await file.read()
     mime = file.content_type or "image/jpeg"
 
-    image_url = _save_gallery_image(fname, file_bytes, mime)
+    image_url = _save_gallery_image(db, fname, file_bytes, mime)
 
     count = db.query(GalleryImage).filter(GalleryImage.folder_id == folder_id).count()
     watermark = f"{folder.series_key.upper()}-{folder.model_key.replace(' ', '')}-{count+1:03d}"
@@ -288,7 +277,7 @@ async def batch_upload_images(
         file_bytes = await file.read()
         mime = file.content_type or "image/jpeg"
 
-        image_url = _save_gallery_image(fname, file_bytes, mime)
+        image_url = _save_gallery_image(db, fname, file_bytes, mime)
 
         count += 1
         watermark = f"{folder.series_key.upper()}-{folder.model_key.replace(' ', '')}-{count:03d}"
