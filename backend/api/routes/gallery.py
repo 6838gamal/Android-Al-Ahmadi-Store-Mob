@@ -94,18 +94,7 @@ def list_folders(db: Session = Depends(get_db)):
         GalleryFolder.sort_order
     ).all()
 
-    # جلب صور المنتجات كـ fallback للغلافات عند غياب صور المعرض
-    product_images = (
-        db.query(Product.image_url, Product.name)
-        .filter(Product.image_url.isnot(None), Product.image_url != "")
-        .order_by(Product.created_at.desc())
-        .limit(30)
-        .all()
-    )
-    product_cover_cycle = [r[0] for r in product_images if r[0]]
-
     grouped = {}
-    cover_idx = 0
     for f in folders:
         if f.series_key not in grouped:
             series_info = SAMSUNG_CATALOG.get(f.series_key, {})
@@ -128,11 +117,6 @@ def list_folders(db: Session = Depends(get_db)):
                 cover = first_img.image_url
             else:
                 cover = None
-
-        # استخدام صورة منتج كغلاف بديل إذا لم توجد صورة مخصصة
-        if not cover and product_cover_cycle:
-            cover = product_cover_cycle[cover_idx % len(product_cover_cycle)]
-            cover_idx += 1
 
         grouped[f.series_key]["folders"].append({
             "id": f.id,

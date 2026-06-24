@@ -41,10 +41,16 @@ class ProductsNotifier extends StateNotifier<ProductsState> {
     final isUnfiltered = search == null && category == null && status == null;
 
     // Show cached data instantly while fetching
+    final cached = await _loadCache();
     if (isUnfiltered) {
-      final cached = await _loadCache();
       if (cached.isNotEmpty) {
         state = state.copyWith(products: cached, fromCache: true);
+      }
+    } else if (cached.isNotEmpty) {
+      // For filtered requests, show client-side filtered cache immediately
+      final preFiltered = _applyFilters(cached, search: search, category: category, status: status);
+      if (preFiltered.isNotEmpty) {
+        state = state.copyWith(products: preFiltered, fromCache: true);
       }
     }
 
@@ -58,12 +64,39 @@ class ProductsNotifier extends StateNotifier<ProductsState> {
       state = state.copyWith(products: list, isLoading: false, fromCache: false, error: null);
       if (isUnfiltered) await _saveCache(list);
     } catch (e) {
-      if (state.products.isNotEmpty) {
+      // On failure, use client-side filtered cache as fallback
+      final fallback = _applyFilters(cached, search: search, category: category, status: status);
+      if (fallback.isNotEmpty) {
+        state = state.copyWith(products: fallback, isLoading: false, fromCache: true, error: null);
+      } else if (cached.isNotEmpty) {
         state = state.copyWith(isLoading: false, error: 'تعذّر الاتصال — يعرض بيانات محفوظة');
       } else {
         state = state.copyWith(isLoading: false, error: 'فشل تحميل المنتجات');
       }
     }
+  }
+
+  List<Map<String, dynamic>> _applyFilters(
+    List<Map<String, dynamic>> products, {
+    String? search,
+    String? category,
+    String? status,
+  }) {
+    return products.where((p) {
+      if (category != null && p['category'] != category) return false;
+      if (status != null && p['status'] != status) return false;
+      if (search != null && search.isNotEmpty) {
+        final q = search.toLowerCase();
+        final name = (p['name'] as String? ?? '').toLowerCase();
+        final nameAr = (p['name_ar'] as String? ?? '').toLowerCase();
+        final brand = (p['brand'] as String? ?? '').toLowerCase();
+        final model = (p['model'] as String? ?? '').toLowerCase();
+        if (!name.contains(q) && !nameAr.contains(q) && !brand.contains(q) && !model.contains(q)) {
+          return false;
+        }
+      }
+      return true;
+    }).toList();
   }
 
   Future<Map<String, dynamic>?> getProduct(int id) async {

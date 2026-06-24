@@ -155,12 +155,7 @@ const samsungSeries = {{ samsung_series | tojson }};
 
 function onCategoryChange(val) {
   const block = document.getElementById('seriesBlock');
-  if (val === 'screen') {
-    block.classList.remove('hidden');
-  } else {
-    block.classList.add('hidden');
-    document.getElementById('seriesHidden').value = '';
-  }
+  block.classList.remove('hidden');
 }
 
 function onSeriesChange(seriesKey) {
