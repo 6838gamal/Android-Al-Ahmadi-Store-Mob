@@ -9,39 +9,64 @@
     <h1 class="text-white text-2xl font-extrabold">لوحة التحكم</h1>
     <p class="text-white/70 text-sm mt-1">مرحباً، {{ admin_name }} 👋</p>
   </div>
-  <a href="/dashboard" class="bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-xl text-sm font-bold transition">
+  <button onclick="loadStats()" id="refresh-btn"
+    class="bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-xl text-sm font-bold transition">
     <i class="fa-solid fa-rotate-right me-2"></i>تحديث
-  </a>
+  </button>
 </div>
 
 <!-- Stats Grid -->
 <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
-  {% set stats = [
-    ('إجمالي الإيرادات', total_revenue | string + ' ر.س', 'fa-sack-dollar', '#1A73E8', '#7B1FA2'),
-    ('الطلبات النشطة', active_orders, 'fa-receipt', '#7B1FA2', '#E91E63'),
-    ('إجمالي الطلبات', total_orders, 'fa-shopping-bag', '#00695C', '#26A69A'),
-    ('المنتجات', total_products, 'fa-box-open', '#E65100', '#FF9800'),
-    ('العملاء', total_customers, 'fa-users', '#0D47A1', '#2196F3'),
-    ('الصيانة', maintenance_count, 'fa-screwdriver-wrench', '#880E4F', '#F48FB1'),
-  ] %}
-  {% for label, value, icon, c1, c2 in stats %}
-  <div class="stat-card flex flex-col justify-between min-h-[110px]" style="background: linear-gradient(135deg, {{ c1 }}, {{ c2 }}); border-color: transparent;">
-    <i class="fa-solid {{ icon }} text-white/70 text-xl"></i>
+  <div class="stat-card flex flex-col justify-between min-h-[110px]" style="background:linear-gradient(135deg,#1A73E8,#7B1FA2);border-color:transparent">
+    <i class="fa-solid fa-sack-dollar text-white/70 text-xl"></i>
     <div>
-      <div class="text-white text-xl font-extrabold leading-tight">{{ value }}</div>
-      <div class="text-white/70 text-xs mt-1">{{ label }}</div>
+      <div class="text-white text-xl font-extrabold leading-tight" id="stat-revenue"><span class="skeleton-num"></span></div>
+      <div class="text-white/70 text-xs mt-1">إجمالي الإيرادات</div>
     </div>
   </div>
-  {% endfor %}
+  <div class="stat-card flex flex-col justify-between min-h-[110px]" style="background:linear-gradient(135deg,#7B1FA2,#E91E63);border-color:transparent">
+    <i class="fa-solid fa-receipt text-white/70 text-xl"></i>
+    <div>
+      <div class="text-white text-xl font-extrabold leading-tight" id="stat-active-orders"><span class="skeleton-num"></span></div>
+      <div class="text-white/70 text-xs mt-1">الطلبات النشطة</div>
+    </div>
+  </div>
+  <div class="stat-card flex flex-col justify-between min-h-[110px]" style="background:linear-gradient(135deg,#00695C,#26A69A);border-color:transparent">
+    <i class="fa-solid fa-shopping-bag text-white/70 text-xl"></i>
+    <div>
+      <div class="text-white text-xl font-extrabold leading-tight" id="stat-orders"><span class="skeleton-num"></span></div>
+      <div class="text-white/70 text-xs mt-1">إجمالي الطلبات</div>
+    </div>
+  </div>
+  <div class="stat-card flex flex-col justify-between min-h-[110px]" style="background:linear-gradient(135deg,#E65100,#FF9800);border-color:transparent">
+    <i class="fa-solid fa-box-open text-white/70 text-xl"></i>
+    <div>
+      <div class="text-white text-xl font-extrabold leading-tight" id="stat-products"><span class="skeleton-num"></span></div>
+      <div class="text-white/70 text-xs mt-1">المنتجات</div>
+    </div>
+  </div>
+  <div class="stat-card flex flex-col justify-between min-h-[110px]" style="background:linear-gradient(135deg,#0D47A1,#2196F3);border-color:transparent">
+    <i class="fa-solid fa-users text-white/70 text-xl"></i>
+    <div>
+      <div class="text-white text-xl font-extrabold leading-tight" id="stat-customers"><span class="skeleton-num"></span></div>
+      <div class="text-white/70 text-xs mt-1">العملاء</div>
+    </div>
+  </div>
+  <div class="stat-card flex flex-col justify-between min-h-[110px]" style="background:linear-gradient(135deg,#880E4F,#F48FB1);border-color:transparent">
+    <i class="fa-solid fa-screwdriver-wrench text-white/70 text-xl"></i>
+    <div>
+      <div class="text-white text-xl font-extrabold leading-tight" id="stat-maintenance"><span class="skeleton-num"></span></div>
+      <div class="text-white/70 text-xs mt-1">الصيانة</div>
+    </div>
+  </div>
 </div>
 
-{% if low_stock > 0 %}
-<div class="flex items-center gap-3 bg-yellow-500/10 border border-yellow-500/30 text-yellow-400 rounded-xl p-4 mb-6">
+<!-- تنبيه مخزون منخفض -->
+<div id="low-stock-alert" style="display:none" class="flex items-center gap-3 bg-yellow-500/10 border border-yellow-500/30 text-yellow-400 rounded-xl p-4 mb-6">
   <i class="fa-solid fa-triangle-exclamation text-xl"></i>
-  <span class="font-bold">تنبيه: {{ low_stock }} منتجات بمخزون منخفض (3 قطع أو أقل)</span>
+  <span class="font-bold" id="low-stock-text"></span>
   <a href="/products" class="mr-auto text-sm underline">عرض المنتجات</a>
 </div>
-{% endif %}
 
 <!-- Quick Actions -->
 <div class="mb-6">
@@ -80,45 +105,114 @@
     <h2 class="text-white font-bold text-base">آخر الطلبات</h2>
     <a href="/orders" class="text-primary text-sm font-semibold hover:underline">عرض الكل</a>
   </div>
-  {% if recent_orders %}
-  <div class="overflow-x-auto">
-    <table class="w-full text-sm">
-      <thead>
-        <tr class="border-b border-dark-border text-gray-500 text-xs">
+  <div id="orders-body">
+    <div class="p-8 text-center text-gray-500">
+      <i class="fa-solid fa-circle-notch fa-spin text-3xl mb-3 block text-primary/60"></i>
+      <span style="font-family:Cairo,sans-serif">جاري تحميل الطلبات...</span>
+    </div>
+  </div>
+</div>
+
+<style>
+.skeleton-num {
+  display: inline-block;
+  width: 48px; height: 22px;
+  background: rgba(255,255,255,0.2);
+  border-radius: 6px;
+  animation: pulse-sk 1.2s ease-in-out infinite;
+}
+@keyframes pulse-sk {
+  0%,100% { opacity: .5 } 50% { opacity: 1 }
+}
+</style>
+
+<script>
+const STATUS_LABELS = {
+  received:"مستلم", reviewing:"قيد المراجعة", confirmed:"مؤكد",
+  preparing:"جاري التحضير", shipped:"تم الشحن", on_the_way:"في الطريق",
+  delivered:"تم التسليم", cancelled:"ملغي"
+};
+const STATUS_COLORS = {
+  received:"#6B7280", reviewing:"#F59E0B", confirmed:"#3B82F6",
+  preparing:"#8B5CF6", shipped:"#06B6D4", on_the_way:"#10B981",
+  delivered:"#22C55E", cancelled:"#EF4444"
+};
+
+function set(id, val) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = val;
+}
+
+function loadStats() {
+  const btn = document.getElementById('refresh-btn');
+  if (btn) btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin me-2"></i>تحميل...';
+
+  fetch('/api/admin-stats')
+    .then(r => {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.json();
+    })
+    .then(s => {
+      set('stat-revenue', (s.total_revenue || 0).toLocaleString() + ' ر.ي');
+      set('stat-active-orders', s.active_orders || 0);
+      set('stat-orders', s.total_orders || 0);
+      set('stat-products', s.total_products || 0);
+      set('stat-customers', s.total_customers || 0);
+      set('stat-maintenance', s.maintenance_count || 0);
+
+      const lowStock = s.low_stock_count || 0;
+      if (lowStock > 0) {
+        document.getElementById('low-stock-alert').style.display = 'flex';
+        document.getElementById('low-stock-text').textContent =
+          'تنبيه: ' + lowStock + ' منتجات بمخزون منخفض (3 قطع أو أقل)';
+      }
+
+      // آخر الطلبات
+      const orders = s.recent_orders || [];
+      const body = document.getElementById('orders-body');
+      if (!orders.length) {
+        body.innerHTML = '<div class="p-10 text-center text-gray-600"><i class="fa-solid fa-receipt text-4xl mb-3 block"></i>لا توجد طلبات حتى الآن</div>';
+        return;
+      }
+      let rows = orders.map(o => {
+        const status = o.status || '';
+        const color = STATUS_COLORS[status] || '#6B7280';
+        const label = STATUS_LABELS[status] || status;
+        const date = (o.created_at || '').slice(0, 10);
+        const total = parseFloat(o.total || 0).toFixed(2);
+        return `<tr class="table-row">
+          <td class="px-5 py-3"><a href="/orders/${o.id}" class="text-primary font-bold hover:underline">${esc(o.order_number||'')}</a></td>
+          <td class="px-5 py-3 text-gray-300">${esc(o.customer_name||'')}</td>
+          <td class="px-5 py-3 text-white font-bold">${total} ر.ي</td>
+          <td class="px-5 py-3"><span class="badge" style="background:${color}22;color:${color}">${esc(label)}</span></td>
+          <td class="px-5 py-3 text-gray-500 text-xs">${esc(date)}</td>
+        </tr>`;
+      }).join('');
+      body.innerHTML = `<div class="overflow-x-auto"><table class="w-full text-sm">
+        <thead><tr class="border-b border-dark-border text-gray-500 text-xs">
           <th class="px-5 py-3 text-right font-semibold">رقم الطلب</th>
           <th class="px-5 py-3 text-right font-semibold">العميل</th>
           <th class="px-5 py-3 text-right font-semibold">المبلغ</th>
           <th class="px-5 py-3 text-right font-semibold">الحالة</th>
           <th class="px-5 py-3 text-right font-semibold">التاريخ</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for order in recent_orders %}
-        <tr class="table-row">
-          <td class="px-5 py-3">
-            <a href="/orders/{{ order.id }}" class="text-primary font-bold hover:underline">{{ order.order_number }}</a>
-          </td>
-          <td class="px-5 py-3 text-gray-300">{{ order.customer_name }}</td>
-          <td class="px-5 py-3 text-white font-bold">{{ "%.2f"|format(order.total) }} ر.س</td>
-          <td class="px-5 py-3">
-            {% set s = order.status|v %}
-            <span class="badge" style="background: {{ status_colors[s] }}22; color: {{ status_colors[s] }}">
-              {{ status_labels.get(s, s) }}
-            </span>
-          </td>
-          <td class="px-5 py-3 text-gray-500 text-xs">{{ order.created_at.strftime('%Y-%m-%d') if order.created_at else '' }}</td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
-  {% else %}
-  <div class="p-10 text-center text-gray-600">
-    <i class="fa-solid fa-receipt text-4xl mb-3 block"></i>
-    لا توجد طلبات حتى الآن
-  </div>
-  {% endif %}
-</div>
-{% endblock %}
+        </tr></thead><tbody>${rows}</tbody></table></div>`;
 
-{% set active = 'dashboard' %}
+      if (btn) btn.innerHTML = '<i class="fa-solid fa-rotate-right me-2"></i>تحديث';
+    })
+    .catch(() => {
+      if (btn) btn.innerHTML = '<i class="fa-solid fa-rotate-right me-2"></i>تحديث';
+      ['stat-revenue','stat-active-orders','stat-orders','stat-products','stat-customers','stat-maintenance']
+        .forEach(id => set(id, '—'));
+      document.getElementById('orders-body').innerHTML =
+        '<div class="p-8 text-center text-yellow-500"><i class="fa-solid fa-triangle-exclamation text-3xl mb-3 block"></i><span style="font-family:Cairo,sans-serif">تعذّر تحميل الإحصائيات — اضغط تحديث للمحاولة مجدداً</span></div>';
+    });
+}
+
+function esc(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// تحميل فوري عند فتح الصفحة
+loadStats();
+</script>
+{% endblock %}

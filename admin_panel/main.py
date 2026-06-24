@@ -2,7 +2,7 @@ import sys, os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from fastapi import FastAPI, Request, Form, UploadFile, File
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
@@ -418,36 +418,20 @@ async def logout(request: Request):
 async def dashboard(request: Request):
     if not _logged(request):
         return _redirect_login()
-
-    stats = await api("get", "/api/dashboard/stats", token=_token(request)) or {}
-    recent_orders = [to_obj(o) for o in stats.get("recent_orders", [])]
-
-    status_labels = {
-        "received": "مستلم", "reviewing": "قيد المراجعة", "confirmed": "مؤكد",
-        "preparing": "جاري التحضير", "shipped": "تم الشحن", "on_the_way": "في الطريق",
-        "delivered": "تم التسليم", "cancelled": "ملغي",
-    }
-    status_colors = {
-        "received": "#6B7280", "reviewing": "#F59E0B", "confirmed": "#3B82F6",
-        "preparing": "#8B5CF6", "shipped": "#06B6D4", "on_the_way": "#10B981",
-        "delivered": "#22C55E", "cancelled": "#EF4444",
-    }
-
+    # الصفحة تُعرض فوراً — الإحصائيات تُجلب عبر JS في الخلفية
     return templates.TemplateResponse(request, "dashboard.html", {
-        "admin_name":        _name(request),
-        "active":            "dashboard",
-        "total_orders":      stats.get("total_orders", 0),
-        "active_orders":     stats.get("active_orders", 0),
-        "total_revenue":     stats.get("total_revenue", 0),
-        "total_products":    stats.get("total_products", 0),
-        "total_customers":   stats.get("total_customers", 0),
-        "maintenance_count": stats.get("maintenance_count", 0),
-        "low_stock":         stats.get("low_stock_count", 0),
-        "available_products":stats.get("available_products", 0),
-        "recent_orders":     recent_orders,
-        "status_labels":     status_labels,
-        "status_colors":     status_colors,
+        "admin_name": _name(request),
+        "active":     "dashboard",
     })
+
+
+@app.get("/api/admin-stats", response_class=JSONResponse)
+async def admin_stats_json(request: Request):
+    """نقطة نهاية JSON للإحصائيات — تُستدعى من JavaScript بعد تحميل الصفحة."""
+    if not _logged(request):
+        return JSONResponse({"error": "unauthorized"}, status_code=401)
+    stats = await api("get", "/api/dashboard/stats", token=_token(request)) or {}
+    return JSONResponse(stats)
 
 
 # ── Products ────────────────────────────────────────────────────────────────────
