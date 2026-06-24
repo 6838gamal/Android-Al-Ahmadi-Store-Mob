@@ -8,7 +8,7 @@
   <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
     <div>
       <h1 style="font-size:22px;font-weight:800;color:white;margin:0">🖼️ معرض الصور</h1>
-      <p style="color:rgba(255,255,255,.75);font-size:13px;margin:4px 0 0">مجلدات مرتبة حسب الفئة والموديل — انقر على مجلد لإدارة صوره</p>
+      <p style="color:rgba(255,255,255,.75);font-size:13px;margin:4px 0 0">انقر على أي مجلد لعرض صوره مباشرةً</p>
     </div>
   </div>
 </div>
@@ -26,7 +26,7 @@
 
 {% if series_list %}
 
-<!-- ── تبويبات الفئات (Series Tabs) ─────────────────────────────────── -->
+<!-- ── تبويبات الفئات ─────────────────────────────────────────────── -->
 <div style="position:sticky;top:0;z-index:20;background:#0D1117;padding:10px 0 12px;margin-bottom:4px;border-bottom:1px solid #2D3748">
   <div style="display:flex;gap:8px;overflow-x:auto;padding:0 4px;scrollbar-width:none">
     <button onclick="showSeries('all')" id="tab-all"
@@ -45,7 +45,7 @@
   </div>
 </div>
 
-<!-- ── إجمالي الصور ─────────────────────────────────────────────────── -->
+<!-- ── إجمالي الصور ───────────────────────────────────────────────── -->
 {% set total_images = namespace(count=0) %}
 {% for series in series_list %}{% for f in series.folders %}{% set total_images.count = total_images.count + f.image_count %}{% endfor %}{% endfor %}
 <div style="display:flex;gap:20px;margin:12px 0;flex-wrap:wrap">
@@ -65,11 +65,10 @@
   </div>
 </div>
 
-<!-- ── قسم كل فئة ────────────────────────────────────────────────────── -->
+<!-- ── قسم كل فئة ─────────────────────────────────────────────────── -->
 {% for series in series_list %}
 <div class="series-section" id="section-{{ series.series_key }}" style="margin-bottom:36px">
 
-  <!-- عنوان الفئة -->
   <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;padding-bottom:10px;border-bottom:2px solid #1A73E8">
     <div style="width:38px;height:38px;border-radius:10px;background:linear-gradient(135deg,#7B1FA2,#1A73E8);display:flex;align-items:center;justify-content:center;flex-shrink:0">
       <i class="fa-solid fa-layer-group" style="color:white;font-size:15px"></i>
@@ -78,7 +77,6 @@
       <h2 style="color:white;font-size:17px;font-weight:800;margin:0">{{ series.label_ar }}</h2>
       <span style="color:#6B7280;font-size:12px">{{ series.label_en }} — {{ series.folders | length }} موديل</span>
     </div>
-    <!-- شارة عدد الصور -->
     {% set s_imgs = namespace(c=0) %}{% for f in series.folders %}{% set s_imgs.c = s_imgs.c + f.image_count %}{% endfor %}
     {% if s_imgs.c > 0 %}
     <span style="margin-right:auto;background:rgba(26,115,232,0.15);border:1px solid rgba(26,115,232,0.4);border-radius:20px;color:#1A73E8;font-size:12px;font-weight:700;padding:3px 12px">
@@ -90,54 +88,43 @@
   <!-- شبكة الموديلات -->
   <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(145px,1fr));gap:10px">
     {% for folder in series.folders %}
-    <a href="/gallery/{{ folder.id }}" style="text-decoration:none">
-      <div class="card folder-card" style="overflow:hidden;cursor:pointer;transition:border-color .2s,transform .15s;border-color:#2D3748;position:relative"
-           onmouseover="this.style.borderColor='#1A73E8';this.style.transform='translateY(-2px)'"
-           onmouseout="this.style.borderColor='#2D3748';this.style.transform='none'">
+    <div class="card folder-card" style="overflow:hidden;cursor:pointer;transition:border-color .2s,transform .15s;border-color:#2D3748;position:relative"
+         onclick="openFolderModal({{ folder.id }}, '{{ folder.label_ar }}', '{{ folder.series_key }}')"
+         onmouseover="this.style.borderColor='#1A73E8';this.style.transform='translateY(-2px)'"
+         onmouseout="this.style.borderColor='#2D3748';this.style.transform='none'">
 
-        <!-- غلاف الصورة -->
-        <div style="height:96px;background:#1C2230;overflow:hidden;position:relative">
-          {% if folder.cover_image_url %}
-            <img src="{{ folder.cover_image_url|bu }}" alt="{{ folder.label_ar }}"
-                 style="width:100%;height:100%;object-fit:cover"
-                 onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
-            <div style="display:none;width:100%;height:100%;align-items:center;justify-content:center;position:absolute;inset:0">
-              <i class="fa-solid fa-image" style="color:#4B5563;font-size:28px"></i>
-            </div>
-          {% else %}
-            <div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center">
-              <i class="fa-solid fa-image" style="color:#374151;font-size:28px"></i>
-            </div>
-          {% endif %}
-          <!-- شارة عدد الصور -->
-          <div style="position:absolute;top:5px;left:5px;background:rgba(0,0,0,0.75);color:white;font-size:10px;font-weight:700;padding:2px 7px;border-radius:12px;font-family:Cairo,sans-serif">
-            {% if folder.image_count > 0 %}
-              <i class="fa-solid fa-image" style="font-size:8px;margin-left:3px"></i>{{ folder.image_count }}
-            {% else %}
-              <i class="fa-solid fa-plus" style="font-size:8px;color:#6B7280"></i>
-            {% endif %}
+      <!-- غلاف الصورة -->
+      <div style="height:96px;background:#1C2230;overflow:hidden;position:relative">
+        {% if folder.cover_image_url %}
+          <img src="{{ folder.cover_image_url|bu }}" alt="{{ folder.label_ar }}"
+               style="width:100%;height:100%;object-fit:cover"
+               onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+          <div style="display:none;width:100%;height:100%;align-items:center;justify-content:center;position:absolute;inset:0">
+            <i class="fa-solid fa-image" style="color:#4B5563;font-size:28px"></i>
           </div>
-        </div>
-
-        <!-- تسمية الموديل -->
-        <div style="padding:7px 9px">
-          <div style="color:white;font-weight:700;font-size:12px;font-family:Cairo,sans-serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
-            {{ folder.label_ar }}
+        {% else %}
+          <div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center">
+            <i class="fa-solid fa-image" style="color:#374151;font-size:28px"></i>
           </div>
-          <div style="color:#6B7280;font-size:10px;font-family:Cairo,sans-serif">{{ folder.model_key }}</div>
-        </div>
-
-        <!-- شارة "لا توجد صور" -->
-        {% if folder.image_count == 0 %}
-        <div style="position:absolute;inset:0;background:rgba(0,0,0,0.4);display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity .2s"
-             onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0">
-          <span style="background:#1A73E8;color:white;border-radius:8px;padding:4px 10px;font-size:11px;font-weight:700;font-family:Cairo,sans-serif">
-            + إضافة صورة
-          </span>
-        </div>
         {% endif %}
+        <!-- شارة عدد الصور -->
+        <div style="position:absolute;top:5px;left:5px;background:rgba(0,0,0,0.75);color:white;font-size:10px;font-weight:700;padding:2px 7px;border-radius:12px;font-family:Cairo,sans-serif">
+          {% if folder.image_count > 0 %}
+            <i class="fa-solid fa-image" style="font-size:8px;margin-left:3px"></i>{{ folder.image_count }}
+          {% else %}
+            <span style="color:#6B7280">فارغ</span>
+          {% endif %}
+        </div>
       </div>
-    </a>
+
+      <!-- تسمية الموديل -->
+      <div style="padding:7px 9px">
+        <div style="color:white;font-weight:700;font-size:12px;font-family:Cairo,sans-serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
+          {{ folder.label_ar }}
+        </div>
+        <div style="color:#6B7280;font-size:10px;font-family:Cairo,sans-serif">{{ folder.model_key }}</div>
+      </div>
+    </div>
     {% endfor %}
   </div>
 </div>
@@ -150,6 +137,40 @@
   <div style="color:#6B7280;font-size:13px;margin-top:6px">سيتم إنشاء المجلدات تلقائياً عند أول زيارة</div>
 </div>
 {% endif %}
+
+<!-- ══════════════════ MODAL: عرض صور المجلد ══════════════════ -->
+<div id="folder-modal" style="display:none;position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,0.85);overflow-y:auto" onclick="closeFolderModal(event)">
+  <div style="max-width:900px;margin:40px auto;padding:0 16px 40px" onclick="event.stopPropagation()">
+
+    <!-- Modal Header -->
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;padding:16px 20px;background:#161B22;border-radius:12px;border:1px solid #2D3748">
+      <div style="display:flex;align-items:center;gap:12px">
+        <div style="width:36px;height:36px;border-radius:9px;background:linear-gradient(135deg,#7B1FA2,#1A73E8);display:flex;align-items:center;justify-content:center">
+          <i class="fa-solid fa-folder-open" style="color:white;font-size:14px"></i>
+        </div>
+        <div>
+          <div id="modal-folder-name" style="color:white;font-size:17px;font-weight:800;font-family:Cairo,sans-serif"></div>
+          <div id="modal-image-count" style="color:#6B7280;font-size:12px;font-family:Cairo,sans-serif"></div>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <a id="modal-manage-link" href="#" class="btn-primary" style="font-size:12px;padding:7px 14px;text-decoration:none">
+          <i class="fa-solid fa-cloud-upload-alt"></i> رفع صور
+        </a>
+        <button onclick="closeFolderModalBtn()" style="background:#1C2230;border:1px solid #2D3748;border-radius:8px;color:#9CA3AF;padding:7px 12px;cursor:pointer;font-size:16px">✕</button>
+      </div>
+    </div>
+
+    <!-- Modal Body: Images -->
+    <div id="modal-body">
+      <div style="text-align:center;padding:60px 0;color:#6B7280;font-family:Cairo,sans-serif">
+        <i class="fa-solid fa-spinner fa-spin" style="font-size:32px;margin-bottom:12px;display:block"></i>
+        جاري تحميل الصور...
+      </div>
+    </div>
+
+  </div>
+</div>
 
 <script>
 function showSeries(key) {
@@ -175,10 +196,112 @@ function showSeries(key) {
     sections.forEach(s => {
       s.style.display = s.id === 'section-' + key ? 'block' : 'none';
     });
-    // scroll to section
     const el = document.getElementById('section-' + key);
     if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 }
+
+async function openFolderModal(folderId, folderName, seriesKey) {
+  document.getElementById('modal-folder-name').textContent = folderName;
+  document.getElementById('modal-image-count').textContent = 'جاري التحميل...';
+  document.getElementById('modal-manage-link').href = '/gallery/' + folderId;
+  document.getElementById('modal-body').innerHTML = `
+    <div style="text-align:center;padding:60px 0;color:#6B7280;font-family:Cairo,sans-serif">
+      <i class="fa-solid fa-spinner fa-spin" style="font-size:32px;margin-bottom:12px;display:block"></i>
+      جاري تحميل الصور...
+    </div>`;
+  document.getElementById('folder-modal').style.display = 'block';
+  document.body.style.overflow = 'hidden';
+
+  try {
+    const token = document.cookie.match(/token=([^;]+)/)?.[1] || '';
+    const res = await fetch('/api/gallery/folders/' + folderId, {
+      headers: token ? { 'Authorization': 'Bearer ' + token } : {}
+    });
+    const data = await res.json();
+    const images = data.images || [];
+
+    document.getElementById('modal-image-count').textContent =
+      images.length > 0 ? images.length + ' صورة' : 'لا توجد صور بعد';
+
+    if (images.length === 0) {
+      document.getElementById('modal-body').innerHTML = `
+        <div style="text-align:center;padding:60px 20px;background:#161B22;border-radius:12px;border:1px solid #2D3748">
+          <i class="fa-solid fa-folder-open" style="color:#4B5563;font-size:48px;margin-bottom:16px;display:block"></i>
+          <div style="color:white;font-size:16px;font-weight:700;font-family:Cairo,sans-serif;margin-bottom:8px">لا توجد صور في هذا المجلد</div>
+          <div style="color:#6B7280;font-size:13px;font-family:Cairo,sans-serif;margin-bottom:20px">اضغط "رفع صور" لإضافة صور لموديل ${folderName}</div>
+          <a href="/gallery/${folderId}" class="btn-primary" style="text-decoration:none;font-size:13px">
+            <i class="fa-solid fa-cloud-upload-alt"></i> رفع صور الآن
+          </a>
+        </div>`;
+      return;
+    }
+
+    const grid = images.map(img => `
+      <div style="background:#161B22;border-radius:10px;overflow:hidden;border:1px solid #2D3748;position:relative;cursor:zoom-in" onclick="openLightbox('${escHtml(img.image_url)}', '${escHtml(img.title||img.watermark_number||'')}')">
+        <div style="height:140px;overflow:hidden">
+          <img src="${escHtml(img.image_url)}" alt="${escHtml(img.title||'')}"
+               style="width:100%;height:100%;object-fit:cover;transition:transform .2s"
+               onmouseover="this.style.transform='scale(1.05)'"
+               onmouseout="this.style.transform='none'"
+               onerror="this.parentElement.innerHTML='<div style=\'display:flex;align-items:center;justify-content:center;height:140px;color:#4B5563\'><i class=\'fa-solid fa-image-slash fa-2x\'></i></div>'">
+        </div>
+        ${img.watermark_number ? `<div style="position:absolute;top:6px;right:6px;background:rgba(26,115,232,0.88);color:white;font-size:9px;font-weight:700;padding:2px 7px;border-radius:20px;font-family:Cairo,sans-serif">${escHtml(img.watermark_number)}</div>` : ''}
+        <div style="padding:7px 10px;display:flex;align-items:center;justify-content:space-between">
+          <div>
+            ${img.title ? `<div style="color:white;font-size:11px;font-weight:600;font-family:Cairo,sans-serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:110px">${escHtml(img.title)}</div>` : ''}
+            ${img.created_at ? `<div style="color:#6B7280;font-size:10px;font-family:Cairo,sans-serif">${img.created_at.slice(0,10)}</div>` : ''}
+          </div>
+          <form method="POST" action="/gallery/images/${img.id}/delete" onsubmit="return confirm('حذف هذه الصورة؟')" style="display:inline">
+            <input type="hidden" name="folder_id" value="${folderId}">
+            <button type="submit" class="btn-danger" style="padding:4px 8px;font-size:10px" onclick="event.stopPropagation()">
+              <i class="fa-solid fa-trash"></i>
+            </button>
+          </form>
+        </div>
+      </div>`).join('');
+
+    document.getElementById('modal-body').innerHTML = `
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px">${grid}</div>`;
+
+  } catch (e) {
+    document.getElementById('modal-body').innerHTML = `
+      <div style="text-align:center;padding:40px;color:#EF4444;font-family:Cairo,sans-serif">
+        <i class="fa-solid fa-exclamation-triangle" style="font-size:32px;margin-bottom:10px;display:block"></i>
+        تعذّر تحميل الصور
+      </div>`;
+  }
+}
+
+function closeFolderModal(event) {
+  if (event.target === document.getElementById('folder-modal')) {
+    closeFolderModalBtn();
+  }
+}
+function closeFolderModalBtn() {
+  document.getElementById('folder-modal').style.display = 'none';
+  document.body.style.overflow = '';
+}
+
+// Lightbox للعرض الكامل
+function openLightbox(url, caption) {
+  const lb = document.createElement('div');
+  lb.style.cssText = 'position:fixed;inset:0;z-index:2000;background:rgba(0,0,0,0.95);display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:zoom-out';
+  lb.onclick = () => lb.remove();
+  lb.innerHTML = `
+    <button onclick="this.parentElement.remove()" style="position:absolute;top:16px;left:16px;background:rgba(255,255,255,0.1);border:none;color:white;border-radius:50%;width:36px;height:36px;cursor:pointer;font-size:18px">✕</button>
+    <img src="${escHtml(url)}" style="max-width:90vw;max-height:85vh;object-fit:contain;border-radius:8px" onclick="event.stopPropagation()">
+    ${caption ? `<div style="color:white;font-family:Cairo,sans-serif;font-size:14px;margin-top:12px;opacity:.8">${escHtml(caption)}</div>` : ''}`;
+  document.body.appendChild(lb);
+}
+
+function escHtml(str) {
+  return String(str||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+// ESC key closes modal
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeFolderModalBtn();
+});
 </script>
 {% endblock %}
