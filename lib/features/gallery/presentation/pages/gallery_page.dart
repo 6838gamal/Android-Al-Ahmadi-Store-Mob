@@ -263,25 +263,9 @@ class GalleryPage extends ConsumerWidget {
     );
   }
 
-  // الفئات المتوفرة من المنتجات الموجودة
+  // كل الفئات دائماً — بغض النظر عن وجود منتجات بها
   List<String> _availableCategories(List<Map<String, dynamic>> products) {
-    final seen = <String>{};
-    final result = <String>[];
-    for (final p in products) {
-      final cat = p['category'] as String?;
-      if (cat != null && !seen.contains(cat)) {
-        seen.add(cat);
-        result.add(cat);
-      }
-    }
-    // ترتيب حسب الترتيب المحدد مسبقاً
-    final order = AppConstants.categoryAr.keys.toList();
-    result.sort((a, b) {
-      final ai = order.indexOf(a);
-      final bi = order.indexOf(b);
-      return (ai < 0 ? 99 : ai).compareTo(bi < 0 ? 99 : bi);
-    });
-    return result;
+    return AppConstants.categoryAr.keys.toList();
   }
 
   // تجميع المنتجات حسب الموديل

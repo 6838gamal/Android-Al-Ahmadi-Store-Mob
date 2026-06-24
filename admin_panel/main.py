@@ -460,25 +460,22 @@ async def products_list(request: Request, search: str = ""):
     if search:
         params["search"] = search
 
-    # Try local backend first (always running, fast) — fall back to external API
     raw = None
     err = None
     try:
-        async with httpx.AsyncClient(timeout=6.0) as _lc:
+        async with httpx.AsyncClient(timeout=20.0) as _lc:
             _r = await _lc.get(
                 "http://localhost:8000/api/products/",
-                headers={"Authorization": f"Bearer {_token(request)}"},
                 params=params,
             )
             if _r.status_code == 200:
                 raw = _r.json()
-    except Exception:
-        pass
+            else:
+                err = f"خطأ {_r.status_code}"
+    except Exception as _e:
+        err = str(_e)[:120]
 
-    if raw is None:
-        raw, err = await api_ex("get", "/api/products/", token=_token(request), params=params)
-
-    server_down = raw is None  # فشل الاتصال بكلا الخادمَين
+    server_down = raw is None
     products = to_obj(raw or [])
     status_map = {"available": "متوفر", "reserved": "محجوز", "sold": "مباع", "unavailable": "غير متوفر"}
     cat_map    = {"screen": "شاشة", "battery": "بطارية", "camera": "كاميرا", "speaker": "سماعة",
@@ -2375,8 +2372,61 @@ async def purchase_invoice_mark_print(request: Request, invoice_id: int):
 async def gallery_list(request: Request):
     if not _logged(request):
         return _redirect_login()
+    # جلب المنتجات وتجميعها حسب الفئة
+    _CAT_MAP = {
+        "screen": "شاشات", "battery": "بطاريات", "camera": "كاميرات",
+        "speaker": "سماعات", "charger": "شواحن", "device": "أجهزة",
+        "spare_part": "قطع غيار", "other": "أخرى",
+    }
+    _CAT_ORDER = list(_CAT_MAP.keys())
+
+    raw_products = []
+    try:
+        async with httpx.AsyncClient(timeout=15.0) as _lc:
+            _r = await _lc.get("http://localhost:8000/api/products/", params={"limit": 500})
+            if _r.status_code == 200:
+                raw_products = _r.json()
+    except Exception:
+        pass
+
+    # تجميع المنتجات التي لديها صور حسب الفئة
+    categories = {}
+    for p in raw_products:
+        url = p.get("image_url", "") or ""
+        if not (url.startswith("http") or url.startswith("/api/uploads/image/")):
+            continue
+        cat = p.get("category", "other")
+        categories.setdefault(cat, []).append(p)
+
+    # بناء قائمة الفئات بالترتيب المحدد (كل الفئات تظهر حتى لو فارغة)
+    cat_sections = []
+    for key in _CAT_ORDER:
+        cat_sections.append({
+            "key": key,
+            "label_ar": _CAT_MAP[key],
+            "products": categories.get(key, []),
+            "count": len(categories.get(key, [])),
+        })
+
     series_list = to_obj(await api("get", "/api/gallery/folders", token=_token(request)) or [])
     return templates.TemplateResponse(request, "gallery.html", {
+        "admin_name": _name(request),
+        "active": "gallery",
+        "series_list": series_list,
+        "cat_sections": cat_sections,
+        "total_images": sum(c["count"] for c in cat_sections),
+        "success": request.query_params.get("success"),
+        "error": request.query_params.get("error"),
+    })
+
+
+@app.get("/gallery/folders")
+async def gallery_folders_list(request: Request):
+    """صفحة إدارة مجلدات موديلات سامسونج (المعرض القديم)."""
+    if not _logged(request):
+        return _redirect_login()
+    series_list = to_obj(await api("get", "/api/gallery/folders", token=_token(request)) or [])
+    return templates.TemplateResponse(request, "gallery_folders_mgmt.html", {
         "admin_name": _name(request),
         "active": "gallery",
         "series_list": series_list,

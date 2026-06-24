@@ -1,0 +1,73 @@
+{% extends "layout.html" %}
+{% block title %}إدارة مجلدات الموديلات — أندرويد الأحمدي{% endblock %}
+{% block page_title %}مجلدات الموديلات{% endblock %}
+{% block page_title_mobile %}مجلدات الموديلات{% endblock %}
+
+{% block content %}
+<!-- Breadcrumb -->
+<div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;font-size:13px;color:#6B7280">
+  <a href="/gallery" style="color:#1A73E8;text-decoration:none;font-weight:600"><i class="fa-solid fa-images"></i> معرض الصور</a>
+  <i class="fa-solid fa-chevron-left" style="font-size:10px"></i>
+  <span style="color:white;font-weight:700">إدارة المجلدات</span>
+</div>
+
+{% if request.query_params.get('success') %}
+<div style="background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.3);border-radius:10px;padding:12px 16px;margin-bottom:16px;color:#22C55E;font-weight:600">✅ {{ request.query_params.get('success') }}</div>
+{% endif %}
+{% if request.query_params.get('error') %}
+<div style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:10px;padding:12px 16px;margin-bottom:16px;color:#EF4444;font-weight:600">❌ {{ request.query_params.get('error') }}</div>
+{% endif %}
+
+<div class="page-header" style="margin-bottom:20px">
+  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
+    <div>
+      <h1 style="font-size:20px;font-weight:800;color:white;margin:0">📁 مجلدات موديلات سامسونج</h1>
+      <p style="color:rgba(255,255,255,.7);font-size:13px;margin:4px 0 0">{{ series_list | length }} مجلد — انقر على مجلد لرفع صور الموديل</p>
+    </div>
+  </div>
+</div>
+
+{% if series_list %}
+  {% set series_groups = {} %}
+  {% for folder in series_list %}
+    {% set series_key = folder.series_key or 'أخرى' %}
+    {% if series_key not in series_groups %}
+      {% set _ = series_groups.update({series_key: []}) %}
+    {% endif %}
+    {% set _ = series_groups[series_key].append(folder) %}
+  {% endfor %}
+
+  {% for series_key, folders in series_groups.items() %}
+  <div style="margin-bottom:28px">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;padding-bottom:8px;border-bottom:2px solid #1A73E8">
+      <div style="width:32px;height:32px;border-radius:8px;background:linear-gradient(135deg,#1A73E8,#7B1FA2);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+        <i class="fa-brands fa-android" style="color:white;font-size:14px"></i>
+      </div>
+      <h2 style="color:white;font-size:15px;font-weight:800;margin:0">{{ series_key }}</h2>
+      <span style="margin-right:auto;color:#6B7280;font-size:12px">{{ folders | length }} موديل</span>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px">
+      {% for folder in folders %}
+      <a href="/gallery/{{ folder.id }}" style="background:#161B22;border:1px solid #2D3748;border-radius:10px;padding:12px;text-decoration:none;display:flex;flex-direction:column;align-items:center;gap:8px;transition:border-color .2s"
+         onmouseover="this.style.borderColor='#1A73E8'" onmouseout="this.style.borderColor='#2D3748'">
+        <div style="width:44px;height:44px;background:#1C2230;border-radius:10px;display:flex;align-items:center;justify-content:center">
+          <i class="fa-solid fa-folder{% if folder.images and folder.images|length > 0 %}-open{% endif %}" style="color:#1A73E8;font-size:20px"></i>
+        </div>
+        <div style="color:white;font-size:11px;font-weight:700;text-align:center;font-family:Cairo,sans-serif;line-height:1.3">{{ folder.label_ar or folder.label_en or folder.model_key }}</div>
+        <div style="color:#6B7280;font-size:10px;font-family:Cairo,sans-serif">
+          {{ (folder.images or []) | length }} صورة
+        </div>
+      </a>
+      {% endfor %}
+    </div>
+  </div>
+  {% endfor %}
+
+{% else %}
+<div style="background:#161B22;border:1px dashed #2D3748;border-radius:12px;padding:48px;text-align:center">
+  <i class="fa-solid fa-folder-open" style="color:#374151;font-size:40px;margin-bottom:12px;display:block"></i>
+  <div style="color:#6B7280;font-size:14px;font-family:Cairo,sans-serif">لا توجد مجلدات بعد</div>
+</div>
+{% endif %}
+
+{% endblock %}
