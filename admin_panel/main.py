@@ -387,10 +387,7 @@ async def login_post(request: Request, identifier: str = Form(...), password: st
                     request.session["admin_role"] = user_data.get("role", "branch_manager")
                     request.session["token"]      = data.get("access_token")
                     # Return 200 + JS redirect — avoids 303 chain losing cookie in proxy
-                    # If request came from Node proxy (127.0.0.1) → prefix with /admin-panel
-                    via_proxy = request.client and request.client.host == "127.0.0.1"
-                    dest = "/admin-panel/dashboard" if via_proxy else "/dashboard"
-                    return _js_redirect(dest)
+                    return _js_redirect("/dashboard")
         except httpx.TimeoutException:
             print(f"[login] TIMEOUT connecting to API")
             return templates.TemplateResponse(request, "login.html",
