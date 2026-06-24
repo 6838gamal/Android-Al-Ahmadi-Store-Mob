@@ -326,6 +326,7 @@ class ProfilePage extends ConsumerWidget {
     final nameCtrl = TextEditingController(text: user.name);
     final emailCtrl = TextEditingController(text: user.email ?? '');
     final phoneCtrl = TextEditingController(text: user.phone ?? '');
+    final originalPhone = user.phone ?? '';
     bool saving = false;
 
     showModalBottomSheet(
@@ -367,24 +368,50 @@ class ProfilePage extends ConsumerWidget {
                 width: double.infinity,
                 child: ElevatedButton(
                   onPressed: saving ? null : () async {
+                    final newPhone = phoneCtrl.text.trim();
                     setState(() => saving = true);
                     final result = await ref.read(authProvider.notifier).updateProfile(
                       name: nameCtrl.text.trim().isNotEmpty ? nameCtrl.text.trim() : null,
                       email: emailCtrl.text.trim(),
-                      phone: phoneCtrl.text.trim(),
+                      phone: newPhone,
                     );
                     setState(() => saving = false);
                     if (ctx.mounted) Navigator.pop(ctx);
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                        content: Text(
-                          result['success'] == true ? 'تم تحديث البيانات بنجاح' : (result['error'] ?? 'حدث خطأ'),
-                          style: const TextStyle(fontFamily: 'Cairo'),
-                        ),
-                        backgroundColor: result['success'] == true ? AppColors.success : AppColors.error,
-                        behavior: SnackBarBehavior.floating,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                      ));
+
+                    if (result['success'] == true) {
+                      // If phone changed, backend sets is_verified=false → redirect to OTP
+                      final updatedUser = ref.read(authProvider).user;
+                      final phoneChanged = newPhone.isNotEmpty && newPhone != originalPhone;
+                      if (phoneChanged && updatedUser != null && !updatedUser.isVerified) {
+                        if (context.mounted) {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => PhoneOtpPage(
+                                mode: 'verify',
+                                prefilledPhone: updatedUser.phone,
+                              ),
+                            ),
+                          );
+                        }
+                        return;
+                      }
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                          content: Text('تم تحديث البيانات بنجاح', style: TextStyle(fontFamily: 'Cairo')),
+                          backgroundColor: AppColors.success,
+                          behavior: SnackBarBehavior.floating,
+                        ));
+                      }
+                    } else {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                          content: Text(result['error'] ?? 'حدث خطأ', style: const TextStyle(fontFamily: 'Cairo')),
+                          backgroundColor: AppColors.error,
+                          behavior: SnackBarBehavior.floating,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        ));
+                      }
                     }
                   },
                   style: ElevatedButton.styleFrom(

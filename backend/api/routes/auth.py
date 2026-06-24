@@ -706,11 +706,27 @@ def update_profile(
 
     if update_data.phone is not None:
         new_phone = update_data.phone.strip() or None
-        if new_phone and new_phone != current_user.phone:
-            existing = db.query(User).filter(User.phone == new_phone, User.id != current_user.id).first()
-            if existing:
-                raise HTTPException(status_code=400, detail="رقم الجوال مستخدم بالفعل")
-        current_user.phone = new_phone
+        if new_phone:
+            # Check if new phone is actually different (using normalised forms to compare)
+            current_variants = set(_normalise_phone(current_user.phone)) if current_user.phone else set()
+            new_variants = set(_normalise_phone(new_phone))
+            phone_actually_changed = not current_variants.intersection(new_variants)
+
+            if phone_actually_changed:
+                # Duplicate check: ensure no OTHER user has this number in ANY format
+                all_new_variants = list(new_variants)
+                existing = db.query(User).filter(
+                    User.phone.in_(all_new_variants),
+                    User.id != current_user.id,
+                ).first()
+                if existing:
+                    raise HTTPException(status_code=400, detail="رقم الجوال مستخدم بالفعل من قِبَل مستخدم آخر")
+                # Phone changed → must re-verify the new number
+                current_user.phone = new_phone
+                current_user.is_verified = False
+            # If same number in different format, just normalise without forcing re-verify
+        else:
+            current_user.phone = new_phone
 
     db.commit()
     db.refresh(current_user)
