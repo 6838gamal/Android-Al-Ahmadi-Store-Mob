@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from typing import Optional, List
 from backend.core.database import get_db
 from backend.models.gallery import GalleryFolder, GalleryImage
+from backend.models.product import Product
 from backend.api.dependencies import get_admin_user, get_current_user
 from backend.models.user import User
 from backend.core.samsung_catalog import SAMSUNG_CATALOG
@@ -93,7 +94,18 @@ def list_folders(db: Session = Depends(get_db)):
         GalleryFolder.sort_order
     ).all()
 
+    # جلب صور المنتجات كـ fallback للغلافات عند غياب صور المعرض
+    product_images = (
+        db.query(Product.image_url, Product.name)
+        .filter(Product.image_url.isnot(None), Product.image_url != "")
+        .order_by(Product.created_at.desc())
+        .limit(30)
+        .all()
+    )
+    product_cover_cycle = [r[0] for r in product_images if r[0]]
+
     grouped = {}
+    cover_idx = 0
     for f in folders:
         if f.series_key not in grouped:
             series_info = SAMSUNG_CATALOG.get(f.series_key, {})
@@ -105,11 +117,22 @@ def list_folders(db: Session = Depends(get_db)):
             }
         count = db.query(GalleryImage).filter(GalleryImage.folder_id == f.id).count()
         cover = f.cover_image_url
+        # تجاهل الروابط المحلية المؤقتة التي لم تعد متاحة
+        if cover and not (cover.startswith("http") or cover.startswith("/api/uploads/image/")):
+            cover = None
         if not cover:
             first_img = db.query(GalleryImage).filter(
                 GalleryImage.folder_id == f.id
             ).order_by(GalleryImage.sort_order).first()
-            cover = first_img.image_url if first_img else None
+            if first_img and (first_img.image_url.startswith("http") or first_img.image_url.startswith("/api/uploads/image/")):
+                cover = first_img.image_url
+            else:
+                cover = None
+
+        # استخدام صورة منتج كغلاف بديل إذا لم توجد صورة مخصصة
+        if not cover and product_cover_cycle:
+            cover = product_cover_cycle[cover_idx % len(product_cover_cycle)]
+            cover_idx += 1
 
         grouped[f.series_key]["folders"].append({
             "id": f.id,
@@ -134,7 +157,7 @@ def get_all_gallery_images(
     model_key: Optional[str]  = Query(None),
     db: Session = Depends(get_db),
 ):
-    """جلب كل صور المعرض مع فلاتر اختيارية حسب الفئة (series_key) والموديل (model_key)."""
+    """جلب كل صور المعرض مع فلاتر اختيارية. عند غياب صور المعرض تُستخدم صور المنتجات كـ fallback."""
     q = (
         db.query(GalleryImage)
         .join(GalleryFolder, GalleryImage.folder_id == GalleryFolder.id)
@@ -151,7 +174,13 @@ def get_all_gallery_images(
         GalleryImage.created_at,
     ).all()
 
-    return [
+    def _is_valid_url(url: str | None) -> bool:
+        """تحقق من أن الرابط صالح (ليس مساراً محلياً مؤقتاً)."""
+        if not url:
+            return False
+        return url.startswith("http") or url.startswith("/api/uploads/image/")
+
+    result = [
         {
             "id": img.id,
             "image_url": img.image_url,
@@ -164,7 +193,32 @@ def get_all_gallery_images(
             "created_at": img.created_at.isoformat() if img.created_at else None,
         }
         for img in images
+        if _is_valid_url(img.image_url)
     ]
+
+    # Fallback: عند غياب صور المعرض الصالحة وبدون فلتر مجلد محدد، تُعرض صور المنتجات
+    if not result and not series_key and not model_key:
+        products = (
+            db.query(Product)
+            .filter(Product.image_url.isnot(None), Product.image_url != "")
+            .order_by(Product.created_at.desc())
+            .limit(60)
+            .all()
+        )
+        for p in products:
+            result.append({
+                "id": f"product_{p.id}",
+                "image_url": p.image_url,
+                "watermark_number": None,
+                "title": p.name,
+                "folder_id": None,
+                "folder_label_ar": p.category.value if hasattr(p.category, 'value') else str(p.category),
+                "series_key": None,
+                "model_key": None,
+                "created_at": p.created_at.isoformat() if p.created_at else None,
+            })
+
+    return result
 
 
 # ── GET /api/gallery/folders/{folder_id}  (images in folder) ──────────────────

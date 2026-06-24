@@ -3,12 +3,7 @@ const MANIFEST = 'flutter-app-manifest';
 const TEMP = 'flutter-temp-cache';
 const CACHE_NAME = 'flutter-app-cache';
 
-const RESOURCES = {"assets/AssetManifest.bin": "2f5984f441567bb6bd7b6f500cb24861",
-"assets/AssetManifest.bin.json": "d323c8c44067cdcb8e13a821a9c0251c",
-"assets/AssetManifest.json": "9bb2596e907f018e5cf7d001e8881a74",
-"assets/FontManifest.json": "a892c4c520ccdca5c3ae4ea51bb5abfe",
-"assets/NOTICES": "120c9098ac59fcbec89ef09ffb2a289a",
-"assets/assets/fonts/Cairo-Bold.ttf": "d6142d155c71b0239454b2853e51087e",
+const RESOURCES = {"assets/assets/fonts/Cairo-Bold.ttf": "d6142d155c71b0239454b2853e51087e",
 "assets/assets/fonts/Cairo-Light.ttf": "0e355a997fd3fdc3a2a5d13ba68a6fd0",
 "assets/assets/fonts/Cairo-Regular.ttf": "0e355a997fd3fdc3a2a5d13ba68a6fd0",
 "assets/assets/fonts/Cairo-SemiBold.ttf": "0e355a997fd3fdc3a2a5d13ba68a6fd0",
@@ -18,6 +13,11 @@ const RESOURCES = {"assets/AssetManifest.bin": "2f5984f441567bb6bd7b6f500cb24861
 "assets/packages/font_awesome_flutter/lib/fonts/fa-regular-400.ttf": "262525e2081311609d1fdab966c82bfc",
 "assets/packages/font_awesome_flutter/lib/fonts/fa-solid-900.ttf": "269f971cec0d5dc864fe9ae080b19e23",
 "assets/shaders/ink_sparkle.frag": "ecc85a2e95f5e9f53123dcaf8cb9b6ce",
+"assets/AssetManifest.json": "9bb2596e907f018e5cf7d001e8881a74",
+"assets/AssetManifest.bin": "2f5984f441567bb6bd7b6f500cb24861",
+"assets/AssetManifest.bin.json": "d323c8c44067cdcb8e13a821a9c0251c",
+"assets/FontManifest.json": "a892c4c520ccdca5c3ae4ea51bb5abfe",
+"assets/NOTICES": "120c9098ac59fcbec89ef09ffb2a289a",
 "canvaskit/canvaskit.js": "728b2d477d9b8c14593d4f9b82b484f3",
 "canvaskit/canvaskit.js.symbols": "27361387bc24144b46a745f1afe92b50",
 "canvaskit/canvaskit.wasm": "a37f2b0af4995714de856e21e882325c",
@@ -27,18 +27,18 @@ const RESOURCES = {"assets/AssetManifest.bin": "2f5984f441567bb6bd7b6f500cb24861
 "canvaskit/skwasm.js": "ea559890a088fe28b4ddf70e17e60052",
 "canvaskit/skwasm.js.symbols": "9fe690d47b904d72c7d020bd303adf16",
 "canvaskit/skwasm.wasm": "1c93738510f202d9ff44d36a4760126b",
-"favicon.png": "5dcef449791fa27946b3d35ad8803796",
 "flutter.js": "83d881c1dbb6d6bcd6b42e274605b69c",
-"flutter_bootstrap.js": "c373de68c1e0d88a8ce676aff88102ff",
+"flutter_bootstrap.js": "9802b0fa9aa2e2a94e64e79f81d86754",
 "icons/Icon-192.png": "ac9a721a12bbc803b44f645561ecb1e1",
 "icons/Icon-512.png": "96e752610906ba2a93c65f8abe1645f1",
 "icons/Icon-maskable-192.png": "c457ef57daa1d16f64b27b786ec2ea3c",
 "icons/Icon-maskable-512.png": "301a7604d45b3e739efc881eb04896ea",
 "index.html": "a1e935316bff59c711724b09a8d4f17b",
 "/": "a1e935316bff59c711724b09a8d4f17b",
-"main.dart.js": "4d8b39637397b37b13a54c648ca12aa8",
-"manifest.json": "2c1ef8e8c9c941903057efa0b2205471",
-"version.json": "1041a7c63f6f07076b6288255d760b31"};
+"version.json": "1041a7c63f6f07076b6288255d760b31",
+"main.dart.js": "844e7b5625aafe92d3684a4d9051f64e",
+"favicon.png": "5dcef449791fa27946b3d35ad8803796",
+"manifest.json": "2c1ef8e8c9c941903057efa0b2205471"};
 // The application shell files that are downloaded before a service worker can
 // start.
 const CORE = ["main.dart.js",

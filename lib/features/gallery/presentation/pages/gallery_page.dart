@@ -32,6 +32,41 @@ final _galleryMetaProvider =
   }
 });
 
+/// رابط صالح = Supabase أو /api/uploads/image/ (ليس مساراً محلياً مؤقتاً)
+bool _isValidImageUrl(String? url) {
+  if (url == null || url.isEmpty) return false;
+  return url.startsWith('http') || url.startsWith('/api/uploads/image/');
+}
+
+/// صور المنتجات مُهيَّأة بتنسيق gallery
+final _productImagesForGalleryProvider =
+    FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) async {
+  final api = ref.read(apiClientProvider);
+  try {
+    final res = await api.get('/products', queryParameters: {'limit': 60});
+    final raw = res.data;
+    final List items = raw is List
+        ? raw
+        : (raw['items'] ?? raw['products'] ?? raw['results'] ?? []) as List;
+    return items
+        .where((p) => _isValidImageUrl(p['image_url'] as String?))
+        .map<Map<String, dynamic>>((p) => {
+              'id': 'product_${p["id"]}',
+              'image_url': p['image_url'],
+              'watermark_number': null,
+              'title': p['name'] ?? p['name_ar'],
+              'folder_id': null,
+              'folder_label_ar': p['category'] ?? 'منتجات المتجر',
+              'series_key': null,
+              'model_key': null,
+              'created_at': null,
+            })
+        .toList();
+  } catch (_) {
+    return [];
+  }
+});
+
 final _galleryImagesProvider =
     FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) async {
   final seriesKey = ref.watch(_selectedSeriesProvider);
@@ -43,7 +78,18 @@ final _galleryImagesProvider =
     if (modelKey  != null) params['model_key']  = modelKey;
     final res = await api.get('/gallery/images',
         queryParameters: params.isNotEmpty ? params : null);
-    return List<Map<String, dynamic>>.from(res.data);
+
+    // تصفية الروابط المحلية المؤقتة غير الصالحة
+    final valid = List<Map<String, dynamic>>.from(res.data)
+        .where((img) => _isValidImageUrl(img['image_url'] as String?))
+        .toList();
+
+    // عند غياب صور معرض صالحة وبدون فلتر موديل محدد → استخدم صور المنتجات
+    if (valid.isEmpty && seriesKey == null && modelKey == null) {
+      return await ref.read(_productImagesForGalleryProvider.future);
+    }
+
+    return valid;
   } catch (_) {
     return [];
   }
@@ -541,7 +587,9 @@ class _SeriesSection extends StatelessWidget {
           itemCount: folders.length,
           itemBuilder: (ctx, i) {
             final f = folders[i];
-            final cover = f['cover_image_url'] as String?;
+            // تجاهل روابط الـ filesystem المحلية المؤقتة
+            final coverRaw = f['cover_image_url'] as String?;
+            final cover = _isValidImageUrl(coverRaw) ? coverRaw : null;
             final modelKey = f['model_key'] as String?;
             final labelAr = f['label_ar'] as String? ?? modelKey ?? '';
             final count = f['image_count'] as int? ?? 0;

@@ -9,7 +9,7 @@
 - [Postgres enum migration](postgres-enum-migration.md) — ALTER TYPE needs AUTOCOMMIT + engine.url object; also add new enum values (alert/event for AnnouncementType) in same AUTOCOMMIT block
 - [Postgres datetime type](postgres-datetime.md) — PostgreSQL has no DATETIME type; use TIMESTAMP for ALTER TABLE ADD COLUMN; SQLite uses DATETIME; gate with _is_postgres() check
 - [Model import order](model-import-order.md) — Branch must import before User in models/__init__.py; User has FK branch_id → branches table
-- [Flutter pub cache path](flutter-pub-cache.md) — Replit stores pub cache at ../.pub-cache (parent dir); must set PUB_CACHE=realpath(../.pub-cache) before flutter pub get / build web
+- [Flutter pub cache path](flutter-pub-cache.md) — pub cache is at /home/runner/.pub-cache (188+ packages); use PUB_CACHE=/home/runner/.pub-cache for flutter pub get / build web
 - [Admin panel API architecture](admin-api-arch.md) — Admin panel calls Render.com API (same URL as Flutter); uses to_obj() helper for SimpleNamespace; do NOT change to local backend
 - [Migrations for new columns](migrations-new-cols.md) — Always add new DB columns via migrations.py (not just create_all); new tables get create_all; existing tables need ALTER TABLE in run_migrations()
 - [Flutter web build flags](flutter-build-flags.md) — Flutter 3.32+: use `flutter build web` with NO --web-renderer or --no-sound-null-safety flags (removed); PUB_CACHE=realpath(../.pub-cache) still required
