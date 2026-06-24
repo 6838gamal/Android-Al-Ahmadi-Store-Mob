@@ -33,8 +33,13 @@ const mimeTypes = {
 
 // اختر الـ backend المناسب لكل مسار
 function resolveTarget(reqUrl) {
-  // المعرض والصور → الخادم المحلي (يملك routes المعرض)
-  if (reqUrl.startsWith('/api/gallery') || reqUrl.startsWith('/api/uploads/image/')) {
+  // المعرض والصور والـ health → الخادم المحلي (سريع الاستجابة دائماً)
+  if (
+    reqUrl.startsWith('/api/gallery') ||
+    reqUrl.startsWith('/api/uploads/image/') ||
+    reqUrl === '/api/health' ||
+    reqUrl.startsWith('/api/health?')
+  ) {
     return LOCAL_API;
   }
   // باقي الطلبات → الـ API الخارجي (يملك بيانات المنتجات)
