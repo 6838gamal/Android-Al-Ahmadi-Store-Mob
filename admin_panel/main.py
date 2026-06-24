@@ -14,8 +14,8 @@ import httpx
 from urllib.parse import quote as _q
 from contextlib import asynccontextmanager
 
-# ── Backend API URL — الخادم المحلي دائماً متاح مع كل الـ routes ────
-_API_BASE_DEFAULT = "http://localhost:8000"
+# ── Backend API URL — يستخدم الرابط الخارجي إن وُجد وإلا المحلي ────
+_API_BASE_DEFAULT = os.getenv("BACKEND_API_URL", "http://localhost:8000").rstrip("/")
 API_BASE = _API_BASE_DEFAULT  # kept for backward compat
 _api_base_override: list = [None]  # [0] = override from DB (None = use default)
 

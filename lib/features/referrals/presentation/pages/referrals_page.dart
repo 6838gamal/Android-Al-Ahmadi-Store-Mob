@@ -132,14 +132,22 @@ class _StatsBody extends StatelessWidget {
     final level2Count = stats['level2_count'] as int? ?? 0;
     final progressPct = target > 0 ? (progress / target).clamp(0.0, 1.0) : 0.0;
 
+    // نص الدعوة — بدون رابط، مع تمييز الكود
+    String _inviteText() =>
+        '🎉 أهلاً! أدعوك للانضمام إلى متجر أندرويد الأحمدي\n'
+        'متخصصون في الجوالات وقطع الغيار 📱\n\n'
+        'عند التسجيل استخدم كود الدعوة الخاص بي:\n\n'
+        '🔑  $code  🔑\n\n'
+        'سجّل الآن واستمتع بمزايا حصرية!';
+
     Future<void> shareWhatsApp() async {
-      final msg = 'انضم إلى متجر اندرويد الاحمدي عبر رابط الإحالة الخاص بي:\n$link\nكود الإحالة: $code';
+      final msg = _inviteText();
       final uri = Uri.parse('https://wa.me/?text=${Uri.encodeComponent(msg)}');
       try {
         await launchUrl(uri, mode: LaunchMode.externalApplication);
       } catch (_) {
         Clipboard.setData(ClipboardData(text: msg));
-        if (context.mounted) AppUtils.showSnackBar(context, 'تم نسخ رسالة الإحالة');
+        if (context.mounted) AppUtils.showSnackBar(context, 'تم نسخ رسالة الدعوة');
       }
     }
 
@@ -247,11 +255,11 @@ class _StatsBody extends StatelessWidget {
               Expanded(
                 child: OutlinedButton.icon(
                   onPressed: () {
-                    Clipboard.setData(ClipboardData(text: link));
-                    AppUtils.showSnackBar(context, 'تم نسخ رابط الإحالة');
+                    Clipboard.setData(ClipboardData(text: _inviteText()));
+                    AppUtils.showSnackBar(context, 'تم نسخ رسالة الدعوة');
                   },
-                  icon: const Icon(Icons.link, size: 18),
-                  label: const Text('نسخ الرابط', style: TextStyle(fontFamily: 'Cairo', fontSize: 13)),
+                  icon: const Icon(Icons.copy_all, size: 18),
+                  label: const Text('نسخ الدعوة', style: TextStyle(fontFamily: 'Cairo', fontSize: 13)),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: AppColors.primary,
                     side: const BorderSide(color: AppColors.primary),
