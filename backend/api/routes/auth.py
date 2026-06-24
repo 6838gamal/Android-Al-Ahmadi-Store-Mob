@@ -232,10 +232,14 @@ def login(login_data: UserLogin, request: Request, db: Session = Depends(get_db)
             User.role == UserRole.customer,
         ).first()
     else:
-        user = db.query(User).filter(
-            User.phone == identifier,
-            User.role == UserRole.customer,
-        ).first()
+        # Try all normalised phone variants so format differences don't block login
+        for variant in _normalise_phone(identifier):
+            user = db.query(User).filter(
+                User.phone == variant,
+                User.role == UserRole.customer,
+            ).first()
+            if user:
+                break
 
     # Phone/email not found as customer — check if it belongs to a staff account
     if not user:
@@ -245,10 +249,14 @@ def login(login_data: UserLogin, request: Request, db: Session = Depends(get_db)
                 User.role.in_(STAFF_ROLES),
             ).first()
         else:
-            staff_exists = db.query(User).filter(
-                User.phone == identifier,
-                User.role.in_(STAFF_ROLES),
-            ).first()
+            staff_exists = None
+            for variant in _normalise_phone(identifier):
+                staff_exists = db.query(User).filter(
+                    User.phone == variant,
+                    User.role.in_(STAFF_ROLES),
+                ).first()
+                if staff_exists:
+                    break
 
         if staff_exists:
             raise HTTPException(
@@ -576,12 +584,22 @@ def verify_otp(body: OtpVerifyRequest, request: Request, db: Session = Depends(g
 
     _db_otp_delete(db, phone)
 
-    # Find user by any phone variant
+    # Find user by any phone variant — prefer customer role to avoid
+    # returning a staff token when a staff user shares the same phone number
     user = None
     for variant in _normalise_phone(phone):
-        user = db.query(User).filter(User.phone == variant).first()
+        user = db.query(User).filter(
+            User.phone == variant,
+            User.role == UserRole.customer,
+        ).first()
         if user:
             break
+    # Fallback: if no customer found, try any role (e.g. staff doing phone-login)
+    if not user:
+        for variant in _normalise_phone(phone):
+            user = db.query(User).filter(User.phone == variant).first()
+            if user:
+                break
 
     if not user:
         raise HTTPException(status_code=404, detail="لا يوجد حساب مرتبط بهذا الرقم")
