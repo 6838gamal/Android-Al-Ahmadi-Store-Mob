@@ -449,7 +449,7 @@ async def products_list(request: Request, search: str = ""):
     try:
         async with httpx.AsyncClient(timeout=20.0) as _lc:
             _r = await _lc.get(
-                "http://localhost:8000/api/products/",
+                f"{_get_base()}/api/products/",
                 params=params,
             )
             if _r.status_code == 200:
@@ -536,7 +536,7 @@ async def product_edit_page(product_id: int, request: Request):
     try:
         async with httpx.AsyncClient(timeout=6.0) as _lc:
             _r = await _lc.get(
-                f"http://localhost:8000/api/products/{product_id}",
+                f"{_get_base()}/api/products/{product_id}",
                 headers={"Authorization": f"Bearer {_token(request)}"},
             )
             if _r.status_code == 200:
@@ -643,7 +643,7 @@ async def product_upload_image(product_id: int, request: Request, image: UploadF
         try:
             async with httpx.AsyncClient(timeout=10) as _lc:
                 _r = await _lc.put(
-                    f"http://localhost:8000/api/products/{product_id}",
+                    f"{_get_base()}/api/products/{product_id}",
                     headers={"Authorization": f"Bearer {tok}", "Content-Type": "application/json"},
                     json={"image_url": image_url},
                 )
@@ -2367,7 +2367,7 @@ async def gallery_list(request: Request):
     raw_products = []
     try:
         async with httpx.AsyncClient(timeout=15.0) as _lc:
-            _r = await _lc.get("http://localhost:8000/api/products/", params={"limit": 500})
+            _r = await _lc.get(f"{_get_base()}/api/products/", params={"limit": 500})
             if _r.status_code == 200:
                 raw_products = _r.json()
     except Exception:
