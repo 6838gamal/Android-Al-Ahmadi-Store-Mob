@@ -5,8 +5,8 @@ const path = require('path');
 
 const PORT = 5000;
 
-// API الخارجي: يملك بيانات المنتجات والمستخدمين
-const EXTERNAL_API = (process.env.BACKEND_API_URL || 'http://localhost:8000').replace(/\/$/, '');
+// All API calls go to the local backend running on port 8000
+const EXTERNAL_API = 'http://localhost:8000';
 // الخادم المحلي: يملك routes المعرض الجديدة
 const LOCAL_API = 'http://localhost:8000';
 // SW_REMOTE_API: يُحقن في Service Worker ليعترض الطلبات المُدمجة في الكود المترجم
