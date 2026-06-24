@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Query
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 from typing import Optional, List
 from backend.core.database import get_db
 from backend.models.gallery import GalleryFolder, GalleryImage
@@ -11,6 +12,8 @@ from backend.core import supabase_storage
 from backend.api.routes.uploads import _store_image
 import os, uuid
 from datetime import datetime
+
+_SEED_DONE = False
 
 router = APIRouter()
 
@@ -64,26 +67,39 @@ def _delete_gallery_file(image_url: str) -> None:
 
 # ── Seed folders from catalog ──────────────────────────────────────────────────
 def seed_gallery_folders(db: Session):
-    """Auto-create GalleryFolder rows from the Samsung catalog if missing."""
+    """Auto-create GalleryFolder rows from the Samsung catalog if missing.
+    Uses a single bulk SELECT then only INSERTs missing rows."""
+    global _SEED_DONE
+    if _SEED_DONE:
+        return
+
+    # Fetch all existing (series_key, model_key) pairs in one query
+    existing = set(
+        (row.series_key, row.model_key)
+        for row in db.query(GalleryFolder.series_key, GalleryFolder.model_key).all()
+    )
+
+    to_add = []
     sort_series = 0
     for series_key, series in SAMSUNG_CATALOG.items():
         sort_series += 10
         sort_model = 0
         for model in series["models"]:
             sort_model += 1
-            exists = db.query(GalleryFolder).filter(
-                GalleryFolder.series_key == series_key,
-                GalleryFolder.model_key == model["key"],
-            ).first()
-            if not exists:
-                db.add(GalleryFolder(
+            if (series_key, model["key"]) not in existing:
+                to_add.append(GalleryFolder(
                     series_key=series_key,
                     model_key=model["key"],
                     label_ar=model["label_ar"],
                     label_en=model["label_en"],
                     sort_order=sort_series * 100 + sort_model,
                 ))
-    db.commit()
+
+    if to_add:
+        db.add_all(to_add)
+        db.commit()
+
+    _SEED_DONE = True
 
 
 # ── GET /api/gallery/folders  (grouped by series) ─────────────────────────────
@@ -93,6 +109,39 @@ def list_folders(db: Session = Depends(get_db)):
     folders = db.query(GalleryFolder).filter(GalleryFolder.is_active == True).order_by(
         GalleryFolder.sort_order
     ).all()
+
+    if not folders:
+        return []
+
+    folder_ids = [f.id for f in folders]
+
+    # Bulk: image counts per folder (single query)
+    count_rows = (
+        db.query(GalleryImage.folder_id, func.count(GalleryImage.id))
+        .filter(GalleryImage.folder_id.in_(folder_ids))
+        .group_by(GalleryImage.folder_id)
+        .all()
+    )
+    counts = {row[0]: row[1] for row in count_rows}
+
+    # Bulk: first image per folder for cover fallback (single query)
+    # Use a subquery to get minimum sort_order per folder
+    min_sort = (
+        db.query(GalleryImage.folder_id, func.min(GalleryImage.sort_order).label("min_sort"))
+        .filter(GalleryImage.folder_id.in_(folder_ids))
+        .group_by(GalleryImage.folder_id)
+        .subquery()
+    )
+    first_imgs_rows = (
+        db.query(GalleryImage)
+        .join(min_sort, (GalleryImage.folder_id == min_sort.c.folder_id) &
+              (GalleryImage.sort_order == min_sort.c.min_sort))
+        .all()
+    )
+    first_imgs = {img.folder_id: img.image_url for img in first_imgs_rows}
+
+    def _valid_url(url):
+        return url and (url.startswith("http") or url.startswith("/api/uploads/image/"))
 
     grouped = {}
     for f in folders:
@@ -104,19 +153,11 @@ def list_folders(db: Session = Depends(get_db)):
                 "label_en": series_info.get("label_en", f.series_key),
                 "folders": [],
             }
-        count = db.query(GalleryImage).filter(GalleryImage.folder_id == f.id).count()
-        cover = f.cover_image_url
-        # تجاهل الروابط المحلية المؤقتة التي لم تعد متاحة
-        if cover and not (cover.startswith("http") or cover.startswith("/api/uploads/image/")):
-            cover = None
+
+        cover = f.cover_image_url if _valid_url(f.cover_image_url) else None
         if not cover:
-            first_img = db.query(GalleryImage).filter(
-                GalleryImage.folder_id == f.id
-            ).order_by(GalleryImage.sort_order).first()
-            if first_img and (first_img.image_url.startswith("http") or first_img.image_url.startswith("/api/uploads/image/")):
-                cover = first_img.image_url
-            else:
-                cover = None
+            fallback = first_imgs.get(f.id)
+            cover = fallback if _valid_url(fallback) else None
 
         grouped[f.series_key]["folders"].append({
             "id": f.id,
@@ -125,7 +166,7 @@ def list_folders(db: Session = Depends(get_db)):
             "label_ar": f.label_ar,
             "label_en": f.label_en,
             "cover_image_url": cover,
-            "image_count": count,
+            "image_count": counts.get(f.id, 0),
             "sort_order": f.sort_order,
             "created_at": f.created_at.isoformat() if f.created_at else None,
             "updated_at": f.updated_at.isoformat() if f.updated_at else None,

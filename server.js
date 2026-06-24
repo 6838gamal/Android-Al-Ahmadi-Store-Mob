@@ -4,7 +4,14 @@ const fs = require('fs');
 const path = require('path');
 
 const PORT = 5000;
+
+// API الخارجي: يملك بيانات المنتجات والمستخدمين
 const EXTERNAL_API = (process.env.BACKEND_API_URL || 'http://localhost:8000').replace(/\/$/, '');
+// الخادم المحلي: يملك routes المعرض الجديدة
+const LOCAL_API = 'http://localhost:8000';
+// SW_REMOTE_API: يُحقن في Service Worker ليعترض الطلبات المُدمجة في الكود المترجم
+const SW_REMOTE_API = EXTERNAL_API;
+
 const WEB_DIR = path.join(__dirname, 'build', 'web');
 
 const mimeTypes = {
@@ -24,6 +31,16 @@ const mimeTypes = {
   '.svg': 'image/svg+xml',
 };
 
+// اختر الـ backend المناسب لكل مسار
+function resolveTarget(reqUrl) {
+  // المعرض والصور → الخادم المحلي (يملك routes المعرض)
+  if (reqUrl.startsWith('/api/gallery') || reqUrl.startsWith('/api/uploads/image/')) {
+    return LOCAL_API;
+  }
+  // باقي الطلبات → الـ API الخارجي (يملك بيانات المنتجات)
+  return EXTERNAL_API;
+}
+
 function readBody(req) {
   return new Promise((resolve) => {
     const chunks = [];
@@ -33,9 +50,10 @@ function readBody(req) {
   });
 }
 
-function proxyWithBody(req, res, bodyBuffer, urlOverride) {
+function proxyWithBody(req, res, bodyBuffer, urlOverride, targetOverride) {
   const proxyPath = urlOverride || req.url;
-  const target = new URL(EXTERNAL_API);
+  const targetUrl = targetOverride || resolveTarget(proxyPath);
+  const target = new URL(targetUrl);
   const isHttps = target.protocol === 'https:';
 
   const clientIp = req.headers['x-real-ip']
@@ -68,7 +86,7 @@ function proxyWithBody(req, res, bodyBuffer, urlOverride) {
     if ((proxyRes.statusCode === 307 || proxyRes.statusCode === 308) && proxyRes.headers.location) {
       proxyRes.resume();
       const loc = new URL(proxyRes.headers.location);
-      return proxyWithBody(req, res, bodyBuffer, loc.pathname + loc.search);
+      return proxyWithBody(req, res, bodyBuffer, loc.pathname + loc.search, targetUrl);
     }
     res.writeHead(proxyRes.statusCode, proxyRes.headers);
     proxyRes.pipe(res, { end: true });
@@ -142,7 +160,7 @@ const server = http.createServer(async (req, res) => {
       if (isServiceWorker) {
         body = data.toString('utf8').replace(
           /const REMOTE_API\s*=\s*['"][^'"]*['"]\s*;/,
-          `const REMOTE_API = ${JSON.stringify(EXTERNAL_API)};`
+          `const REMOTE_API = ${JSON.stringify(SW_REMOTE_API)};`
         );
       } else if (isBootstrap) {
         body = data.toString('utf8').replace(
@@ -164,5 +182,6 @@ const server = http.createServer(async (req, res) => {
 
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`Flutter web app running at http://0.0.0.0:${PORT}`);
-  console.log(`Proxying /api/* and /uploads/* → ${EXTERNAL_API}`);
+  console.log(`Proxying /api/gallery/* → ${LOCAL_API} (local backend)`);
+  console.log(`Proxying /api/* (other) → ${EXTERNAL_API} (external API)`);
 });

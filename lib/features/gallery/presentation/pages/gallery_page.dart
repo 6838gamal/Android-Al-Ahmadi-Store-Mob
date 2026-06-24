@@ -2,89 +2,37 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import '../../../../core/constants/app_constants.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/network/api_client.dart';
 import '../../../home/presentation/pages/main_shell.dart';
 
-// ─── State providers ──────────────────────────────────────────────────────────
+// ─── Providers ────────────────────────────────────────────────────────────────
 
-final _selectedSeriesProvider = StateProvider.autoDispose<String?>((ref) => null);
+final _galleryCatProvider = StateProvider.autoDispose<String?>((ref) => null);
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-/// رابط صالح = Supabase أو /api/uploads/image/ (ليس مساراً محلياً مؤقتاً)
-bool _isValidImageUrl(String? url) {
-  if (url == null || url.isEmpty) return false;
-  return url.startsWith('http') || url.startsWith('/api/uploads/image/');
-}
-
-// ─── Data providers ───────────────────────────────────────────────────────────
-
-/// قائمة الفئات (series) مع مجلداتها
-final _galleryMetaProvider =
+final _galleryProductsProvider =
     FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) async {
   final api = ref.read(apiClientProvider);
   try {
-    final res = await api.get('/gallery/folders');
-    return List<Map<String, dynamic>>.from(res.data);
-  } catch (_) {
-    return [];
-  }
-});
-
-/// صور المنتجات كاحتياطي عند فراغ المعرض
-final _productImagesForGalleryProvider =
-    FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) async {
-  final api = ref.read(apiClientProvider);
-  try {
-    final res = await api.get('/products', queryParameters: {'limit': 60});
+    final res = await api.get('/products', queryParameters: {'limit': 200, 'skip': 0});
     final raw = res.data;
     final List items = raw is List
         ? raw
-        : (raw['items'] ?? raw['products'] ?? raw['results'] ?? []) as List;
+        : ((raw['items'] ?? raw['products'] ?? raw['results'] ?? []) as List);
     return items
-        .where((p) => _isValidImageUrl(p['image_url'] as String?))
-        .map<Map<String, dynamic>>((p) => {
-              'id': 'product_${p["id"]}',
-              'image_url': p['image_url'],
-              'watermark_number': null,
-              'title': p['name'] ?? p['name_ar'],
-              'folder_label_ar': p['category'] ?? 'منتجات المتجر',
-              'series_key': null,
-              'model_key': null,
-            })
+        .where((p) => _validUrl(p['image_url'] as String?))
+        .map<Map<String, dynamic>>((p) => Map<String, dynamic>.from(p as Map))
         .toList();
   } catch (_) {
     return [];
   }
 });
 
-/// صور المعرض — مع احتياطي لصور المنتجات عند الفراغ
-final _galleryImagesProvider =
-    FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) async {
-  final seriesKey = ref.watch(_selectedSeriesProvider);
-  final api = ref.read(apiClientProvider);
-  try {
-    final params = <String, dynamic>{};
-    if (seriesKey != null) params['series_key'] = seriesKey;
-    final res = await api.get('/gallery/images',
-        queryParameters: params.isNotEmpty ? params : null);
-
-    final valid = List<Map<String, dynamic>>.from(res.data)
-        .where((img) => _isValidImageUrl(img['image_url'] as String?))
-        .toList();
-
-    if (valid.isEmpty && seriesKey == null) {
-      return await ref.read(_productImagesForGalleryProvider.future);
-    }
-    return valid;
-  } catch (_) {
-    if (ref.read(_selectedSeriesProvider) == null) {
-      return await ref.read(_productImagesForGalleryProvider.future);
-    }
-    return [];
-  }
-});
+bool _validUrl(String? url) {
+  if (url == null || url.isEmpty) return false;
+  return url.startsWith('http') || url.startsWith('/api/uploads/image/');
+}
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
@@ -93,10 +41,8 @@ class GalleryPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final metaAsync   = ref.watch(_galleryMetaProvider);
-    final imagesAsync = ref.watch(_galleryImagesProvider);
-    final selSeries   = ref.watch(_selectedSeriesProvider);
-    final seriesList  = metaAsync.valueOrNull ?? [];
+    final productsAsync = ref.watch(_galleryProductsProvider);
+    final selectedCat  = ref.watch(_galleryCatProvider);
 
     return Scaffold(
       backgroundColor: AppColors.darkBg,
@@ -115,10 +61,7 @@ class GalleryPage extends ConsumerWidget {
             actions: [
               IconButton(
                 icon: const Icon(Icons.refresh, color: AppColors.primary),
-                onPressed: () {
-                  ref.invalidate(_galleryMetaProvider);
-                  ref.invalidate(_galleryImagesProvider);
-                },
+                onPressed: () => ref.invalidate(_galleryProductsProvider),
               ),
             ],
             flexibleSpace: FlexibleSpaceBar(
@@ -139,7 +82,7 @@ class GalleryPage extends ConsumerWidget {
                       children: [
                         SizedBox(height: 40),
                         Text(
-                          '🖼️ معرض الصور',
+                          '🖼️ معرض صور المتجر',
                           style: TextStyle(
                             fontFamily: 'Cairo',
                             color: Colors.white,
@@ -148,7 +91,7 @@ class GalleryPage extends ConsumerWidget {
                           ),
                         ),
                         Text(
-                          'صور الموديلات والشاشات',
+                          'صور المنتجات حسب الفئة والموديل',
                           style: TextStyle(
                             fontFamily: 'Cairo',
                             color: Colors.white70,
@@ -163,22 +106,28 @@ class GalleryPage extends ConsumerWidget {
             ),
           ),
 
-          // ── تبويبات الفئات (مثل لوحة التحكم) ───────────────────────────────
-          if (seriesList.isNotEmpty)
-            SliverPersistentHeader(
-              pinned: true,
-              delegate: _SeriesTabsDelegate(
-                seriesList: seriesList,
-                selected: selSeries,
-                onSelect: (key) {
-                  ref.read(_selectedSeriesProvider.notifier).state = key;
-                  ref.invalidate(_galleryImagesProvider);
-                },
-              ),
-            ),
+          // ── تبويبات الفئات ───────────────────────────────────────────────
+          productsAsync.when(
+            loading: () => const SliverToBoxAdapter(child: SizedBox.shrink()),
+            error: (_, __) => const SliverToBoxAdapter(child: SizedBox.shrink()),
+            data: (products) {
+              final cats = _availableCategories(products);
+              if (cats.isEmpty) return const SliverToBoxAdapter(child: SizedBox.shrink());
+              return SliverPersistentHeader(
+                pinned: true,
+                delegate: _CatTabsDelegate(
+                  categories: cats,
+                  selected: selectedCat,
+                  onSelect: (k) {
+                    ref.read(_galleryCatProvider.notifier).state = k;
+                  },
+                ),
+              );
+            },
+          ),
 
-          // ── محتوى الصور ─────────────────────────────────────────────────────
-          imagesAsync.when(
+          // ── المحتوى ──────────────────────────────────────────────────────
+          productsAsync.when(
             loading: () => const SliverFillRemaining(
               child: Center(
                 child: CircularProgressIndicator(color: AppColors.primary),
@@ -186,15 +135,22 @@ class GalleryPage extends ConsumerWidget {
             ),
             error: (_, __) => SliverFillRemaining(
               child: _EmptyGallery(
-                message: 'تعذّر تحميل الصور',
-                onRetry: () => ref.invalidate(_galleryImagesProvider),
+                message: 'تعذّر تحميل المعرض',
+                onRetry: () => ref.invalidate(_galleryProductsProvider),
               ),
             ),
-            data: (images) {
-              if (images.isEmpty) {
+            data: (products) {
+              // تصفية حسب الفئة المحددة
+              final filtered = selectedCat == null
+                  ? products
+                  : products
+                      .where((p) => p['category'] == selectedCat)
+                      .toList();
+
+              if (filtered.isEmpty) {
                 return SliverFillRemaining(
                   child: _EmptyGallery(
-                    message: selSeries != null
+                    message: selectedCat != null
                         ? 'لا توجد صور لهذه الفئة بعد'
                         : 'لا توجد صور في المعرض بعد',
                     onRetry: null,
@@ -202,19 +158,22 @@ class GalleryPage extends ConsumerWidget {
                 );
               }
 
+              // تجميع حسب الموديل داخل كل فئة
+              final groups = _groupByModel(filtered);
+
               return SliverMainAxisGroup(
                 slivers: [
-                  // شريط عدد الصور
+                  // عدد الصور
                   SliverToBoxAdapter(
                     child: Padding(
-                      padding: const EdgeInsets.fromLTRB(14, 10, 14, 4),
+                      padding: const EdgeInsets.fromLTRB(14, 10, 14, 2),
                       child: Row(
                         children: [
                           const Icon(Icons.photo_library_outlined,
                               color: AppColors.primary, size: 14),
                           const SizedBox(width: 6),
                           Text(
-                            '${images.length} صورة',
+                            '${filtered.length} صورة',
                             style: const TextStyle(
                               fontFamily: 'Cairo',
                               color: AppColors.textMuted,
@@ -225,27 +184,76 @@ class GalleryPage extends ConsumerWidget {
                       ),
                     ),
                   ),
-                  // شبكة الصور
-                  SliverPadding(
-                    padding: const EdgeInsets.fromLTRB(12, 4, 12, 32),
-                    sliver: SliverGrid(
-                      delegate: SliverChildBuilderDelegate(
-                        (ctx, i) => _ImageCard(
-                          image: images[i],
-                          index: i,
-                          onTap: () => _showFullScreen(ctx, images, i),
+
+                  // المجموعات حسب الموديل
+                  ...groups.entries.map((entry) {
+                    final model = entry.key;
+                    final items = entry.value;
+                    return SliverMainAxisGroup(
+                      slivers: [
+                        // عنوان الموديل
+                        if (model.isNotEmpty)
+                          SliverToBoxAdapter(
+                            child: Padding(
+                              padding: const EdgeInsets.fromLTRB(14, 16, 14, 6),
+                              child: Row(
+                                children: [
+                                  Container(
+                                    width: 4,
+                                    height: 18,
+                                    decoration: BoxDecoration(
+                                      color: AppColors.primary,
+                                      borderRadius: BorderRadius.circular(2),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    model,
+                                    style: const TextStyle(
+                                      fontFamily: 'Cairo',
+                                      color: Colors.white,
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    '(${items.length})',
+                                    style: const TextStyle(
+                                      fontFamily: 'Cairo',
+                                      color: AppColors.textMuted,
+                                      fontSize: 11,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        // شبكة الصور
+                        SliverPadding(
+                          padding: const EdgeInsets.fromLTRB(12, 4, 12, 8),
+                          sliver: SliverGrid(
+                            delegate: SliverChildBuilderDelegate(
+                              (ctx, i) => _ImageCard(
+                                product: items[i],
+                                index: i,
+                                onTap: () => _showFullScreen(ctx, items, i),
+                              ),
+                              childCount: items.length,
+                            ),
+                            gridDelegate:
+                                const SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: 3,
+                              crossAxisSpacing: 8,
+                              mainAxisSpacing: 8,
+                              childAspectRatio: 0.78,
+                            ),
+                          ),
                         ),
-                        childCount: images.length,
-                      ),
-                      gridDelegate:
-                          const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 3,
-                        crossAxisSpacing: 8,
-                        mainAxisSpacing: 8,
-                        childAspectRatio: 0.78,
-                      ),
-                    ),
-                  ),
+                      ],
+                    );
+                  }),
+                  const SliverToBoxAdapter(child: SizedBox(height: 32)),
                 ],
               );
             },
@@ -255,26 +263,67 @@ class GalleryPage extends ConsumerWidget {
     );
   }
 
-  void _showFullScreen(
-      BuildContext context, List<Map<String, dynamic>> images, int index) {
+  // الفئات المتوفرة من المنتجات الموجودة
+  List<String> _availableCategories(List<Map<String, dynamic>> products) {
+    final seen = <String>{};
+    final result = <String>[];
+    for (final p in products) {
+      final cat = p['category'] as String?;
+      if (cat != null && !seen.contains(cat)) {
+        seen.add(cat);
+        result.add(cat);
+      }
+    }
+    // ترتيب حسب الترتيب المحدد مسبقاً
+    final order = AppConstants.categoryAr.keys.toList();
+    result.sort((a, b) {
+      final ai = order.indexOf(a);
+      final bi = order.indexOf(b);
+      return (ai < 0 ? 99 : ai).compareTo(bi < 0 ? 99 : bi);
+    });
+    return result;
+  }
+
+  // تجميع المنتجات حسب الموديل
+  Map<String, List<Map<String, dynamic>>> _groupByModel(
+      List<Map<String, dynamic>> products) {
+    final grouped = <String, List<Map<String, dynamic>>>{};
+    for (final p in products) {
+      final model = (p['model'] as String?)?.trim() ?? '';
+      grouped.putIfAbsent(model, () => []).add(p);
+    }
+    // الموديلات بدون اسم تأتي أخيراً
+    final sorted = Map.fromEntries(
+      grouped.entries.toList()
+        ..sort((a, b) {
+          if (a.key.isEmpty) return 1;
+          if (b.key.isEmpty) return -1;
+          return a.key.compareTo(b.key);
+        }),
+    );
+    return sorted;
+  }
+
+  void _showFullScreen(BuildContext context,
+      List<Map<String, dynamic>> products, int index) {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => _FullScreenViewer(images: images, initialIndex: index),
+        builder: (_) => _FullScreenViewer(products: products, initialIndex: index),
       ),
     );
   }
 }
 
-// ─── Series Tabs (Persistent Header) ─────────────────────────────────────────
+// ─── Category Tabs ────────────────────────────────────────────────────────────
 
-class _SeriesTabsDelegate extends SliverPersistentHeaderDelegate {
-  final List<Map<String, dynamic>> seriesList;
+class _CatTabsDelegate extends SliverPersistentHeaderDelegate {
+  final List<String> categories;
   final String? selected;
   final void Function(String?) onSelect;
 
-  const _SeriesTabsDelegate({
-    required this.seriesList,
+  const _CatTabsDelegate({
+    required this.categories,
     required this.selected,
     required this.onSelect,
   });
@@ -285,8 +334,8 @@ class _SeriesTabsDelegate extends SliverPersistentHeaderDelegate {
   double get maxExtent => 52;
 
   @override
-  bool shouldRebuild(_SeriesTabsDelegate old) =>
-      old.selected != selected || old.seriesList.length != seriesList.length;
+  bool shouldRebuild(_CatTabsDelegate old) =>
+      old.selected != selected || old.categories.length != categories.length;
 
   @override
   Widget build(
@@ -294,9 +343,9 @@ class _SeriesTabsDelegate extends SliverPersistentHeaderDelegate {
     return Container(
       color: AppColors.darkBg,
       child: Container(
-        decoration: BoxDecoration(
+        decoration: const BoxDecoration(
           color: AppColors.darkSurface,
-          border: const Border(
+          border: Border(
             bottom: BorderSide(color: Color(0xFF2D3748), width: 1),
           ),
         ),
@@ -305,20 +354,17 @@ class _SeriesTabsDelegate extends SliverPersistentHeaderDelegate {
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
           scrollDirection: Axis.horizontal,
           children: [
-            _TabPill(
+            _TabChip(
               label: 'الكل',
               isSelected: selected == null,
               onTap: () => onSelect(null),
             ),
-            ...seriesList.map((s) {
-              final key = s['series_key'] as String?;
-              final label = s['label_ar'] as String? ?? key ?? '';
-              final count = (s['folders'] as List?)?.length ?? 0;
-              return _TabPill(
+            ...categories.map((cat) {
+              final label = AppConstants.categoryAr[cat] ?? cat;
+              return _TabChip(
                 label: label,
-                badge: count > 0 ? '$count' : null,
-                isSelected: selected == key,
-                onTap: () => onSelect(selected == key ? null : key),
+                isSelected: selected == cat,
+                onTap: () => onSelect(selected == cat ? null : cat),
               );
             }),
           ],
@@ -328,19 +374,15 @@ class _SeriesTabsDelegate extends SliverPersistentHeaderDelegate {
   }
 }
 
-// ─── Tab Pill ─────────────────────────────────────────────────────────────────
-
-class _TabPill extends StatelessWidget {
+class _TabChip extends StatelessWidget {
   final String label;
-  final String? badge;
   final bool isSelected;
   final VoidCallback onTap;
 
-  const _TabPill({
+  const _TabChip({
     required this.label,
     required this.isSelected,
     required this.onTap,
-    this.badge,
   });
 
   @override
@@ -358,41 +400,14 @@ class _TabPill extends StatelessWidget {
             color: isSelected ? AppColors.primary : const Color(0xFF2D3748),
           ),
         ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              label,
-              style: TextStyle(
-                fontFamily: 'Cairo',
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
-                color: isSelected ? Colors.white : const Color(0xFF9CA3AF),
-              ),
-            ),
-            if (badge != null) ...[
-              const SizedBox(width: 5),
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-                decoration: BoxDecoration(
-                  color: isSelected
-                      ? Colors.white.withOpacity(0.25)
-                      : const Color(0xFF2D3748),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Text(
-                  badge!,
-                  style: TextStyle(
-                    fontFamily: 'Cairo',
-                    fontSize: 9,
-                    fontWeight: FontWeight.w700,
-                    color: isSelected ? Colors.white : const Color(0xFF6B7280),
-                  ),
-                ),
-              ),
-            ],
-          ],
+        child: Text(
+          label,
+          style: TextStyle(
+            fontFamily: 'Cairo',
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
+            color: isSelected ? Colors.white : const Color(0xFF9CA3AF),
+          ),
         ),
       ),
     );
@@ -402,20 +417,22 @@ class _TabPill extends StatelessWidget {
 // ─── Image Card ───────────────────────────────────────────────────────────────
 
 class _ImageCard extends StatelessWidget {
-  final Map<String, dynamic> image;
+  final Map<String, dynamic> product;
   final int index;
   final VoidCallback onTap;
 
   const _ImageCard(
-      {required this.image, required this.index, required this.onTap});
+      {required this.product, required this.index, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    final url = image['image_url'] as String? ?? '';
+    final url     = product['image_url'] as String? ?? '';
     final fullUrl = ApiClient.img(url);
-    final watermark = image['watermark_number'] as String?;
-    final label = image['folder_label_ar'] as String?;
-    final model = image['model_key'] as String?;
+    final name    = product['name_ar'] as String? ??
+                    product['name'] as String? ?? '';
+    final model   = product['model'] as String?;
+    final cat     = product['category'] as String?;
+    final catAr   = cat != null ? (AppConstants.categoryAr[cat] ?? cat) : null;
 
     return GestureDetector(
       onTap: onTap,
@@ -457,7 +474,7 @@ class _ImageCard extends StatelessWidget {
                         ),
                       ),
                     ),
-                    if (watermark != null)
+                    if (catAr != null)
                       Positioned(
                         top: 4,
                         right: 4,
@@ -465,11 +482,11 @@ class _ImageCard extends StatelessWidget {
                           padding: const EdgeInsets.symmetric(
                               horizontal: 5, vertical: 2),
                           decoration: BoxDecoration(
-                            color: AppColors.primary.withOpacity(0.88),
+                            color: AppColors.primary.withOpacity(0.85),
                             borderRadius: BorderRadius.circular(6),
                           ),
                           child: Text(
-                            watermark,
+                            catAr,
                             style: const TextStyle(
                                 fontFamily: 'Cairo',
                                 color: Colors.white,
@@ -487,9 +504,9 @@ class _ImageCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  if (label != null && label.isNotEmpty)
+                  if (name.isNotEmpty)
                     Text(
-                      label,
+                      name,
                       style: const TextStyle(
                           fontFamily: 'Cairo',
                           color: Colors.white,
@@ -506,6 +523,7 @@ class _ImageCard extends StatelessWidget {
                           color: AppColors.textMuted,
                           fontSize: 8),
                       maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                 ],
               ),
@@ -523,11 +541,11 @@ class _ImageCard extends StatelessWidget {
 // ─── Full-Screen Viewer ───────────────────────────────────────────────────────
 
 class _FullScreenViewer extends StatefulWidget {
-  final List<Map<String, dynamic>> images;
+  final List<Map<String, dynamic>> products;
   final int initialIndex;
 
   const _FullScreenViewer(
-      {required this.images, required this.initialIndex});
+      {required this.products, required this.initialIndex});
 
   @override
   State<_FullScreenViewer> createState() => _FullScreenViewerState();
@@ -552,10 +570,11 @@ class _FullScreenViewerState extends State<_FullScreenViewer> {
 
   @override
   Widget build(BuildContext context) {
-    final img       = widget.images[_current];
-    final watermark = img['watermark_number'] as String?;
-    final label     = img['folder_label_ar'] as String?;
-    final model     = img['model_key'] as String?;
+    final p     = widget.products[_current];
+    final name  = p['name_ar'] as String? ?? p['name'] as String? ?? '';
+    final model = p['model'] as String?;
+    final cat   = p['category'] as String?;
+    final catAr = cat != null ? (AppConstants.categoryAr[cat] ?? cat) : null;
 
     return Scaffold(
       backgroundColor: Colors.black,
@@ -569,7 +588,7 @@ class _FullScreenViewerState extends State<_FullScreenViewer> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              label ?? watermark ?? '',
+              name.isNotEmpty ? name : (catAr ?? ''),
               style: const TextStyle(
                   fontFamily: 'Cairo',
                   color: Colors.white,
@@ -579,7 +598,8 @@ class _FullScreenViewerState extends State<_FullScreenViewer> {
               overflow: TextOverflow.ellipsis,
             ),
             Text(
-              '${_current + 1} / ${widget.images.length}  •  ${model ?? ""}',
+              '${_current + 1} / ${widget.products.length}'
+              '${model != null && model.isNotEmpty ? '  •  $model' : ''}',
               style: const TextStyle(
                   fontFamily: 'Cairo', color: Colors.white60, fontSize: 11),
             ),
@@ -590,11 +610,11 @@ class _FullScreenViewerState extends State<_FullScreenViewer> {
         children: [
           PageView.builder(
             controller: _ctrl,
-            itemCount: widget.images.length,
+            itemCount: widget.products.length,
             onPageChanged: (i) => setState(() => _current = i),
             itemBuilder: (ctx, i) {
-              final p      = widget.images[i];
-              final imgUrl = p['image_url'] as String? ?? '';
+              final prod = widget.products[i];
+              final imgUrl  = prod['image_url'] as String? ?? '';
               final fullUrl = ApiClient.img(imgUrl);
               return InteractiveViewer(
                 minScale: 0.8,
@@ -603,78 +623,113 @@ class _FullScreenViewerState extends State<_FullScreenViewer> {
                   child: CachedNetworkImage(
                     imageUrl: fullUrl,
                     fit: BoxFit.contain,
-                    placeholder: (_, __) => const CircularProgressIndicator(
-                        color: AppColors.primary),
-                    errorWidget: (_, __, ___) => const Icon(
-                        Icons.broken_image,
-                        color: Colors.white38,
-                        size: 64),
+                    placeholder: (_, __) => const Center(
+                      child: CircularProgressIndicator(
+                          color: AppColors.primary, strokeWidth: 2),
+                    ),
+                    errorWidget: (_, __, ___) => const Center(
+                      child: Icon(Icons.broken_image_outlined,
+                          color: Colors.white30, size: 60),
+                    ),
                   ),
                 ),
               );
             },
           ),
-          if (watermark != null)
-            Positioned(
-              bottom: 32,
-              left: 0,
-              right: 0,
-              child: Center(
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: AppColors.primary.withOpacity(0.9),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    watermark,
-                    style: const TextStyle(
-                        fontFamily: 'Cairo',
-                        color: Colors.white,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700),
-                  ),
+          // شريط المعلومات السفلي
+          Positioned(
+            bottom: 0,
+            left: 0,
+            right: 0,
+            child: Container(
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.bottomCenter,
+                  end: Alignment.topCenter,
+                  colors: [Colors.black87, Colors.transparent],
                 ),
               ),
+              child: Builder(builder: (_) {
+                final cur   = widget.products[_current];
+                final cName = cur['name_ar'] as String? ?? cur['name'] as String? ?? '';
+                final cMod  = cur['model'] as String?;
+                final cCat  = cur['category'] as String?;
+                final cAr   = cCat != null ? (AppConstants.categoryAr[cCat] ?? cCat) : null;
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (cName.isNotEmpty)
+                      Text(cName,
+                          style: const TextStyle(
+                              fontFamily: 'Cairo',
+                              color: Colors.white,
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700)),
+                    if (cMod != null && cMod.isNotEmpty)
+                      Text(cMod,
+                          style: const TextStyle(
+                              fontFamily: 'Cairo',
+                              color: Colors.white70,
+                              fontSize: 12)),
+                    if (cAr != null)
+                      Text(cAr,
+                          style: const TextStyle(
+                              fontFamily: 'Cairo',
+                              color: AppColors.primary,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600)),
+                  ],
+                );
+              }),
             ),
+          ),
         ],
       ),
     );
   }
 }
 
-// ─── Empty Gallery ────────────────────────────────────────────────────────────
+// ─── Empty State ──────────────────────────────────────────────────────────────
 
 class _EmptyGallery extends StatelessWidget {
-  final String? message;
+  final String message;
   final VoidCallback? onRetry;
 
-  const _EmptyGallery({this.message, this.onRetry});
+  const _EmptyGallery({required this.message, this.onRetry});
 
   @override
   Widget build(BuildContext context) {
     return Center(
       child: Column(
-        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(Icons.photo_library_outlined,
-              color: AppColors.textMuted, size: 64),
-          const SizedBox(height: 16),
+          Icon(Icons.photo_library_outlined,
+              color: AppColors.textMuted, size: 56),
+          const SizedBox(height: 14),
           Text(
-            message ?? 'تعذّر تحميل المعرض',
+            message,
             style: const TextStyle(
-                fontFamily: 'Cairo',
-                color: AppColors.textMuted,
-                fontSize: 14),
+              fontFamily: 'Cairo',
+              color: Colors.white,
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+            ),
+            textAlign: TextAlign.center,
           ),
           if (onRetry != null) ...[
-            const SizedBox(height: 12),
-            TextButton(
+            const SizedBox(height: 16),
+            TextButton.icon(
               onPressed: onRetry,
-              child: const Text('إعادة المحاولة',
-                  style: TextStyle(
-                      fontFamily: 'Cairo', color: AppColors.primary)),
+              icon: const Icon(Icons.refresh, color: AppColors.primary),
+              label: const Text(
+                'إعادة المحاولة',
+                style: TextStyle(
+                    fontFamily: 'Cairo',
+                    color: AppColors.primary,
+                    fontWeight: FontWeight.w600),
+              ),
             ),
           ],
         ],

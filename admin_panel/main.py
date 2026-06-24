@@ -14,8 +14,8 @@ import httpx
 from urllib.parse import quote as _q
 from contextlib import asynccontextmanager
 
-# ── Backend API URL — يُقرأ من BACKEND_API_URL أو يستخدم القيمة الافتراضية ────
-_API_BASE_DEFAULT = os.getenv("BACKEND_API_URL", "https://android-al-ahmadi-store-api.onrender.com").rstrip("/")
+# ── Backend API URL — الخادم المحلي دائماً متاح مع كل الـ routes ────
+_API_BASE_DEFAULT = "http://localhost:8000"
 API_BASE = _API_BASE_DEFAULT  # kept for backward compat
 _api_base_override: list = [None]  # [0] = override from DB (None = use default)
 
