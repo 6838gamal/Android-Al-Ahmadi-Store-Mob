@@ -3,9 +3,9 @@ const MANIFEST = 'flutter-app-manifest';
 const TEMP = 'flutter-temp-cache';
 const CACHE_NAME = 'flutter-app-cache';
 
-const RESOURCES = {"assets/assets/fonts/Cairo-Light.ttf": "0e355a997fd3fdc3a2a5d13ba68a6fd0",
-"assets/assets/fonts/Cairo-Bold.ttf": "d6142d155c71b0239454b2853e51087e",
+const RESOURCES = {"assets/assets/fonts/Cairo-Bold.ttf": "d6142d155c71b0239454b2853e51087e",
 "assets/assets/fonts/Cairo-SemiBold.ttf": "0e355a997fd3fdc3a2a5d13ba68a6fd0",
+"assets/assets/fonts/Cairo-Light.ttf": "0e355a997fd3fdc3a2a5d13ba68a6fd0",
 "assets/assets/fonts/Cairo-Regular.ttf": "0e355a997fd3fdc3a2a5d13ba68a6fd0",
 "assets/fonts/MaterialIcons-Regular.otf": "72c747dc0b49b39b7b9e3f7d1d72e95b",
 "assets/packages/cupertino_icons/assets/CupertinoIcons.ttf": "825e75415ebd366b740bb49659d7a5c6",
@@ -14,10 +14,10 @@ const RESOURCES = {"assets/assets/fonts/Cairo-Light.ttf": "0e355a997fd3fdc3a2a5d
 "assets/packages/font_awesome_flutter/lib/fonts/fa-regular-400.ttf": "262525e2081311609d1fdab966c82bfc",
 "assets/shaders/ink_sparkle.frag": "ecc85a2e95f5e9f53123dcaf8cb9b6ce",
 "assets/AssetManifest.json": "9bb2596e907f018e5cf7d001e8881a74",
-"assets/AssetManifest.bin": "2f5984f441567bb6bd7b6f500cb24861",
 "assets/AssetManifest.bin.json": "d323c8c44067cdcb8e13a821a9c0251c",
-"assets/NOTICES": "120c9098ac59fcbec89ef09ffb2a289a",
+"assets/AssetManifest.bin": "2f5984f441567bb6bd7b6f500cb24861",
 "assets/FontManifest.json": "a892c4c520ccdca5c3ae4ea51bb5abfe",
+"assets/NOTICES": "120c9098ac59fcbec89ef09ffb2a289a",
 "canvaskit/canvaskit.js": "728b2d477d9b8c14593d4f9b82b484f3",
 "canvaskit/canvaskit.js.symbols": "27361387bc24144b46a745f1afe92b50",
 "canvaskit/canvaskit.wasm": "a37f2b0af4995714de856e21e882325c",
@@ -28,7 +28,7 @@ const RESOURCES = {"assets/assets/fonts/Cairo-Light.ttf": "0e355a997fd3fdc3a2a5d
 "canvaskit/skwasm.js.symbols": "9fe690d47b904d72c7d020bd303adf16",
 "canvaskit/skwasm.wasm": "1c93738510f202d9ff44d36a4760126b",
 "flutter.js": "83d881c1dbb6d6bcd6b42e274605b69c",
-"flutter_bootstrap.js": "fd22bae069666f46d57a382ab09ea7bc",
+"flutter_bootstrap.js": "1ecd6a5da7ef6a6dd962a0bc11508669",
 "icons/Icon-192.png": "ac9a721a12bbc803b44f645561ecb1e1",
 "icons/Icon-512.png": "96e752610906ba2a93c65f8abe1645f1",
 "icons/Icon-maskable-192.png": "c457ef57daa1d16f64b27b786ec2ea3c",
@@ -36,7 +36,7 @@ const RESOURCES = {"assets/assets/fonts/Cairo-Light.ttf": "0e355a997fd3fdc3a2a5d
 "index.html": "a1e935316bff59c711724b09a8d4f17b",
 "/": "a1e935316bff59c711724b09a8d4f17b",
 "version.json": "1041a7c63f6f07076b6288255d760b31",
-"main.dart.js": "bc1724ba45aa77782b463364bec5e20d",
+"main.dart.js": "fbd147813b63cfd2d962467a651a7191",
 "favicon.png": "5dcef449791fa27946b3d35ad8803796",
 "manifest.json": "2c1ef8e8c9c941903057efa0b2205471"};
 // The application shell files that are downloaded before a service worker can

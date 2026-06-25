@@ -42,8 +42,8 @@ class ServerHealthNotifier extends StateNotifier<ServerHealthState> {
   Timer? _pollingTimer;
   bool _disposed = false;
 
-  static const Duration _pollInterval = Duration(seconds: 30);
-  static const Duration _offlineRetryInterval = Duration(seconds: 8);
+  static const Duration _pollInterval        = Duration(seconds: 10); // فحص دوري عند الاتصال
+  static const Duration _offlineRetryInterval = Duration(seconds: 5);  // إعادة محاولة عند الانقطاع
 
   ServerHealthNotifier(this._ref) : super(const ServerHealthState());
 
