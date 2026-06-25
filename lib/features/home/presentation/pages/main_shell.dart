@@ -74,7 +74,8 @@ class _MainShellState extends ConsumerState<MainShell> {
       }
     });
 
-    final showBanner = !isOnline || serverHealth.isOffline || serverHealth.isChecking && serverHealth.retryCount > 0;
+    final showBanner = !isOnline || serverHealth.isOffline || serverHealth.isSlow ||
+        (serverHealth.isChecking && serverHealth.retryCount > 0);
 
     return Scaffold(
       key: MainShell.scaffoldKey,
@@ -410,38 +411,50 @@ class _ServerStatusBannerState extends State<_ServerStatusBanner>
         widget.serverHealth.retryCount > 0;
     final isOffline =
         widget.isNetworkOff || widget.serverHealth.isOffline;
+    final isSlow = widget.serverHealth.isSlow;
     final retryCount = widget.serverHealth.retryCount;
+    final responseMs = widget.serverHealth.lastResponseMs ?? 0;
 
     // Colors
     final Color bannerColor = widget.isNetworkOff
         ? const Color(0xFF6D1B00)
         : isChecking
             ? const Color(0xFF1A3A5C)
-            : const Color(0xFF7B1500);
+            : isSlow
+                ? const Color(0xFF3D2800)
+                : const Color(0xFF7B1500);
 
     final Color borderColor = widget.isNetworkOff
         ? const Color(0xFFFF5722)
         : isChecking
             ? AppColors.primary
-            : const Color(0xFFFF3D00);
+            : isSlow
+                ? const Color(0xFFFF9800)
+                : const Color(0xFFFF3D00);
 
     final IconData bannerIcon = widget.isNetworkOff
         ? Icons.wifi_off_rounded
         : isChecking
             ? Icons.autorenew_rounded
-            : Icons.cloud_off_rounded;
+            : isSlow
+                ? Icons.speed_rounded
+                : Icons.cloud_off_rounded;
 
     final String mainText = widget.isNetworkOff
         ? 'لا يوجد اتصال بالإنترنت'
         : isChecking
             ? 'جاري إعادة الاتصال بالخادم...'
-            : 'الخادم غير متاح حالياً';
+            : isSlow
+                ? 'الخادم بطيء — اتصال ضعيف'
+                : 'الخادم غير متاح حالياً';
 
     final String subText = widget.isNetworkOff
         ? 'تحقق من إعدادات الشبكة'
         : isChecking
             ? 'المحاولة $retryCount — يُعاد تلقائياً'
-            : 'يُعاد الاتصال تلقائياً كل ٨ ثوانٍ';
+            : isSlow
+                ? 'وقت الاستجابة ${responseMs ~/ 1000}s — قد تكون بعض البيانات بطيئة'
+                : 'يُعاد الاتصال تلقائياً كل ٨ ثوانٍ';
 
     return AnimatedBuilder(
       animation: _pulseCtrl,

@@ -3,33 +3,38 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../network/api_client.dart';
 
-enum ServerStatus { checking, online, offline }
+enum ServerStatus { checking, online, slow, offline }
 
 class ServerHealthState {
   final ServerStatus status;
   final int retryCount;
   final DateTime? lastChecked;
+  final int? lastResponseMs;
 
   const ServerHealthState({
     this.status = ServerStatus.checking,
     this.retryCount = 0,
     this.lastChecked,
+    this.lastResponseMs,
   });
 
   ServerHealthState copyWith({
     ServerStatus? status,
     int? retryCount,
     DateTime? lastChecked,
+    int? lastResponseMs,
   }) =>
       ServerHealthState(
         status: status ?? this.status,
         retryCount: retryCount ?? this.retryCount,
         lastChecked: lastChecked ?? this.lastChecked,
+        lastResponseMs: lastResponseMs ?? this.lastResponseMs,
       );
 
-  bool get isOnline => status == ServerStatus.online;
+  bool get isOnline => status == ServerStatus.online || status == ServerStatus.slow;
   bool get isOffline => status == ServerStatus.offline;
   bool get isChecking => status == ServerStatus.checking;
+  bool get isSlow => status == ServerStatus.slow;
 }
 
 class ServerHealthNotifier extends StateNotifier<ServerHealthState> {
@@ -59,6 +64,9 @@ class ServerHealthNotifier extends StateNotifier<ServerHealthState> {
     });
   }
 
+  // استجابة أبطأ من هذا الحد تُعتبر "بطيئة"
+  static const int _slowThresholdMs = 4000;
+
   Future<void> _check() async {
     if (_disposed) return;
     final wasOffline = state.isOffline;
@@ -70,12 +78,17 @@ class ServerHealthNotifier extends StateNotifier<ServerHealthState> {
     }
     try {
       final api = _ref.read(apiClientProvider);
+      final sw = Stopwatch()..start();
       await api.get('/health', queryParameters: {});
+      sw.stop();
       if (!_disposed) {
+        final ms = sw.elapsedMilliseconds;
+        final isSlow = ms > _slowThresholdMs;
         state = state.copyWith(
-          status: ServerStatus.online,
+          status: isSlow ? ServerStatus.slow : ServerStatus.online,
           retryCount: 0,
           lastChecked: DateTime.now(),
+          lastResponseMs: ms,
         );
         if (wasOffline) _scheduleNext();
       }

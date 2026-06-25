@@ -57,27 +57,43 @@ from backend.api.routes import (
 
 
 async def _keep_alive_task():
-    """Ping self every 10 minutes to prevent sleep on free-tier hosting (e.g. Render)."""
+    """Ping self + Render.com every 10 minutes to prevent free-tier sleep."""
     import asyncio, httpx, os as _os
+
+    # عنوان هذا الخادم (Replit)
     self_url = _os.getenv("KEEP_ALIVE_URL", "").strip().rstrip("/")
     if not self_url:
-        # بناء الـ URL تلقائياً من REPLIT_DEV_DOMAIN أو RENDER_EXTERNAL_URL
         self_url = (
             _os.getenv("RENDER_EXTERNAL_URL", "").strip().rstrip("/")
             or (f"https://{_os.getenv('REPLIT_DEV_DOMAIN', '').strip()}" if _os.getenv("REPLIT_DEV_DOMAIN") else "")
         )
-    if not self_url:
+
+    # عنوان Render.com الخارجي (يُبقيه مستيقظاً)
+    from backend.core.config import settings as _cfg
+    render_url = _cfg.BACKEND_API_URL.rstrip("/") if _cfg.BACKEND_API_URL else ""
+
+    urls = []
+    if self_url:
+        urls.append((f"{self_url}/api/health", "Replit"))
+    # أضف Render.com فقط إذا كان مختلفاً عن self_url
+    if render_url and render_url not in (self_url, ""):
+        urls.append((f"{render_url}/api/health", "Render"))
+
+    if not urls:
         return  # لا URL — لا داعي للـ keep-alive
-    ping_url = f"{self_url}/api/health"
-    print(f"[KeepAlive] سيبدأ ping كل 10 دقائق → {ping_url}", flush=True)
+
+    for url, label in urls:
+        print(f"[KeepAlive] سيبدأ ping كل 10 دقائق → {url} ({label})", flush=True)
+
     await asyncio.sleep(60)  # انتظر دقيقة بعد الإطلاق
     while True:
-        try:
-            async with httpx.AsyncClient(timeout=10, verify=False) as client:
-                r = await client.get(ping_url)
-            print(f"[KeepAlive] ping → {r.status_code}", flush=True)
-        except Exception as e:
-            print(f"[KeepAlive] خطأ: {e}", flush=True)
+        for ping_url, label in urls:
+            try:
+                async with httpx.AsyncClient(timeout=15, verify=False) as client:
+                    r = await client.get(ping_url)
+                print(f"[KeepAlive] {label} → {r.status_code}", flush=True)
+            except Exception as e:
+                print(f"[KeepAlive] {label} خطأ: {e}", flush=True)
         await asyncio.sleep(600)  # 10 دقائق
 
 

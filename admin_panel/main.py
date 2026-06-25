@@ -154,7 +154,7 @@ def to_obj(data):
     return data
 
 
-_API_TIMEOUT = 10.0  # Keep well below Replit proxy timeout (~30s)
+_API_TIMEOUT = 25.0  # Render.com cold start يحتاج ~30s؛ نبقى دون proxy timeout
 _LOCAL_BASE = "http://127.0.0.1:8000"
 
 
