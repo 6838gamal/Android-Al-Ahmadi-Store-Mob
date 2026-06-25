@@ -442,6 +442,100 @@
   </script>
   {% block scripts %}{% endblock %}
 
+  <!-- ── شريط مراقبة الاتصال المستمر ───────────────────────────────────── -->
+  <div id="conn-banner" style="
+    display:none; position:fixed; top:0; left:0; right:0; z-index:10000;
+    padding:8px 16px; font-size:13px; font-weight:700; text-align:center;
+    transition:opacity .4s; direction:rtl; font-family:'Cairo',sans-serif;
+  "></div>
+  <script>
+  (function(){
+    const BASE = location.pathname.startsWith('/admin-panel') ? '/admin-panel' : '';
+    const banner = document.getElementById('conn-banner');
+
+    let lastState = 'online'; // 'online' | 'slow' | 'offline'
+    let checkTimer = null;
+
+    // عدد مرات الفشل المتتالية قبل إعلان الانقطاع (تجنّب false positives)
+    let failStreak = 0;
+    const FAIL_THRESHOLD = 2;
+
+    function showBanner(state, ms) {
+      if (state === 'online') {
+        if (lastState !== 'online') {
+          // عُدنا للاتصال — اعرض رسالة نجاح لمدة 3 ثوانٍ ثم اخفِ
+          banner.style.background = '#14532d';
+          banner.style.borderBottom = '1px solid #22C55E';
+          banner.style.color = '#4ade80';
+          banner.innerHTML = '<i class="fa-solid fa-circle-check" style="margin-left:6px"></i>عاد الاتصال بالخادم';
+          banner.style.display = 'block';
+          banner.style.opacity = '1';
+          setTimeout(() => {
+            banner.style.opacity = '0';
+            setTimeout(() => { banner.style.display = 'none'; }, 400);
+          }, 3000);
+        } else {
+          banner.style.opacity = '0';
+          setTimeout(() => { banner.style.display = 'none'; }, 400);
+        }
+      } else if (state === 'slow') {
+        banner.style.background = '#3d2800';
+        banner.style.borderBottom = '1px solid #f59e0b';
+        banner.style.color = '#fbbf24';
+        const sec = ms ? Math.round(ms / 1000) : '?';
+        banner.innerHTML = '<i class="fa-solid fa-gauge-high" style="margin-left:6px"></i>الخادم بطيء — وقت الاستجابة ' + sec + 's';
+        banner.style.display = 'block';
+        banner.style.opacity = '1';
+      } else {
+        // offline
+        banner.style.background = '#450a0a';
+        banner.style.borderBottom = '1px solid #EF4444';
+        banner.style.color = '#f87171';
+        banner.innerHTML = '<i class="fa-solid fa-cloud-slash" style="margin-left:6px"></i>انقطع الاتصال بالخادم — يُعاد تلقائياً…';
+        banner.style.display = 'block';
+        banner.style.opacity = '1';
+      }
+      lastState = state;
+    }
+
+    async function checkOnce() {
+      const t0 = Date.now();
+      try {
+        const ctrl = new AbortController();
+        const tid  = setTimeout(() => ctrl.abort(), 8000); // timeout 8s
+        const res  = await fetch(BASE + '/api-status', { cache: 'no-store', signal: ctrl.signal });
+        clearTimeout(tid);
+        const ms   = Date.now() - t0;
+        const data = await res.json();
+        failStreak = 0;
+        if (data.ok) {
+          showBanner(ms > 4000 ? 'slow' : 'online', ms);
+        } else {
+          showBanner('slow', ms); // الخادم يرد لكن بخطأ — اعتبره بطيئاً
+        }
+      } catch (_) {
+        failStreak++;
+        if (failStreak >= FAIL_THRESHOLD) {
+          showBanner('offline');
+        }
+        // فشل مرة واحدة → لا تُعلن الانقطاع فوراً
+      }
+    }
+
+    function scheduleNext(isOffline) {
+      clearTimeout(checkTimer);
+      checkTimer = setTimeout(() => {
+        checkOnce().finally(() => scheduleNext(lastState === 'offline'));
+      }, isOffline ? 5000 : 10000); // 5s عند الانقطاع، 10s عند الاتصال
+    }
+
+    // ابدأ بعد ثانيتين من تحميل الصفحة
+    setTimeout(() => {
+      checkOnce().finally(() => scheduleNext(false));
+    }, 2000);
+  })();
+  </script>
+
   <!-- Flash toast: reads ?success= or ?error= from URL -->
   <div id="flash-toast" style="display:none;position:fixed;top:20px;left:50%;transform:translateX(-50%);z-index:9999;min-width:280px;max-width:500px;padding:14px 22px;border-radius:12px;font-weight:700;font-size:14px;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,.5);transition:opacity .4s"></div>
   <script>
