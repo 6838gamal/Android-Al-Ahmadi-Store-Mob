@@ -83,38 +83,92 @@
   </div>
 
   <script>
-    // فحص حالة الخادم في الخلفية — لا يعيق نموذج الدخول
-    (async function checkServer() {
-      const badge = document.getElementById('server-badge');
-      const label = document.getElementById('server-label');
-      const dot   = document.createElement('span');
-      dot.id = 'status-dot';
-      dot.style.cssText = 'width:8px;height:8px;border-radius:50%;display:inline-block;flex-shrink:0';
+  (function(){
+    const BASE  = location.pathname.startsWith('/admin-panel') ? '/admin-panel' : '';
+    const badge = document.getElementById('server-badge');
+    const label = document.getElementById('server-label');
 
+    // نقطة الحالة (نُنشئها مرة واحدة وتبقى)
+    const dot = document.createElement('span');
+    dot.style.cssText = 'width:8px;height:8px;border-radius:50%;display:inline-block;flex-shrink:0;transition:background .4s';
+    dot.style.background = '#6b7280';
+
+    let attempt = 0;
+    let timer   = null;
+    let lastOk  = false;
+
+    function setChecking() {
+      attempt++;
+      const spin = badge.querySelector('.spin');
+      if (spin) {
+        spin.replaceWith(dot);
+      }
+      dot.style.background = '#6b7280';
+      if (attempt === 1) {
+        label.textContent = 'جاري التحقق من الخادم…';
+        label.style.color = '#9ca3af';
+      } else {
+        label.textContent = 'يستيقظ الخادم… المحاولة ' + attempt + ' (قد يصل إلى 30 ثانية)';
+        label.style.color = '#9ca3af';
+      }
+    }
+
+    function setOnline(ms) {
+      dot.style.background = '#22c55e';
+      const sec = ms > 1000 ? ' (' + (ms/1000).toFixed(1) + 's)' : '';
+      label.textContent = 'الخادم متصل' + sec;
+      label.style.color = '#4ade80';
+      lastOk = true;
+    }
+
+    function setSlow(ms) {
+      dot.style.background = '#f59e0b';
+      label.textContent = 'الخادم بطيء — استجابة ' + (ms/1000).toFixed(1) + 's';
+      label.style.color = '#fbbf24';
+      lastOk = true;
+    }
+
+    function setOffline() {
+      if (lastOk) {
+        // كان متصلاً ثم انقطع
+        dot.style.background = '#ef4444';
+        label.textContent = 'انقطع الاتصال — يُعاد تلقائياً…';
+        label.style.color = '#f87171';
+      } else {
+        // لم يتصل أصلاً بعد → على الأرجح cold start
+        dot.style.background = '#f59e0b';
+        label.textContent = 'الخادم يستيقظ… يُرجى الانتظار (المحاولة ' + attempt + ')';
+        label.style.color = '#fbbf24';
+      }
+    }
+
+    async function check() {
+      setChecking();
+      const t0   = Date.now();
+      const ctrl = new AbortController();
+      const tid  = setTimeout(() => ctrl.abort(), 20000); // 20 ثانية timeout
       try {
-        const ctrl = new AbortController();
-        setTimeout(() => ctrl.abort(), 10000);
-        const BASE = location.pathname.startsWith('/admin-panel') ? '/admin-panel' : '';
         const res  = await fetch(BASE + '/api-status', { cache: 'no-store', signal: ctrl.signal });
+        clearTimeout(tid);
+        const ms   = Date.now() - t0;
         const data = await res.json();
-
-        badge.querySelector('.spin').replaceWith(dot);
         if (data.ok) {
-          dot.style.background = '#22c55e';
-          label.textContent = 'الخادم متصل';
-          label.style.color = '#4ade80';
+          ms > 4000 ? setSlow(ms) : setOnline(ms);
         } else {
-          dot.style.background = '#f59e0b';
-          label.textContent = 'الخادم بطيء — ادخل وستظهر النتيجة';
-          label.style.color = '#fbbf24';
+          setSlow(ms);
         }
       } catch (_) {
-        badge.querySelector('.spin').replaceWith(dot);
-        dot.style.background = '#ef4444';
-        label.textContent = 'الخادم لا يستجيب — يمكنك المحاولة على أي حال';
-        label.style.color = '#f87171';
+        clearTimeout(tid);
+        setOffline();
       }
-    })();
+      // جدولة المحاولة القادمة
+      const nextDelay = lastOk ? 10000 : 8000; // 10s متصل، 8s غير متصل
+      timer = setTimeout(check, nextDelay);
+    }
+
+    // ابدأ فوراً
+    check();
+  })();
   </script>
 </body>
 </html>
