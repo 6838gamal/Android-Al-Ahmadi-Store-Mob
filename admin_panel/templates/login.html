@@ -221,83 +221,89 @@
     const wrap   = document.getElementById('login-wrap');
     const status = document.getElementById('splash-status');
 
-    let shown   = false;
-    let attempt = 0;
-
-    function showLogin() {
-      if (shown) return;
-      shown = true;
-      splash.classList.add('hide');
-      setTimeout(() => {
-        splash.style.display = 'none';
-        wrap.classList.add('show');
-        const inp = wrap.querySelector('input');
-        if (inp) inp.focus();
-      }, 620);
-    }
-
-    // إذا كان هناك خطأ من السيرفر (بعد submit فاشل) → اعرض النموذج فوراً
+    // ── إذا كان هناك خطأ (بعد submit فاشل) اعرض النموذج فوراً ─────────────
     const hasError = {% if error %}true{% else %}false{% endif %};
     if (hasError) {
       splash.style.display = 'none';
       wrap.classList.add('show');
-    } else {
-      // يُعيد المحاولة حتى ينجح الاتصال فعلاً — لا ينتقل إلا بعد تأكيد حقيقي
-      const RETRY_INTERVAL = 4000;    // ms بين كل محاولة
-      const REQ_TIMEOUT    = 35000;  // timeout لكل طلب (يكفي لـ cold start)
-      const FORCE_AFTER    = 120000; // بعد 120 ثانية ينتقل قسراً
-
-      // مؤقت الإجبار — في الحالات القصوى فقط
-      const forceTimer = setTimeout(() => {
-        status.textContent = 'الانتقال للدخول…';
-        showLogin();
-      }, FORCE_AFTER);
-
-      async function tryConnect() {
-        attempt++;
-
-        if (attempt === 1) {
-          status.textContent = 'جاري الاتصال بالخادم…';
-        } else {
-          status.textContent = 'جاري الاتصال… (محاولة ' + attempt + ')';
-        }
-        status.className = 'splash-status';
-
-        try {
-          const ctrl = new AbortController();
-          const tid  = setTimeout(() => ctrl.abort(), REQ_TIMEOUT);
-
-          const res  = await fetch('/api-status', { cache: 'no-store', signal: ctrl.signal });
-          clearTimeout(tid);
-
-          const data = await res.json();
-
-          if (data.ok) {
-            // ✅ اتصال حقيقي مؤكد
-            clearTimeout(forceTimer);
-            status.textContent = 'تم الاتصال بالخادم ✓';
-            status.classList.add('ok');
-            setTimeout(showLogin, 700);
-          } else {
-            // الخادم يرد لكن يُبلّغ عن مشكلة → حاول مجدداً
-            status.textContent = 'الخادم لا يستجيب — إعادة المحاولة…';
-            status.classList.add('err');
-            setTimeout(tryConnect, RETRY_INTERVAL);
-          }
-        } catch (_) {
-          // انقطاع أو timeout → حاول مجدداً
-          if (attempt === 1) {
-            status.textContent = 'جاري الاتصال بالخادم…';
-          } else {
-            status.textContent = 'في انتظار الخادم… (محاولة ' + attempt + ')';
-          }
-          status.classList.add('err');
-          setTimeout(tryConnect, RETRY_INTERVAL);
-        }
-      }
-
-      tryConnect();
+      return;  // لا تبدأ فحص الاتصال
     }
+
+    // ── انتقال ناعم إلى شاشة الدخول ────────────────────────────────────────
+    let shown = false;
+    function showLogin() {
+      if (shown) return;
+      shown = true;
+      splash.classList.add('hide');
+      setTimeout(function () {
+        splash.style.display = 'none';
+        wrap.classList.add('show');
+        var inp = wrap.querySelector('input');
+        if (inp) inp.focus();
+      }, 600);
+    }
+
+    // ── ثوابت التوقيت ───────────────────────────────────────────────────────
+    // REQ_TIMEOUT أكبر قليلاً من timeout الـ Python (15 ث) حتى يعود الرد دائماً
+    var REQ_TIMEOUT   = 18000;  // 18 ث: انتظر رد /api-status
+    var RETRY_DELAY   = 2500;   // 2.5 ث بين المحاولات
+    var FORCE_AFTER   = 90000;  // 90 ث: أظهر الدخول قسراً مهما حدث
+    var attempt       = 0;
+    var stopped       = false;
+
+    // مؤقت الإجبار — يُظهر الدخول بعد 90 ث حتى لو الخادم لم يستجب
+    var forceTimer = setTimeout(function () {
+      if (stopped) return;
+      stopped = true;
+      status.textContent = 'جارٍ الفتح…';
+      showLogin();
+    }, FORCE_AFTER);
+
+    // ── حلقة فحص الاتصال ────────────────────────────────────────────────────
+    function tryConnect() {
+      if (stopped) return;
+      attempt++;
+
+      status.className  = 'splash-status';
+      status.textContent = attempt === 1
+        ? 'جاري الاتصال بالخادم…'
+        : 'في انتظار الخادم… (محاولة ' + attempt + ')';
+
+      var ctrl   = new AbortController();
+      var killId = setTimeout(function () { ctrl.abort(); }, REQ_TIMEOUT);
+
+      fetch('/api-status', { cache: 'no-store', signal: ctrl.signal })
+        .then(function (res) {
+          clearTimeout(killId);
+          return res.json();
+        })
+        .then(function (data) {
+          if (stopped) return;
+          if (data && data.ok) {
+            // ✅ اتصال مؤكد — انتقل لشاشة الدخول
+            stopped = true;
+            clearTimeout(forceTimer);
+            status.className  = 'splash-status ok';
+            status.textContent = 'تم الاتصال بالخادم ✓';
+            setTimeout(showLogin, 800);
+          } else {
+            // الخادم يرد لكن ليس جاهزاً بعد → أعد المحاولة
+            status.className  = 'splash-status err';
+            status.textContent = 'الخادم يستيقظ… (محاولة ' + attempt + ')';
+            setTimeout(tryConnect, RETRY_DELAY);
+          }
+        })
+        .catch(function () {
+          clearTimeout(killId);
+          if (stopped) return;
+          // انقطاع شبكة أو timeout → أعد المحاولة
+          status.className  = 'splash-status err';
+          status.textContent = 'جارٍ الاتصال… (محاولة ' + attempt + ')';
+          setTimeout(tryConnect, RETRY_DELAY);
+        });
+    }
+
+    tryConnect();
   })();
   </script>
 </body>

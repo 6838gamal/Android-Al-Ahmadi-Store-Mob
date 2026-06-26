@@ -316,20 +316,15 @@ a{background:#1A73E8;color:#fff;padding:10px 24px;border-radius:8px;text-decorat
 
 @app.get("/api-status")
 async def api_status():
-    """Check backend API readiness — verifies both health AND auth endpoint (DB-level)."""
+    """Check backend API readiness — single fast health check, fail-fast design."""
     from fastapi.responses import JSONResponse
     base = _get_base()
     try:
-        async with httpx.AsyncClient(timeout=30.0, follow_redirects=True) as client:
-            # Step 1: basic health
+        async with httpx.AsyncClient(timeout=15.0, follow_redirects=True) as client:
             h = await client.get(f"{base}/api/health")
-            if h.status_code != 200:
-                return JSONResponse({"ok": False, "reason": f"health HTTP {h.status_code}"})
-            # Step 2: auth endpoint readiness (401 = ready, anything else = not ready)
-            a = await client.get(f"{base}/api/auth/me")
-            if a.status_code in (200, 401, 403):
+            if h.status_code == 200:
                 return JSONResponse({"ok": True})
-            return JSONResponse({"ok": False, "reason": f"auth HTTP {a.status_code}"})
+            return JSONResponse({"ok": False, "reason": f"HTTP {h.status_code}"})
     except Exception as e:
         return JSONResponse({"ok": False, "reason": str(e)[:120]})
 
