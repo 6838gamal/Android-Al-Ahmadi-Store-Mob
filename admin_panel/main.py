@@ -373,51 +373,50 @@ async def login_post(request: Request, identifier: str = Form(...), password: st
         or (request.client.host if request.client else "unknown")
     )
     headers_req = {"X-Real-IP": client_ip, "X-Forwarded-For": client_ip}
-    last_exc: Exception | None = None
 
-    # محاولتان: الأولى فورية، الثانية بعد 4 ثوانٍ إذا فشلت الأولى بخطأ اتصال
-    for attempt in range(2):
-        if attempt > 0:
-            await asyncio.sleep(4)
-            print(f"[login] retry attempt {attempt + 1}")
-        try:
-            async with httpx.AsyncClient(timeout=45.0, follow_redirects=True) as client:
-                resp = await client.post(
-                    f"{_get_base()}/api/auth/admin-login",
-                    json={"identifier": identifier, "password": password},
-                    headers=headers_req,
-                )
-            print(f"[login] attempt={attempt+1} status={resp.status_code} body={resp.text[:200]}")
+    # قائمة العناوين للمحاولة: الخارجي أولاً، ثم المحلي كاحتياط (كلاهما يشتركان في نفس DB)
+    external_base = _get_base()
+    local_base    = "http://localhost:8000"
+    targets = [external_base]
+    if external_base.rstrip("/") != local_base.rstrip("/"):
+        targets.append(local_base)
 
-            if resp.status_code == 429:
-                return templates.TemplateResponse(request, "login.html",
-                    {"error": "محاولات كثيرة. انتظر دقيقة ثم أعد المحاولة."})
-            if resp.status_code in (200, 201):
-                data = resp.json()
-                user_data = data.get("user", {})
-                if user_data.get("role") in ("admin", "branch_manager"):
-                    request.session["admin_id"]   = user_data.get("id")
-                    request.session["admin_name"] = user_data.get("name", "المدير")
-                    request.session["admin_role"] = user_data.get("role", "branch_manager")
-                    request.session["token"]      = data.get("access_token")
-                    return _js_redirect("/dashboard")
-            # bad credentials or unexpected status — don't retry
-            break
-        except (httpx.TimeoutException, httpx.ConnectError, httpx.RemoteProtocolError) as e:
-            print(f"[login] attempt={attempt+1} transient error {type(e).__name__}: {e!r}")
-            last_exc = e
+    for target in targets:
+        url = f"{target}/api/auth/admin-login"
+        for attempt in range(2):
+            if attempt > 0:
+                await asyncio.sleep(3)
+            try:
+                async with httpx.AsyncClient(timeout=40.0, follow_redirects=True) as client:
+                    resp = await client.post(
+                        url,
+                        json={"identifier": identifier, "password": password},
+                        headers=headers_req,
+                    )
+                print(f"[login] target={target} attempt={attempt+1} status={resp.status_code}")
+
+                if resp.status_code == 429:
+                    return templates.TemplateResponse(request, "login.html",
+                        {"error": "محاولات كثيرة. انتظر دقيقة ثم أعد المحاولة."})
+                if resp.status_code in (200, 201):
+                    data = resp.json()
+                    user_data = data.get("user", {})
+                    if user_data.get("role") in ("admin", "branch_manager"):
+                        request.session["admin_id"]   = user_data.get("id")
+                        request.session["admin_name"] = user_data.get("name", "المدير")
+                        request.session["admin_role"] = user_data.get("role", "branch_manager")
+                        request.session["token"]      = data.get("access_token")
+                        return _js_redirect("/dashboard")
+                # بيانات خاطئة أو رد غير متوقع — لا تُعد المحاولة
+                break
+            except Exception as e:
+                print(f"[login] target={target} attempt={attempt+1} error {type(e).__name__}: {e!r}")
+                continue
+        else:
+            # كلتا المحاولتين فشلتا لهذا العنوان — جرّب التالي
             continue
-        except Exception as e:
-            print(f"[login] attempt={attempt+1} fatal error {type(e).__name__}: {e!r}")
-            last_exc = e
-            break
-
-    if last_exc is not None:
-        if isinstance(last_exc, httpx.TimeoutException):
-            return templates.TemplateResponse(request, "login.html",
-                {"error": "⏳ الخادم يستغرق وقتاً أطول من المعتاد — حاول مرة أخرى."})
-        return templates.TemplateResponse(request, "login.html",
-            {"error": "⚠️ تعذّر الاتصال بالخادم بعد محاولتين — حاول مرة أخرى."})
+        # وصلنا هنا → الـ loop انتهى بـ break (إما نجاح أو بيانات خاطئة)
+        break
 
     return templates.TemplateResponse(request, "login.html",
         {"error": "بيانات الدخول غير صحيحة. تحقق من البريد وكلمة المرور."})
