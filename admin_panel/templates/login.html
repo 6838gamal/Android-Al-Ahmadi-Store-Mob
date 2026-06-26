@@ -243,9 +243,9 @@
       wrap.classList.add('show');
     } else {
       // يُعيد المحاولة حتى ينجح الاتصال فعلاً — لا ينتقل إلا بعد تأكيد حقيقي
-      const RETRY_INTERVAL = 3500;   // ms بين كل محاولة
-      const REQ_TIMEOUT    = 12000;  // timeout لكل طلب
-      const FORCE_AFTER    = 60000;  // بعد 60 ثانية ينتقل قسراً
+      const RETRY_INTERVAL = 4000;    // ms بين كل محاولة
+      const REQ_TIMEOUT    = 35000;  // timeout لكل طلب (يكفي لـ cold start)
+      const FORCE_AFTER    = 120000; // بعد 120 ثانية ينتقل قسراً
 
       // مؤقت الإجبار — في الحالات القصوى فقط
       const forceTimer = setTimeout(() => {

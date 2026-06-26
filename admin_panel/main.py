@@ -320,7 +320,7 @@ async def api_status():
     from fastapi.responses import JSONResponse
     base = _get_base()
     try:
-        async with httpx.AsyncClient(timeout=18.0, follow_redirects=True) as client:
+        async with httpx.AsyncClient(timeout=30.0, follow_redirects=True) as client:
             # Step 1: basic health
             h = await client.get(f"{base}/api/health")
             if h.status_code != 200:
@@ -376,18 +376,18 @@ async def login_post(request: Request, identifier: str = Form(...), password: st
     url = f"{_get_base()}/api/auth/admin-login"
     last_exc: Exception | None = None
 
-    # ثلاث محاولات مع انتظار متصاعد — يستوعب cold start خادم Render.com
-    for attempt, wait in enumerate([0, 5, 10]):
-        if wait:
-            await asyncio.sleep(wait)
+    # محاولتان: الأولى 90 ثانية (تستوعب cold start كامل)، الثانية 60 ثانية كشبكة أمان
+    for attempt, (timeout_s, pre_wait) in enumerate([(90.0, 0), (60.0, 5)]):
+        if pre_wait:
+            await asyncio.sleep(pre_wait)
         try:
-            async with httpx.AsyncClient(timeout=40.0, follow_redirects=True) as client:
+            async with httpx.AsyncClient(timeout=timeout_s, follow_redirects=True) as client:
                 resp = await client.post(
                     url,
                     json={"identifier": identifier, "password": password},
                     headers=headers_req,
                 )
-            print(f"[login] attempt={attempt+1} status={resp.status_code}")
+            print(f"[login] attempt={attempt+1} timeout={timeout_s}s status={resp.status_code}")
 
             if resp.status_code == 429:
                 return templates.TemplateResponse(request, "login.html",
@@ -410,7 +410,7 @@ async def login_post(request: Request, identifier: str = Form(...), password: st
 
     if last_exc is not None:
         return templates.TemplateResponse(request, "login.html",
-            {"error": "⏳ الخادم يستيقظ — أعد المحاولة بعد لحظات."})
+            {"error": "⏳ الخادم لم يستجب — انتظر لحظة ثم أعد المحاولة."})
 
     return templates.TemplateResponse(request, "login.html",
         {"error": "بيانات الدخول غير صحيحة. تحقق من البريد وكلمة المرور."})
