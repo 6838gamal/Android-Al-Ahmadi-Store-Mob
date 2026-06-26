@@ -316,16 +316,22 @@ a{background:#1A73E8;color:#fff;padding:10px 24px;border-radius:8px;text-decorat
 
 @app.get("/api-status")
 async def api_status():
-    """Check if backend API is reachable — called by login page JS before showing the form."""
+    """Check backend API readiness — verifies both health AND auth endpoint (DB-level)."""
     from fastapi.responses import JSONResponse
+    base = _get_base()
     try:
-        async with httpx.AsyncClient(timeout=15.0) as client:
-            resp = await client.get(f"{_get_base()}/api/health")
-        if resp.status_code == 200:
-            return JSONResponse({"ok": True})
-        return JSONResponse({"ok": False, "reason": f"HTTP {resp.status_code}"}, status_code=200)
+        async with httpx.AsyncClient(timeout=18.0, follow_redirects=True) as client:
+            # Step 1: basic health
+            h = await client.get(f"{base}/api/health")
+            if h.status_code != 200:
+                return JSONResponse({"ok": False, "reason": f"health HTTP {h.status_code}"})
+            # Step 2: auth endpoint readiness (401 = ready, anything else = not ready)
+            a = await client.get(f"{base}/api/auth/me")
+            if a.status_code in (200, 401, 403):
+                return JSONResponse({"ok": True})
+            return JSONResponse({"ok": False, "reason": f"auth HTTP {a.status_code}"})
     except Exception as e:
-        return JSONResponse({"ok": False, "reason": str(e)[:120]}, status_code=200)
+        return JSONResponse({"ok": False, "reason": str(e)[:120]})
 
 
 # ── Auth ────────────────────────────────────────────────────────────────────────
@@ -366,15 +372,23 @@ async def login_post(request: Request, identifier: str = Form(...), password: st
         or request.headers.get("x-forwarded-for", "").split(",")[0].strip()
         or (request.client.host if request.client else "unknown")
     )
-    async with httpx.AsyncClient(timeout=_API_TIMEOUT, follow_redirects=True) as client:
+    headers_req = {"X-Real-IP": client_ip, "X-Forwarded-For": client_ip}
+    last_exc: Exception | None = None
+
+    # محاولتان: الأولى فورية، الثانية بعد 4 ثوانٍ إذا فشلت الأولى بخطأ اتصال
+    for attempt in range(2):
+        if attempt > 0:
+            await asyncio.sleep(4)
+            print(f"[login] retry attempt {attempt + 1}")
         try:
-            headers_req = {"X-Real-IP": client_ip, "X-Forwarded-For": client_ip}
-            resp = await client.post(
-                f"{_get_base()}/api/auth/admin-login",
-                json={"identifier": identifier, "password": password},
-                headers=headers_req,
-            )
-            print(f"[login] status={resp.status_code} body={resp.text[:200]}")
+            async with httpx.AsyncClient(timeout=45.0, follow_redirects=True) as client:
+                resp = await client.post(
+                    f"{_get_base()}/api/auth/admin-login",
+                    json={"identifier": identifier, "password": password},
+                    headers=headers_req,
+                )
+            print(f"[login] attempt={attempt+1} status={resp.status_code} body={resp.text[:200]}")
+
             if resp.status_code == 429:
                 return templates.TemplateResponse(request, "login.html",
                     {"error": "محاولات كثيرة. انتظر دقيقة ثم أعد المحاولة."})
@@ -386,18 +400,27 @@ async def login_post(request: Request, identifier: str = Form(...), password: st
                     request.session["admin_name"] = user_data.get("name", "المدير")
                     request.session["admin_role"] = user_data.get("role", "branch_manager")
                     request.session["token"]      = data.get("access_token")
-                    # Return 200 + JS redirect — avoids 303 chain losing cookie in proxy
                     return _js_redirect("/dashboard")
-        except httpx.TimeoutException:
-            print(f"[login] TIMEOUT connecting to API")
-            return templates.TemplateResponse(request, "login.html",
-                {"error": "⏳ الخادم في وضع الاستعداد ويستيقظ الآن — أعد المحاولة خلال 30 ثانية."})
+            # bad credentials or unexpected status — don't retry
+            break
+        except (httpx.TimeoutException, httpx.ConnectError, httpx.RemoteProtocolError) as e:
+            print(f"[login] attempt={attempt+1} transient error {type(e).__name__}: {e!r}")
+            last_exc = e
+            continue
         except Exception as e:
-            print(f"[login] exception type={type(e).__name__} msg={e!r}")
+            print(f"[login] attempt={attempt+1} fatal error {type(e).__name__}: {e!r}")
+            last_exc = e
+            break
+
+    if last_exc is not None:
+        if isinstance(last_exc, httpx.TimeoutException):
             return templates.TemplateResponse(request, "login.html",
-                {"error": "تعذّر الاتصال بالخادم. تحقق من اتصالك وأعد المحاولة."})
+                {"error": "⏳ الخادم يستغرق وقتاً أطول من المعتاد — حاول مرة أخرى."})
+        return templates.TemplateResponse(request, "login.html",
+            {"error": "⚠️ تعذّر الاتصال بالخادم بعد محاولتين — حاول مرة أخرى."})
+
     return templates.TemplateResponse(request, "login.html",
-                                      {"error": "بيانات الدخول غير صحيحة. تحقق من البريد وكلمة المرور."})
+        {"error": "بيانات الدخول غير صحيحة. تحقق من البريد وكلمة المرور."})
 
 
 @app.post("/dashboard", response_class=HTMLResponse)
