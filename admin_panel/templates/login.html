@@ -3,171 +3,274 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>تسجيل الدخول — أندرويد الأحمدي</title>
+  <title>أندرويد الأحمدي — لوحة الإدارة</title>
   <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-  <script src="/static/tw/tailwind.min.js"></script>
   <style>
-    * { font-family: 'Cairo', sans-serif; }
-    body { background: #0D1117; }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; font-family: 'Cairo', sans-serif; background: #0a0e1a; color: #e6edf3; }
 
-    .spin {
-      width: 14px; height: 14px;
-      border: 2px solid rgba(255,255,255,0.15);
-      border-top-color: #7B1FA2;
-      border-radius: 50%;
-      animation: spin .7s linear infinite;
-      display: inline-block;
+    /* ══ SPLASH SCREEN ══════════════════════════════════════════════════ */
+    #splash {
+      position: fixed; inset: 0; z-index: 100;
+      background: linear-gradient(160deg, #0a0e1a 0%, #0d1321 60%, #0a0e1a 100%);
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: 0;
+      transition: opacity .6s ease, transform .6s ease;
     }
-    @keyframes spin { to { transform: rotate(360deg); } }
-    #status-dot { transition: background .3s; }
+    #splash.hide {
+      opacity: 0; transform: translateY(-18px); pointer-events: none;
+    }
+
+    .splash-icon {
+      width: 110px; height: 110px; border-radius: 28px;
+      background: linear-gradient(135deg, #7B1FA2 0%, #1A73E8 100%);
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 0 60px rgba(123,31,162,.45), 0 0 120px rgba(26,115,232,.2);
+      animation: iconPulse 2.4s ease-in-out infinite;
+      margin-bottom: 28px;
+    }
+    .splash-icon svg { width: 52px; height: 52px; fill: #fff; }
+
+    @keyframes iconPulse {
+      0%, 100% { box-shadow: 0 0 50px rgba(123,31,162,.4), 0 0 100px rgba(26,115,232,.18); }
+      50%       { box-shadow: 0 0 80px rgba(123,31,162,.7), 0 0 160px rgba(26,115,232,.35); }
+    }
+
+    .splash-title {
+      font-size: 28px; font-weight: 800; color: #fff;
+      letter-spacing: .5px; margin-bottom: 6px;
+    }
+    .splash-sub {
+      font-size: 14px; color: #6b7280; margin-bottom: 48px;
+    }
+
+    /* ثلاث نقاط مثل Flutter */
+    .dots {
+      display: flex; gap: 10px; align-items: center; margin-bottom: 22px;
+    }
+    .dot {
+      width: 10px; height: 10px; border-radius: 50%;
+      background: #1A73E8; opacity: .3;
+      animation: dotBounce 1.2s ease-in-out infinite;
+    }
+    .dot:nth-child(1) { animation-delay: 0s; }
+    .dot:nth-child(2) { animation-delay: .2s; }
+    .dot:nth-child(3) { animation-delay: .4s; }
+
+    @keyframes dotBounce {
+      0%, 80%, 100% { opacity: .25; transform: scale(.8); }
+      40%           { opacity: 1;   transform: scale(1.15); }
+    }
+
+    .splash-status {
+      font-size: 14px; color: #9ca3af; min-height: 22px;
+      transition: color .4s;
+    }
+    .splash-status.ok  { color: #4ade80; }
+    .splash-status.err { color: #fbbf24; }
+
+    /* ══ LOGIN CARD ═════════════════════════════════════════════════════ */
+    #login-wrap {
+      min-height: 100vh; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; padding: 20px;
+      opacity: 0; transform: translateY(20px);
+      transition: opacity .55s ease, transform .55s ease;
+      pointer-events: none;
+    }
+    #login-wrap.show { opacity: 1; transform: translateY(0); pointer-events: auto; }
+
+    .card-icon {
+      width: 80px; height: 80px; border-radius: 22px;
+      background: linear-gradient(135deg, #7B1FA2 0%, #1A73E8 100%);
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 8px 32px rgba(123,31,162,.35);
+      margin: 0 auto 16px;
+    }
+    .card-icon svg { width: 36px; height: 36px; fill: #fff; }
+
+    .card-title { text-align: center; font-size: 22px; font-weight: 800; color: #fff; margin-bottom: 4px; }
+    .card-sub   { text-align: center; font-size: 13px; color: #6b7280; margin-bottom: 28px; }
+
+    .card {
+      width: 100%; max-width: 420px;
+      background: #161b22; border: 1px solid #2d3748; border-radius: 20px;
+      padding: 32px 28px;
+    }
+
+    /* شارة الاتصال أعلى الكارد */
+    .server-badge {
+      display: flex; align-items: center; gap: 8px;
+      font-size: 12px; color: #9ca3af; margin-bottom: 20px;
+    }
+    .badge-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: #22c55e; flex-shrink: 0;
+      box-shadow: 0 0 6px #22c55e;
+      animation: badgePulse 2s ease-in-out infinite;
+    }
+    @keyframes badgePulse {
+      0%,100% { box-shadow: 0 0 4px #22c55e; }
+      50%      { box-shadow: 0 0 10px #22c55e; }
+    }
+
+    .form-title { font-size: 18px; font-weight: 700; color: #fff; text-align: center; margin-bottom: 24px; }
+
+    label { display: block; font-size: 13px; font-weight: 600; color: #9ca3af; margin-bottom: 7px; }
+    .field { position: relative; margin-bottom: 18px; }
+    .field-icon {
+      position: absolute; top: 50%; right: 14px; transform: translateY(-50%);
+      color: #4b5563; font-size: 14px; pointer-events: none;
+    }
+    input {
+      width: 100%; background: #1c2230; border: 1px solid #2d3748;
+      color: #fff; border-radius: 12px; padding: 12px 16px 12px 42px;
+      font-size: 14px; font-family: 'Cairo', sans-serif; outline: none;
+      transition: border-color .25s;
+      /* RTL: icon on right, so left-padding for text */
+    }
+    html[dir=rtl] input { padding: 12px 42px 12px 16px; }
+    input:focus { border-color: #1A73E8; }
+    input::placeholder { color: #4b5563; }
+
+    .error-box {
+      background: rgba(239,68,68,.1); border: 1px solid rgba(239,68,68,.3);
+      color: #f87171; border-radius: 12px; padding: 12px 16px;
+      font-size: 13px; font-weight: 600; margin-bottom: 18px;
+      display: flex; align-items: center; gap: 10px;
+    }
+
+    .btn-login {
+      width: 100%; padding: 13px; border-radius: 12px; border: none;
+      background: linear-gradient(135deg, #7B1FA2, #1A73E8);
+      color: #fff; font-size: 15px; font-weight: 700;
+      font-family: 'Cairo', sans-serif; cursor: pointer;
+      transition: opacity .2s, transform .15s;
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+    }
+    .btn-login:hover  { opacity: .9; }
+    .btn-login:active { transform: scale(.97); }
+
+    .footer { text-align: center; color: #374151; font-size: 12px; margin-top: 24px; }
   </style>
 </head>
-<body class="min-h-screen flex items-center justify-center p-4">
-  <div class="w-full max-w-md">
+<body>
 
-    <!-- Logo -->
-    <div class="text-center mb-8">
-      <div class="inline-flex items-center justify-center w-20 h-20 rounded-2xl mb-4"
-           style="background: linear-gradient(135deg,#7B1FA2,#1A73E8)">
-        <i class="fa-solid fa-mobile-screen text-white text-4xl"></i>
-      </div>
-      <h1 class="text-white text-2xl font-extrabold">أندرويد الأحمدي</h1>
-      <p class="text-gray-500 text-sm mt-1">شاشات وصيانة الهواتف — لوحة الإدارة</p>
+  <!-- ══ SPLASH ══════════════════════════════════════════════════════════ -->
+  <div id="splash">
+    <div class="splash-icon">
+      <svg viewBox="0 0 24 24"><path d="M17 2H7C5.9 2 5 2.9 5 4v16c0 1.1.9 2 2 2h10c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-5 18c-.83 0-1.5-.67-1.5-1.5S11.17 17 12 17s1.5.67 1.5 1.5S12.83 20 12 20zm5-4H7V4h10v12z"/></svg>
     </div>
+    <div class="splash-title">أندرويد الأحمدي</div>
+    <div class="splash-sub">متخصصون في الجوالات وقطع الغيار</div>
+    <div class="dots">
+      <div class="dot"></div>
+      <div class="dot"></div>
+      <div class="dot"></div>
+    </div>
+    <div class="splash-status" id="splash-status">جاري الاتصال بالخادم…</div>
+  </div>
 
-    <!-- نموذج الدخول (يظهر فوراً) -->
-    <div class="bg-[#161B22] border border-[#2D3748] rounded-2xl p-8">
+  <!-- ══ LOGIN ══════════════════════════════════════════════════════════ -->
+  <div id="login-wrap">
+    <div class="card-icon">
+      <svg viewBox="0 0 24 24"><path d="M17 2H7C5.9 2 5 2.9 5 4v16c0 1.1.9 2 2 2h10c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-5 18c-.83 0-1.5-.67-1.5-1.5S11.17 17 12 17s1.5.67 1.5 1.5S12.83 20 12 20zm5-4H7V4h10v12z"/></svg>
+    </div>
+    <div class="card-title">أندرويد الأحمدي</div>
+    <div class="card-sub">شاشات وصيانة الهواتف — لوحة الإدارة</div>
 
-      <!-- حالة الخادم (شارة صغيرة غير معيقة) -->
-      <div id="server-badge" class="flex items-center gap-2 mb-5 text-xs text-gray-500">
-        <span class="spin"></span>
-        <span id="server-label">جاري التحقق من الخادم…</span>
+    <div class="card">
+      <!-- شارة الخادم -->
+      <div class="server-badge">
+        <span class="badge-dot"></span>
+        <span>الخادم متصل</span>
       </div>
 
-      <h2 class="text-white text-xl font-bold mb-6 text-center">تسجيل الدخول</h2>
+      <div class="form-title">تسجيل الدخول</div>
 
       {% if error %}
-      <div class="bg-red-500/10 border border-red-500/30 text-red-400 rounded-xl p-4 mb-6 flex items-center gap-3">
-        <i class="fa-solid fa-circle-exclamation"></i>
-        <span class="text-sm font-semibold">{{ error }}</span>
+      <div class="error-box">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="#f87171"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
+        {{ error }}
       </div>
       {% endif %}
 
-      <form method="post" action="/login" class="space-y-5">
-        <div>
-          <label class="text-gray-400 text-sm font-semibold mb-2 block">البريد الإلكتروني أو رقم الجوال</label>
-          <div class="relative">
-            <i class="fa-solid fa-user absolute top-1/2 -translate-y-1/2 right-4 text-gray-500"></i>
-            <input type="text" name="identifier" placeholder="admin@alahmadi.com" required autofocus
-              class="w-full bg-[#1C2230] border border-[#2D3748] text-white placeholder-gray-600 rounded-xl py-3 px-4 pr-11 text-sm outline-none focus:border-blue-500 transition">
-          </div>
+      <form method="post" action="/login">
+        <div class="field">
+          <label>البريد الإلكتروني أو رقم الجوال</label>
+          <svg class="field-icon" viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z"/></svg>
+          <input type="text" name="identifier" placeholder="admin@alahmadi.com" required autofocus>
         </div>
-        <div>
-          <label class="text-gray-400 text-sm font-semibold mb-2 block">كلمة المرور</label>
-          <div class="relative">
-            <i class="fa-solid fa-lock absolute top-1/2 -translate-y-1/2 right-4 text-gray-500"></i>
-            <input type="password" name="password" placeholder="••••••••" required autocomplete="current-password"
-              class="w-full bg-[#1C2230] border border-[#2D3748] text-white placeholder-gray-600 rounded-xl py-3 px-4 pr-11 text-sm outline-none focus:border-blue-500 transition">
-          </div>
+        <div class="field">
+          <label>كلمة المرور</label>
+          <svg class="field-icon" viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/></svg>
+          <input type="password" name="password" placeholder="••••••••" required autocomplete="current-password">
         </div>
-        <button type="submit"
-          class="w-full py-3 rounded-xl text-white font-bold text-base transition hover:opacity-90 active:scale-95"
-          style="background: linear-gradient(135deg,#7B1FA2,#1A73E8)">
-          <i class="fa-solid fa-right-to-bracket me-2"></i>دخول
+        <button type="submit" class="btn-login">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M11 7L9.6 8.4l2.6 2.6H2v2h10.2l-2.6 2.6L11 17l5-5-5-5zm9 12h-8v2h8c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2h-8v2h8v14z"/></svg>
+          دخول
         </button>
       </form>
     </div>
 
-    <p class="text-center text-gray-600 text-xs mt-6">نظام إدارة محل الجوالات &copy; 2026</p>
+    <div class="footer">نظام إدارة محل الجوالات &copy; 2026</div>
   </div>
 
   <script>
-  (function(){
-    const BASE  = location.pathname.startsWith('/admin-panel') ? '/admin-panel' : '';
-    const badge = document.getElementById('server-badge');
-    const label = document.getElementById('server-label');
+  (function () {
+    const splash = document.getElementById('splash');
+    const wrap   = document.getElementById('login-wrap');
+    const status = document.getElementById('splash-status');
 
-    // نقطة الحالة (نُنشئها مرة واحدة وتبقى)
-    const dot = document.createElement('span');
-    dot.style.cssText = 'width:8px;height:8px;border-radius:50%;display:inline-block;flex-shrink:0;transition:background .4s';
-    dot.style.background = '#6b7280';
+    let shown = false;
 
-    let attempt = 0;
-    let timer   = null;
-    let lastOk  = false;
-
-    function setChecking() {
-      attempt++;
-      const spin = badge.querySelector('.spin');
-      if (spin) {
-        spin.replaceWith(dot);
-      }
-      dot.style.background = '#6b7280';
-      if (attempt === 1) {
-        label.textContent = 'جاري التحقق من الخادم…';
-        label.style.color = '#9ca3af';
-      } else {
-        label.textContent = 'يستيقظ الخادم… المحاولة ' + attempt + ' (قد يصل إلى 30 ثانية)';
-        label.style.color = '#9ca3af';
-      }
+    function showLogin() {
+      if (shown) return;
+      shown = true;
+      splash.classList.add('hide');
+      setTimeout(() => {
+        splash.style.display = 'none';
+        wrap.classList.add('show');
+        // focus first input
+        const inp = wrap.querySelector('input');
+        if (inp) inp.focus();
+      }, 620);
     }
 
-    function setOnline(ms) {
-      dot.style.background = '#22c55e';
-      const sec = ms > 1000 ? ' (' + (ms/1000).toFixed(1) + 's)' : '';
-      label.textContent = 'الخادم متصل' + sec;
-      label.style.color = '#4ade80';
-      lastOk = true;
-    }
+    // إذا كان هناك خطأ من السيرفر (بعد submit فاشل) → اعرض النموذج فوراً
+    const hasError = {% if error %}true{% else %}false{% endif %};
+    if (hasError) {
+      splash.style.display = 'none';
+      wrap.classList.add('show');
+    } else {
+      // حاول الاتصال مرة واحدة بحد أقصى 8 ثوانٍ، ثم اعرض النموذج في كل الأحوال
+      const MAX_WAIT = 8000;
+      const timer = setTimeout(showLogin, MAX_WAIT);
 
-    function setSlow(ms) {
-      dot.style.background = '#f59e0b';
-      label.textContent = 'الخادم بطيء — استجابة ' + (ms/1000).toFixed(1) + 's';
-      label.style.color = '#fbbf24';
-      lastOk = true;
-    }
-
-    function setOffline() {
-      if (lastOk) {
-        // كان متصلاً ثم انقطع
-        dot.style.background = '#ef4444';
-        label.textContent = 'انقطع الاتصال — يُعاد تلقائياً…';
-        label.style.color = '#f87171';
-      } else {
-        // لم يتصل أصلاً بعد → على الأرجح cold start
-        dot.style.background = '#f59e0b';
-        label.textContent = 'الخادم يستيقظ… يُرجى الانتظار (المحاولة ' + attempt + ')';
-        label.style.color = '#fbbf24';
-      }
-    }
-
-    async function check() {
-      setChecking();
-      const t0   = Date.now();
-      const ctrl = new AbortController();
-      const tid  = setTimeout(() => ctrl.abort(), 20000); // 20 ثانية timeout
-      try {
-        const res  = await fetch(BASE + '/api-status', { cache: 'no-store', signal: ctrl.signal });
-        clearTimeout(tid);
-        const ms   = Date.now() - t0;
-        const data = await res.json();
-        if (data.ok) {
-          ms > 4000 ? setSlow(ms) : setOnline(ms);
-        } else {
-          setSlow(ms);
+      (async function connect() {
+        try {
+          const ctrl = new AbortController();
+          const t = setTimeout(() => ctrl.abort(), 7000);
+          const res  = await fetch('/api-status', { cache: 'no-store', signal: ctrl.signal });
+          clearTimeout(t);
+          const data = await res.json();
+          clearTimeout(timer);
+          if (data.ok) {
+            status.textContent = 'تم الاتصال بالخادم ✓';
+            status.classList.add('ok');
+          } else {
+            status.textContent = 'يتحقق من الاتصال…';
+          }
+          // انتظر لحظة قصيرة ليرى المستخدم الرسالة ثم انتقل
+          setTimeout(showLogin, 600);
+        } catch (_) {
+          clearTimeout(timer);
+          // فشل الاتصال — ننتقل للنموذج مباشرة دون إزعاج
+          status.textContent = 'يتحقق من الاتصال…';
+          status.classList.add('err');
+          setTimeout(showLogin, 800);
         }
-      } catch (_) {
-        clearTimeout(tid);
-        setOffline();
-      }
-      // جدولة المحاولة القادمة
-      const nextDelay = lastOk ? 10000 : 8000; // 10s متصل، 8s غير متصل
-      timer = setTimeout(check, nextDelay);
+      })();
     }
-
-    // ابدأ فوراً
-    check();
   })();
   </script>
 </body>
