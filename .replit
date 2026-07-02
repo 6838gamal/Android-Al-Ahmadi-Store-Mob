@@ -86,8 +86,8 @@ publicDir = "build/web"
 SMS_TEST_PHONE = "+967774440982"
 SECRET_KEY = "android-alahmadi-replit-secret-key-2026-very-secure-random-string"
 SUPABASE_URL = "https://xnffrkdoyrybzdzgrzgq.supabase.co"
-APP_DATABASE_URL = "postgresql://postgres:password@helium/heliumdb"
-BACKEND_API_URL = "https://android-al-ahmadi-store-api.onrender.com"
+APP_DATABASE_URL = "postgresql://gamalalmaqtary:h9dn62xbaNhAZCcOWC5YX8YvidfnHbQt@dpg-d92v8b6rnols73801if0-a.oregon-postgres.render.com/android_al_ahmadi_store_db_o29p"
+BACKEND_API_URL = "http://localhost:8000"
 
 [userenv.development]
 

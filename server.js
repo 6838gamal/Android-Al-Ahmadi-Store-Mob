@@ -5,12 +5,12 @@ const path = require('path');
 
 const PORT = 5000;
 
-// API الخارجي: يملك بيانات المنتجات والمستخدمين
-const EXTERNAL_API = (process.env.BACKEND_API_URL || 'http://localhost:8000').replace(/\/$/, '');
-// الخادم المحلي: يملك routes المعرض الجديدة
+// الخادم المحلي: يعمل على port 8000 ويتصل بقاعدة بيانات Render.com
 const LOCAL_API = 'http://localhost:8000';
-// SW_REMOTE_API: يُحقن في Service Worker ليعترض الطلبات المُدمجة في الكود المترجم
-const SW_REMOTE_API = EXTERNAL_API;
+// الخادم الخارجي (احتياطي فقط — لا يُستخدم بشكل مباشر)
+const EXTERNAL_API = (process.env.BACKEND_API_URL || LOCAL_API).replace(/\/$/, '');
+// SW_REMOTE_API: يُحقن في Service Worker
+const SW_REMOTE_API = LOCAL_API;
 
 const WEB_DIR = path.join(__dirname, 'build', 'web');
 
@@ -33,16 +33,8 @@ const mimeTypes = {
 
 // اختر الـ backend المناسب لكل مسار
 function resolveTarget(reqUrl) {
-  // المعرض والصور → الخادم المحلي (يملك routes المعرض)
-  if (reqUrl.startsWith('/api/gallery') || reqUrl.startsWith('/api/uploads/image/')) {
-    return LOCAL_API;
-  }
-  // health check بدون prefix → الخادم الخارجي
-  if (reqUrl === '/health' || reqUrl.startsWith('/health?')) {
-    return EXTERNAL_API;
-  }
-  // باقي الطلبات → الـ API الخارجي (يملك بيانات المنتجات)
-  return EXTERNAL_API;
+  // كل الطلبات → الخادم المحلي (port 8000) الذي يتصل بقاعدة Render.com
+  return LOCAL_API;
 }
 
 function readBody(req) {
@@ -186,6 +178,5 @@ const server = http.createServer(async (req, res) => {
 
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`Flutter web app running at http://0.0.0.0:${PORT}`);
-  console.log(`Proxying /api/gallery/* → ${LOCAL_API} (local backend)`);
-  console.log(`Proxying /api/* (other) → ${EXTERNAL_API} (external API)`);
+  console.log(`Proxying /api/* + /health → ${LOCAL_API} (local backend → Render.com DB)`);
 });

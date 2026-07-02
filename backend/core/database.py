@@ -14,8 +14,10 @@ if DATABASE_URL.startswith("postgres://"):
 connect_args = {}
 if DATABASE_URL.startswith("sqlite"):
     connect_args = {"check_same_thread": False}
+elif "render.com" in DATABASE_URL or (not DATABASE_URL.startswith("sqlite") and "helium" not in DATABASE_URL):
+    connect_args = {"sslmode": "require", "connect_timeout": 30}
 
-engine = create_engine(DATABASE_URL, connect_args=connect_args)
+engine = create_engine(DATABASE_URL, connect_args=connect_args, pool_pre_ping=True)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 

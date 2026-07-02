@@ -31,8 +31,29 @@ Three workflows run in parallel:
 
 - **Frontend**: Flutter 3.x (Dart)
 - **Backend**: Python FastAPI + SQLAlchemy
-- **Database**: SQLite (default) or PostgreSQL via DATABASE_URL env var
+- **Database**: PostgreSQL on Render.com via `APP_DATABASE_URL` env var
 - **Admin**: FastAPI + Jinja2 templates
+
+## Environment Variables
+
+| Variable | Value | Purpose |
+|----------|-------|---------|
+| `APP_DATABASE_URL` | Render.com PostgreSQL URL | قاعدة البيانات الرئيسية |
+| `BACKEND_API_URL` | `http://localhost:8000` | عنوان الـ API (الـ backend المحلي) |
+| `SECRET_KEY` | secret string | مفتاح JWT |
+
+## Architecture Flow
+
+```
+Flutter (port 5000)
+  └→ server.js proxy
+       └→ Backend API (port 8000)
+            └→ Render.com PostgreSQL (APP_DATABASE_URL)
+
+Admin Panel (port 8080)
+  └→ Backend API (port 8000)
+       └→ Render.com PostgreSQL (APP_DATABASE_URL)
+```
 
 ## User Preferences
 
