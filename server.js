@@ -37,6 +37,10 @@ function resolveTarget(reqUrl) {
   if (reqUrl.startsWith('/api/gallery') || reqUrl.startsWith('/api/uploads/image/')) {
     return LOCAL_API;
   }
+  // health check بدون prefix → الخادم الخارجي
+  if (reqUrl === '/health' || reqUrl.startsWith('/health?')) {
+    return EXTERNAL_API;
+  }
   // باقي الطلبات → الـ API الخارجي (يملك بيانات المنتجات)
   return EXTERNAL_API;
 }
@@ -125,7 +129,7 @@ function proxyWithBody(req, res, bodyBuffer, urlOverride, targetOverride) {
 }
 
 const server = http.createServer(async (req, res) => {
-  if (req.url.startsWith('/api') || req.url.startsWith('/uploads')) {
+  if (req.url.startsWith('/api') || req.url.startsWith('/uploads') || req.url === '/health' || req.url.startsWith('/health?')) {
     const bodyBuffer = await readBody(req);
     return proxyWithBody(req, res, bodyBuffer);
   }
