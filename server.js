@@ -5,12 +5,12 @@ const path = require('path');
 
 const PORT = 5000;
 
-// الخادم المحلي: يعمل على port 8000 ويتصل بقاعدة بيانات Render.com
+// API الخارجي على Render.com
+const EXTERNAL_API = (process.env.BACKEND_API_URL || 'https://android-al-ahmadi-store-api.onrender.com').replace(/\/$/, '');
+// الخادم المحلي (احتياطي)
 const LOCAL_API = 'http://localhost:8000';
-// الخادم الخارجي (احتياطي فقط — لا يُستخدم بشكل مباشر)
-const EXTERNAL_API = (process.env.BACKEND_API_URL || LOCAL_API).replace(/\/$/, '');
 // SW_REMOTE_API: يُحقن في Service Worker
-const SW_REMOTE_API = LOCAL_API;
+const SW_REMOTE_API = EXTERNAL_API;
 
 const WEB_DIR = path.join(__dirname, 'build', 'web');
 
@@ -33,8 +33,12 @@ const mimeTypes = {
 
 // اختر الـ backend المناسب لكل مسار
 function resolveTarget(reqUrl) {
-  // كل الطلبات → الخادم المحلي (port 8000) الذي يتصل بقاعدة Render.com
-  return LOCAL_API;
+  // المعرض والصور → الخادم المحلي
+  if (reqUrl.startsWith('/api/gallery') || reqUrl.startsWith('/api/uploads/image/')) {
+    return LOCAL_API;
+  }
+  // كل الطلبات الأخرى → API الخارجي على Render.com
+  return EXTERNAL_API;
 }
 
 function readBody(req) {
@@ -178,5 +182,7 @@ const server = http.createServer(async (req, res) => {
 
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`Flutter web app running at http://0.0.0.0:${PORT}`);
-  console.log(`Proxying /api/* + /health → ${LOCAL_API} (local backend → Render.com DB)`);
+  console.log(`Proxying /api/* → ${EXTERNAL_API} (external Render.com API)`);
+  console.log(`Proxying /api/gallery/* → ${LOCAL_API} (local backend)`);
+  console.log(`Proxying /health → ${EXTERNAL_API}`);
 });
