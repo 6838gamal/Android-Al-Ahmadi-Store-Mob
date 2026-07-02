@@ -5,11 +5,8 @@ const path = require('path');
 
 const PORT = 5000;
 
-// API الخارجي على Render.com
+// API الخارجي على Render.com — المصدر الوحيد لكل الطلبات
 const EXTERNAL_API = (process.env.BACKEND_API_URL || 'https://android-al-ahmadi-store-api.onrender.com').replace(/\/$/, '');
-// الخادم المحلي (احتياطي)
-const LOCAL_API = 'http://localhost:8000';
-// SW_REMOTE_API: يُحقن في Service Worker
 const SW_REMOTE_API = EXTERNAL_API;
 
 const WEB_DIR = path.join(__dirname, 'build', 'web');
@@ -31,16 +28,6 @@ const mimeTypes = {
   '.svg': 'image/svg+xml',
 };
 
-// اختر الـ backend المناسب لكل مسار
-function resolveTarget(reqUrl) {
-  // المعرض والصور → الخادم المحلي
-  if (reqUrl.startsWith('/api/gallery') || reqUrl.startsWith('/api/uploads/image/')) {
-    return LOCAL_API;
-  }
-  // كل الطلبات الأخرى → API الخارجي على Render.com
-  return EXTERNAL_API;
-}
-
 function readBody(req) {
   return new Promise((resolve) => {
     const chunks = [];
@@ -52,7 +39,7 @@ function readBody(req) {
 
 function proxyWithBody(req, res, bodyBuffer, urlOverride, targetOverride) {
   const proxyPath = urlOverride || req.url;
-  const targetUrl = targetOverride || resolveTarget(proxyPath);
+  const targetUrl = targetOverride || EXTERNAL_API;
   const target = new URL(targetUrl);
   const isHttps = target.protocol === 'https:';
 
@@ -113,7 +100,7 @@ function proxyWithBody(req, res, bodyBuffer, urlOverride, targetOverride) {
         'Access-Control-Allow-Origin': '*',
       });
       res.end(JSON.stringify({
-        detail: 'تعذّر الاتصال بالخادم — تأكد من تشغيل الـ Backend وأعد المحاولة'
+        detail: 'تعذّر الاتصال بالخادم الخارجي — تأكد من تشغيل الـ API على Render.com'
       }));
     }
   });
@@ -182,7 +169,5 @@ const server = http.createServer(async (req, res) => {
 
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`Flutter web app running at http://0.0.0.0:${PORT}`);
-  console.log(`Proxying /api/* → ${EXTERNAL_API} (external Render.com API)`);
-  console.log(`Proxying /api/gallery/* → ${LOCAL_API} (local backend)`);
-  console.log(`Proxying /health → ${EXTERNAL_API}`);
+  console.log(`All API requests → ${EXTERNAL_API} (Render.com)`);
 });

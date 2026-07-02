@@ -39,7 +39,7 @@ Three workflows run in parallel:
 | Variable | Value | Purpose |
 |----------|-------|---------|
 | `APP_DATABASE_URL` | Render.com PostgreSQL URL | قاعدة البيانات الرئيسية |
-| `BACKEND_API_URL` | `http://localhost:8000` | عنوان الـ API (الـ backend المحلي) |
+| `BACKEND_API_URL` | `https://android-al-ahmadi-store-api.onrender.com` | عنوان الـ API الخارجي |
 | `SECRET_KEY` | secret string | مفتاح JWT |
 
 ## Architecture Flow
@@ -47,12 +47,10 @@ Three workflows run in parallel:
 ```
 Flutter (port 5000)
   └→ server.js proxy
-       └→ Backend API (port 8000)
-            └→ Render.com PostgreSQL (APP_DATABASE_URL)
+       └→ https://android-al-ahmadi-store-api.onrender.com  (Render.com)
 
 Admin Panel (port 8080)
-  └→ Backend API (port 8000)
-       └→ Render.com PostgreSQL (APP_DATABASE_URL)
+  └→ https://android-al-ahmadi-store-api.onrender.com  (Render.com)
 ```
 
 ## User Preferences

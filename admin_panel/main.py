@@ -155,50 +155,17 @@ def to_obj(data):
 
 
 _API_TIMEOUT = 25.0  # Render.com cold start يحتاج ~30s؛ نبقى دون proxy timeout
-_LOCAL_BASE = "http://127.0.0.1:8000"
 
 
 async def _local_upload_image(token: str, filename: str, img_bytes: bytes, content_type: str) -> str | None:
-    """Upload image to local backend (Supabase CDN). Falls back to Render API on failure."""
-    try:
-        async with httpx.AsyncClient(timeout=30.0) as _lc:
-            _r = await _lc.post(
-                f"{_LOCAL_BASE}/api/uploads/image",
-                headers={"Authorization": f"Bearer {token}"},
-                files={"file": (filename, img_bytes, content_type)},
-            )
-            if _r.status_code in (200, 201):
-                return _r.json().get("url")
-    except Exception as _e:
-        print(f"[upload] local failed ({_e}), trying Render API...")
+    """Upload image to external API (Supabase CDN)."""
     img_data = await api("post", "/api/uploads/image", token=token,
                          files={"file": (filename, img_bytes, content_type)})
     return (img_data or {}).get("url")
 
 
 async def _local_json(method: str, path: str, token: str, **kwargs):
-    """POST/PUT JSON to local backend with automatic fallback to Render API.
-    Returns (result_dict_or_None, error_str_or_None)."""
-    try:
-        async with httpx.AsyncClient(timeout=15.0) as _lc:
-            _r = await getattr(_lc, method)(
-                f"{_LOCAL_BASE}{path}",
-                headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
-                **kwargs,
-            )
-            if _r.status_code in (200, 201):
-                return _r.json(), None
-            # Auth failure → token from Render may differ; retry via Render API
-            if _r.status_code == 401:
-                print(f"[local_json] 401 on local, falling back to Render API")
-            else:
-                try:
-                    detail = _r.json().get("detail", f"خطأ {_r.status_code}")
-                except Exception:
-                    detail = f"خطأ {_r.status_code}"
-                return None, detail
-    except Exception as _e:
-        print(f"[local_json] connection error ({_e}), falling back to Render API")
+    """POST/PUT JSON to external API. Returns (result_dict_or_None, error_str_or_None)."""
     return await api_ex(method, path, token=token, **kwargs)
 
 
