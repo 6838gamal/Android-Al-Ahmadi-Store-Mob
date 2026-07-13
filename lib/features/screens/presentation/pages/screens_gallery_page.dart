@@ -91,118 +91,119 @@ final _screensGalleryProvider =
   }
 });
 
-// ── Grade Picker Sheet ─────────────────────────────────────────────────────────
+// ── Grade Folders Page (full-screen grid, replaces the old bottom sheet) ───────
+//
+// Shown when the customer taps the "شاشة" category from the products page.
+// Presents the three grades (أبيض / أخضر / برتقالي) as folder tiles in a grid.
+// Tapping a folder opens ScreensGalleryPage with the images for that grade.
 
 void showScreenGradePicker(BuildContext context, {bool fromGallery = false}) {
-  showModalBottomSheet(
-    context: context,
-    backgroundColor: AppColors.darkCard,
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-    ),
-    builder: (ctx) => Padding(
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Center(
-            child: Container(
-              width: 36,
-              height: 4,
-              decoration: BoxDecoration(
-                color: AppColors.darkBorder,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-          const Text(
-            '🖥️ فئات الشاشات',
-            style: TextStyle(
-              fontFamily: 'Cairo',
-              fontSize: 18,
-              fontWeight: FontWeight.w800,
-              color: Colors.white,
-            ),
-          ),
-          const SizedBox(height: 4),
-          const Text(
-            'اختر فئة الشاشة لعرض معرض الصور',
-            style: TextStyle(
-              fontFamily: 'Cairo',
-              fontSize: 12,
-              color: AppColors.textSecondary,
-            ),
-          ),
-          const SizedBox(height: 20),
-          ..._grades.map((g) => _GradeCard(grade: g, ctx: ctx)),
-        ],
-      ),
-    ),
+  Navigator.push(
+    context,
+    MaterialPageRoute(builder: (_) => const ScreenGradeFoldersPage()),
   );
 }
 
-class _GradeCard extends StatelessWidget {
+class ScreenGradeFoldersPage extends StatelessWidget {
+  const ScreenGradeFoldersPage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.darkBg,
+      appBar: AppBar(
+        backgroundColor: AppColors.darkSurface,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: const Text('فئات الشاشات',
+            style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.w700, color: Colors.white)),
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'اختر فئة الشاشة',
+              style: TextStyle(
+                fontFamily: 'Cairo',
+                fontSize: 16,
+                fontWeight: FontWeight.w800,
+                color: Colors.white,
+              ),
+            ),
+            const SizedBox(height: 4),
+            const Text(
+              'كل فئة تعرض مجموعة الصور الخاصة بها',
+              style: TextStyle(fontFamily: 'Cairo', fontSize: 12, color: AppColors.textSecondary),
+            ),
+            const SizedBox(height: 24),
+            Expanded(
+              child: GridView.builder(
+                itemCount: _grades.length,
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 3,
+                  crossAxisSpacing: 14,
+                  mainAxisSpacing: 14,
+                  childAspectRatio: 0.85,
+                ),
+                itemBuilder: (ctx, i) => _GradeFolderTile(grade: _grades[i], index: i),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _GradeFolderTile extends StatelessWidget {
   final ScreenGrade grade;
-  final BuildContext ctx;
-  const _GradeCard({required this.grade, required this.ctx});
+  final int index;
+  const _GradeFolderTile({required this.grade, required this.index});
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: () {
-        Navigator.pop(ctx);
         Navigator.push(
           context,
-          MaterialPageRoute(
-            builder: (_) => ScreensGalleryPage(grade: grade),
-          ),
+          MaterialPageRoute(builder: (_) => ScreensGalleryPage(grade: grade)),
         );
       },
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 12),
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: AppColors.darkSurface,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: grade.color.withOpacity(0.35)),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 44,
-              height: 44,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Expanded(
+            child: Container(
+              width: double.infinity,
               decoration: BoxDecoration(
-                color: grade.color.withOpacity(0.12),
-                borderRadius: BorderRadius.circular(12),
+                color: AppColors.darkCard,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: grade.color.withOpacity(0.3)),
               ),
-              child: Icon(grade.icon, color: grade.color, size: 22),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              child: Stack(
+                alignment: Alignment.center,
                 children: [
-                  Text(grade.label,
-                      style: TextStyle(
-                          fontFamily: 'Cairo',
-                          fontSize: 15,
-                          fontWeight: FontWeight.w700,
-                          color: grade.color)),
-                  Text(grade.description,
-                      style: const TextStyle(
-                          fontFamily: 'Cairo',
-                          fontSize: 12,
-                          color: AppColors.textSecondary)),
+                  Icon(Icons.folder_rounded, size: 56, color: grade.color),
+                  Icon(grade.icon, size: 18, color: Colors.white),
                 ],
               ),
             ),
-            Icon(Icons.arrow_forward_ios, size: 14, color: grade.color.withOpacity(0.6)),
-          ],
-        ),
+          ),
+          const SizedBox(height: 8),
+          Text(grade.label,
+              style: TextStyle(
+                  fontFamily: 'Cairo', fontSize: 13, fontWeight: FontWeight.w700, color: grade.color)),
+        ],
       ),
-    );
+    )
+        .animate(delay: Duration(milliseconds: index * 80))
+        .fadeIn(duration: 260.ms)
+        .scale(begin: const Offset(0.9, 0.9));
   }
 }
 
