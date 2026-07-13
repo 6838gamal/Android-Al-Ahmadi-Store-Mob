@@ -2342,117 +2342,135 @@ async def purchase_invoice_mark_print(request: Request, invoice_id: int):
 # ══════════════════════════════════════════════════════════════════════════════
 @app.get("/gallery")
 async def gallery_list(request: Request):
+    """شبكة موديلات سامسونج مع صور الغلاف — الخطوة الأولى في معرض الشاشات."""
     if not _logged(request):
         return _redirect_login()
-    # جلب المنتجات وتجميعها حسب الفئة
-    _CAT_MAP = {
-        "screen": "شاشات", "battery": "بطاريات", "camera": "كاميرات",
-        "speaker": "سماعات", "charger": "شواحن", "device": "أجهزة",
-        "spare_part": "قطع غيار", "other": "أخرى",
-    }
-    _CAT_ORDER = list(_CAT_MAP.keys())
 
-    raw_products = []
+    # جلب كتالوج سامسونج (سلاسل → موديلات)
+    catalog = []
     try:
-        async with httpx.AsyncClient(timeout=15.0) as _lc:
-            _r = await _lc.get(f"{_get_base()}/api/products/", params={"limit": 500})
-            if _r.status_code == 200:
-                raw_products = _r.json()
+        catalog = to_obj(await api("get", "/api/products/catalog/samsung", token=_token(request)) or [])
     except Exception:
         pass
 
-    # تجميع المنتجات التي لديها صور حسب الفئة
-    categories = {}
-    for p in raw_products:
-        url = p.get("image_url", "") or ""
-        if not (url.startswith("http") or url.startswith("/api/uploads/image/")):
-            continue
-        cat = p.get("category", "other")
-        categories.setdefault(cat, []).append(p)
+    # جلب كل المنتجات لبناء خريطة الغلاف: model_key → أول image_url
+    covers: dict = {}
+    try:
+        raw = to_obj(await api("get", "/api/products/", token=_token(request),
+                               params={"limit": 500}) or [])
+        for p in raw:
+            mkey = getattr(p, "model", None) or ""
+            if not mkey or mkey in covers:
+                continue
+            img = getattr(p, "image_url", None) or ""
+            if img:
+                covers[mkey] = img
+    except Exception:
+        pass
 
-    # بناء قائمة الفئات بالترتيب المحدد (كل الفئات تظهر حتى لو فارغة)
-    cat_sections = []
-    for key in _CAT_ORDER:
-        cat_sections.append({
-            "key": key,
-            "label_ar": _CAT_MAP[key],
-            "products": categories.get(key, []),
-            "count": len(categories.get(key, [])),
-        })
-
-    series_list = to_obj(await api("get", "/api/gallery/folders", token=_token(request)) or [])
     return templates.TemplateResponse(request, "gallery.html", {
         "admin_name": _name(request),
         "active": "gallery",
-        "series_list": series_list,
-        "cat_sections": cat_sections,
-        "total_images": sum(c["count"] for c in cat_sections),
+        "catalog": catalog,
+        "covers": covers,
         "success": request.query_params.get("success"),
         "error": request.query_params.get("error"),
     })
 
 
 @app.get("/gallery/folders")
-async def gallery_folders_list(request: Request):
-    """صفحة إدارة مجلدات موديلات سامسونج (المعرض القديم)."""
+async def gallery_folders_redirect(request: Request):
+    """إعادة توجيه الرابط القديم للمعرض الجديد."""
+    return RedirectResponse("/gallery", status_code=302)
+
+
+@app.get("/gallery/{model_key}/{grade}")
+async def gallery_photos_page(request: Request, model_key: str, grade: str):
+    """شبكة الصور الرباعية لموديل + درجة لون محددة."""
     if not _logged(request):
         return _redirect_login()
-    series_list = to_obj(await api("get", "/api/gallery/folders", token=_token(request)) or [])
-    return templates.TemplateResponse(request, "gallery_folders_mgmt.html", {
-        "admin_name": _name(request),
-        "active": "gallery",
-        "series_list": series_list,
-        "success": request.query_params.get("success"),
-        "error": request.query_params.get("error"),
+
+    _GRADE_MAP = {
+        "white":  ("أبيض",    "#E5E7EB"),
+        "green":  ("أخضر",    "#10B981"),
+        "orange": ("برتقالي", "#F97316"),
+    }
+    grade_label, grade_color = _GRADE_MAP.get(grade, (grade, "#1A73E8"))
+
+    # جلب منتجات هذا الموديل + الدرجة (بدون قيد category)
+    photos = []
+    seen_urls: set = set()
+    try:
+        raw = to_obj(await api("get", "/api/products/", token=_token(request),
+                               params={"model": model_key, "grade": grade, "limit": 200}) or [])
+        for p in raw:
+            pid      = getattr(p, "id", None)
+            name     = getattr(p, "name_ar", "") or getattr(p, "name", "") or ""
+            primary  = getattr(p, "image_url", None) or ""
+            extras   = getattr(p, "image_urls", []) or []
+
+            for url in [primary] + (extras if isinstance(extras, list) else []):
+                if url and url not in seen_urls:
+                    seen_urls.add(url)
+                    photos.append({"id": pid, "image_url": url, "name": name})
+    except Exception:
+        pass
+
+    # جلب اسم الموديل من الكتالوج
+    model_label = model_key
+    try:
+        catalog = to_obj(await api("get", "/api/products/catalog/samsung", token=_token(request)) or [])
+        for series in catalog:
+            for m in (getattr(series, "models", []) or []):
+                if getattr(m, "key", "") == model_key:
+                    model_label = getattr(m, "label_ar", model_key) or model_key
+                    break
+    except Exception:
+        pass
+
+    return templates.TemplateResponse(request, "gallery_photos.html", {
+        "admin_name":   _name(request),
+        "active":       "gallery",
+        "model_key":    model_key,
+        "model_label":  model_label,
+        "grade":        grade,
+        "grade_label":  grade_label,
+        "grade_color":  grade_color,
+        "photos":       photos,
     })
 
 
-@app.get("/gallery/{folder_id}")
-async def gallery_folder_detail(request: Request, folder_id: int):
+@app.get("/gallery/{model_key}")
+async def gallery_grade_page(request: Request, model_key: str):
+    """صفحة اختيار درجة اللون للموديل — الخطوة الثانية."""
     if not _logged(request):
         return _redirect_login()
-    folder = to_obj(await api("get", f"/api/gallery/folders/{folder_id}", token=_token(request)) or {})
-    series_list = to_obj(await api("get", "/api/gallery/folders", token=_token(request)) or [])
-    return templates.TemplateResponse(request, "gallery_folder.html", {
-        "admin_name": _name(request),
-        "active": "gallery",
-        "folder": folder,
-        "series_list": series_list,
-        "success": request.query_params.get("success"),
-        "error": request.query_params.get("error"),
+
+    # جلب اسم الموديل من الكتالوج
+    model_label = model_key
+    try:
+        catalog = to_obj(await api("get", "/api/products/catalog/samsung", token=_token(request)) or [])
+        for series in catalog:
+            for m in (getattr(series, "models", []) or []):
+                if getattr(m, "key", "") == model_key:
+                    model_label = getattr(m, "label_ar", model_key) or model_key
+                    break
+    except Exception:
+        pass
+
+    grades = [
+        {"key": "white",  "label": "أبيض",    "color": "#E5E7EB", "desc": "شاشات أصلية عالية الجودة"},
+        {"key": "green",  "label": "أخضر",    "color": "#10B981", "desc": "شاشات جيدة متوسطة الجودة"},
+        {"key": "orange", "label": "برتقالي", "color": "#F97316", "desc": "شاشات اقتصادية بديلة"},
+    ]
+
+    return templates.TemplateResponse(request, "gallery_grade.html", {
+        "admin_name":  _name(request),
+        "active":      "gallery",
+        "model_key":   model_key,
+        "model_label": model_label,
+        "grades":      grades,
     })
-
-
-@app.post("/gallery/{folder_id}/upload")
-async def gallery_upload_image(
-    request: Request,
-    folder_id: int,
-    file: UploadFile = File(...),
-    title: Optional[str] = Form(None),
-):
-    if not _logged(request):
-        return _redirect_login()
-    import io
-    content = await file.read()
-    files_payload = {"file": (file.filename, io.BytesIO(content), file.content_type)}
-    data = {}
-    if title:
-        data["title"] = title
-    result, err = await api_raw_upload(f"/api/gallery/folders/{folder_id}/images",
-                                       files_payload, data, token=_token(request))
-    if err:
-        return RedirectResponse(f"/gallery/{folder_id}?error={_q(err)}", status_code=302)
-    return RedirectResponse(f"/gallery/{folder_id}?success={_q('تم رفع الصورة')}", status_code=302)
-
-
-@app.post("/gallery/images/{image_id}/delete")
-async def gallery_delete_image(request: Request, image_id: int, folder_id: int = Form(...)):
-    if not _logged(request):
-        return _redirect_login()
-    _, err = await api_ex("delete", f"/api/gallery/images/{image_id}", token=_token(request))
-    if err:
-        return RedirectResponse(f"/gallery/{folder_id}?error={_q(err)}", status_code=302)
-    return RedirectResponse(f"/gallery/{folder_id}?success={_q('تم حذف الصورة بنجاح')}", status_code=302)
 
 
 # ══════════════════════════════════════════════════════════════════════════════

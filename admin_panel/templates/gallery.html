@@ -1,175 +1,109 @@
 {% extends "layout.html" %}
-{% block title %}معرض الصور — أندرويد الأحمدي{% endblock %}
-{% block page_title %}معرض الصور{% endblock %}
-{% block page_title_mobile %}معرض الصور{% endblock %}
+{% block title %}معرض الشاشات — أندرويد الأحمدي{% endblock %}
+{% block page_title %}معرض الشاشات{% endblock %}
+{% block page_title_mobile %}معرض الشاشات{% endblock %}
 
 {% block content %}
 <div class="page-header" style="margin-bottom:20px">
   <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
     <div>
-      <h1 style="font-size:22px;font-weight:800;color:white;margin:0">🖼️ معرض الصور</h1>
-      <p style="color:rgba(255,255,255,.7);font-size:13px;margin:4px 0 0">صور المنتجات حسب الفئة والموديل</p>
+      <h1 style="font-size:22px;font-weight:800;color:white;margin:0">🖼️ معرض الشاشات</h1>
+      <p style="color:rgba(255,255,255,.7);font-size:13px;margin:4px 0 0">اختر موديل الشاشة لعرض مجلداتها</p>
     </div>
-    <a href="/gallery/folders" style="background:#1C2230;border:1px solid #2D3748;border-radius:8px;color:#9CA3AF;padding:8px 16px;text-decoration:none;font-size:13px;font-family:Cairo,sans-serif;display:flex;align-items:center;gap:6px">
-      <i class="fa-solid fa-folder-open"></i> إدارة مجلدات الموديلات
-    </a>
   </div>
 </div>
 
-{% if request.query_params.get('success') %}
+{% if success %}
 <div style="background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.3);border-radius:10px;padding:12px 16px;margin-bottom:16px;color:#22C55E;font-weight:600">
-  ✅ {{ request.query_params.get('success') }}
+  ✅ {{ success }}
 </div>
 {% endif %}
-{% if request.query_params.get('error') %}
+{% if error %}
 <div style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:10px;padding:12px 16px;margin-bottom:16px;color:#EF4444;font-weight:600">
-  ❌ {{ request.query_params.get('error') }}
+  ❌ {{ error }}
 </div>
 {% endif %}
 
-<!-- ── إحصاء سريع ───────────────────────────────────────────────── -->
-<div style="display:flex;gap:14px;margin-bottom:18px;flex-wrap:wrap">
-  <div style="background:#161B22;border-radius:10px;padding:10px 18px;display:flex;align-items:center;gap:10px">
-    <i class="fa-solid fa-tags" style="color:#1A73E8"></i>
-    <div>
-      <div style="color:#6B7280;font-size:11px">الفئات</div>
-      <div style="color:white;font-weight:700;font-size:15px">{{ cat_sections | length }}</div>
-    </div>
-  </div>
-  <div style="background:#161B22;border-radius:10px;padding:10px 18px;display:flex;align-items:center;gap:10px">
-    <i class="fa-solid fa-images" style="color:#22C55E"></i>
-    <div>
-      <div style="color:#6B7280;font-size:11px">إجمالي الصور</div>
-      <div style="color:white;font-weight:700;font-size:15px">{{ total_images }}</div>
-    </div>
-  </div>
+<!-- شريط البحث -->
+<div style="margin-bottom:18px">
+  <input id="search-input" type="text" placeholder="ابحث عن موديل..."
+         oninput="filterModels(this.value)"
+         style="width:100%;box-sizing:border-box;background:#1C2230;border:1px solid #2D3748;border-radius:10px;color:white;font-family:Cairo,sans-serif;font-size:13px;padding:10px 14px;outline:none">
 </div>
 
-<!-- ── تبويبات الفئات ─────────────────────────────────────────────── -->
-<div style="position:sticky;top:0;z-index:20;background:#0D1117;padding:10px 0 12px;margin-bottom:16px;border-bottom:1px solid #2D3748">
-  <div style="display:flex;gap:8px;overflow-x:auto;padding:0 4px;scrollbar-width:none">
-    <button onclick="showCat('all')" id="tab-all"
-      style="flex-shrink:0;background:#1A73E8;border:none;border-radius:20px;color:white;font-family:Cairo,sans-serif;font-size:13px;font-weight:700;padding:7px 18px;cursor:pointer;transition:all .2s">
-      الكل
-    </button>
-    {% for cat in cat_sections %}
-    <button onclick="showCat('{{ cat.key }}')" id="tab-{{ cat.key }}"
-      style="flex-shrink:0;background:#1C2230;border:1px solid #2D3748;border-radius:20px;color:#9CA3AF;font-family:Cairo,sans-serif;font-size:13px;font-weight:600;padding:7px 18px;cursor:pointer;transition:all .2s;display:flex;align-items:center;gap:6px">
-      {{ cat.label_ar }}
-      {% if cat.count > 0 %}
-      <span style="background:#2D3748;border-radius:10px;font-size:10px;padding:1px 6px;color:#6B7280">{{ cat.count }}</span>
-      {% endif %}
-    </button>
-    {% endfor %}
-  </div>
-</div>
-
-<!-- ── أقسام الفئات ────────────────────────────────────────────────── -->
-{% for cat in cat_sections %}
-<div class="cat-section" id="section-{{ cat.key }}" style="margin-bottom:36px">
-
-  <!-- عنوان الفئة -->
-  <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;padding-bottom:10px;border-bottom:2px solid #1A73E8">
-    <div style="width:38px;height:38px;border-radius:10px;background:linear-gradient(135deg,#7B1FA2,#1A73E8);display:flex;align-items:center;justify-content:center;flex-shrink:0">
-      <i class="fa-solid fa-tag" style="color:white;font-size:15px"></i>
+{% if catalog %}
+  {% set global_idx = namespace(value=0) %}
+  {% for series in catalog %}
+  <div class="series-block" style="margin-bottom:32px" data-series="{{ series.label_ar }}">
+    <!-- عنوان السلسلة -->
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;padding-bottom:8px;border-bottom:2px solid #1A73E8">
+      <div style="width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,#1A73E8,#7B1FA2);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+        <i class="fa-brands fa-android" style="color:white;font-size:13px"></i>
+      </div>
+      <h2 style="color:#1A73E8;font-size:14px;font-weight:800;margin:0;font-family:Cairo,sans-serif">{{ series.label_ar }}</h2>
+      <span style="margin-right:auto;color:#6B7280;font-size:12px;font-family:Cairo,sans-serif">{{ series.models | length }} موديل</span>
     </div>
-    <div>
-      <h2 style="color:white;font-size:17px;font-weight:800;margin:0">{{ cat.label_ar }}</h2>
-      <span style="color:#6B7280;font-size:12px">{{ cat.count }} صورة</span>
-    </div>
-    {% if cat.count > 0 %}
-    <span style="margin-right:auto;background:rgba(26,115,232,0.15);border:1px solid rgba(26,115,232,0.4);border-radius:20px;color:#1A73E8;font-size:12px;font-weight:700;padding:3px 12px">
-      {{ cat.count }} منتج
-    </span>
-    {% endif %}
-  </div>
 
-  {% if cat.products %}
-  <!-- شبكة المنتجات -->
-  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px">
-    {% for p in cat.products %}
-    <div class="card" style="overflow:hidden;cursor:pointer;transition:border-color .2s,transform .15s;border-color:#2D3748;position:relative"
-         onclick="openLightbox('{{ (p.image_url)|bu }}','{{ p.name_ar or p.name or '' }}')"
+    <!-- شبكة الموديلات: 3 أعمدة -->
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px">
+      {% for model in series.models %}
+        {% set idx = global_idx.value %}
+        {% set global_idx.value = global_idx.value + 1 %}
+        {% set cover = covers.get(model.key) %}
+        {% set label_color = 'white' if idx % 2 == 0 else '#10B981' %}
+      <a href="/gallery/{{ model.key }}"
+         class="model-card"
+         data-label="{{ model.label_ar | lower }}"
+         style="text-decoration:none;display:flex;flex-direction:column;border-radius:14px;overflow:hidden;border:1px solid #2D3748;background:#161B22;transition:border-color .2s,transform .15s"
          onmouseover="this.style.borderColor='#1A73E8';this.style.transform='translateY(-2px)'"
          onmouseout="this.style.borderColor='#2D3748';this.style.transform='none'">
 
-      <!-- الصورة -->
-      <div style="height:110px;background:#1C2230;overflow:hidden;position:relative">
-        <img src="{{ (p.image_url)|bu }}" alt="{{ p.name_ar or p.name or '' }}"
-             style="width:100%;height:100%;object-fit:cover;transition:transform .2s"
-             onmouseover="this.style.transform='scale(1.06)'"
-             onmouseout="this.style.transform='none'"
-             onerror="this.parentElement.innerHTML='<div style=\'display:flex;align-items:center;justify-content:center;height:110px;color:#4B5563\'><i class=\'fa-solid fa-image-slash fa-2x\'></i></div>'">
-        <!-- شارة الفئة -->
-        <div style="position:absolute;top:5px;right:5px;background:rgba(26,115,232,0.88);color:white;font-size:9px;font-weight:700;padding:2px 7px;border-radius:12px;font-family:Cairo,sans-serif">
-          {{ cat.label_ar }}
+        <!-- صورة الغلاف -->
+        <div style="height:100px;background:#1C2230;overflow:hidden;position:relative;flex-shrink:0">
+          {% if cover %}
+          <img src="{{ cover | bu }}" alt="{{ model.label_ar }}"
+               style="width:100%;height:100%;object-fit:cover"
+               onerror="this.parentElement.innerHTML='<div style=\'display:flex;flex-direction:column;align-items:center;justify-content:center;height:100px;color:#4B5563;gap:4px\'><i class=\'fa-solid fa-image-slash\'></i><span style=\'font-size:9px;font-family:Cairo,sans-serif;color:#4B5563\'>لا توجد صور حالياً</span></div>'">
+          {% else %}
+          <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100px;color:#4B5563;gap:4px">
+            <i class="fa-solid fa-image-slash"></i>
+            <span style="font-size:9px;font-family:Cairo,sans-serif">لا توجد صور حالياً</span>
+          </div>
+          {% endif %}
         </div>
-      </div>
 
-      <!-- معلومات المنتج -->
-      <div style="padding:7px 9px">
-        <div style="color:white;font-weight:700;font-size:11px;font-family:Cairo,sans-serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
-          {{ p.name_ar or p.name or '—' }}
+        <!-- اسم الموديل -->
+        <div style="padding:7px 8px;text-align:center">
+          <span style="font-family:Cairo,sans-serif;font-size:11px;font-weight:700;color:{{ label_color }};display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+            {{ model.label_ar }}
+          </span>
         </div>
-        {% if p.model %}
-        <div style="color:#6B7280;font-size:10px;font-family:Cairo,sans-serif">{{ p.model }}</div>
-        {% endif %}
-        {% if p.price %}
-        <div style="color:#22C55E;font-size:10px;font-weight:700;font-family:Cairo,sans-serif;margin-top:2px">{{ p.price }} ر.ي</div>
-        {% endif %}
-      </div>
+      </a>
+      {% endfor %}
     </div>
-    {% endfor %}
   </div>
+  {% endfor %}
 
-  {% else %}
-  <!-- فئة فارغة -->
-  <div style="background:#161B22;border:1px dashed #2D3748;border-radius:10px;padding:28px;text-align:center">
-    <i class="fa-solid fa-image" style="color:#374151;font-size:32px;margin-bottom:10px;display:block"></i>
-    <div style="color:#6B7280;font-size:13px;font-family:Cairo,sans-serif">لا توجد منتجات بصور في هذه الفئة بعد</div>
-    <a href="/products/add" style="display:inline-block;margin-top:12px;background:#1A73E8;color:white;border-radius:8px;padding:6px 16px;text-decoration:none;font-size:12px;font-family:Cairo,sans-serif">
-      <i class="fa-solid fa-plus"></i> إضافة منتج
-    </a>
-  </div>
-  {% endif %}
-
+{% else %}
+<div style="background:#161B22;border:1px dashed #2D3748;border-radius:12px;padding:48px;text-align:center">
+  <i class="fa-solid fa-mobile-screen" style="color:#374151;font-size:40px;margin-bottom:12px;display:block"></i>
+  <div style="color:#6B7280;font-size:14px;font-family:Cairo,sans-serif">تعذّر تحميل قائمة الموديلات</div>
 </div>
-{% endfor %}
+{% endif %}
 
-<!-- ── Lightbox ──────────────────────────────────────────────────────── -->
 <script>
-function showCat(key) {
-  const sections = document.querySelectorAll('.cat-section');
-  const tabs = document.querySelectorAll('[id^="tab-"]');
-  tabs.forEach(t => {
-    t.style.background = '#1C2230';
-    t.style.border = '1px solid #2D3748';
-    t.style.color = '#9CA3AF';
-  });
-  const active = document.getElementById('tab-' + key);
-  if (active) { active.style.background = '#1A73E8'; active.style.border = '1px solid #1A73E8'; active.style.color = 'white'; }
-  if (key === 'all') {
-    sections.forEach(s => s.style.display = 'block');
-  } else {
-    sections.forEach(s => {
-      s.style.display = s.id === 'section-' + key ? 'block' : 'none';
+function filterModels(q) {
+  q = q.trim().toLowerCase();
+  document.querySelectorAll('.series-block').forEach(block => {
+    let visibleCount = 0;
+    block.querySelectorAll('.model-card').forEach(card => {
+      const label = card.getAttribute('data-label') || '';
+      const show = !q || label.includes(q);
+      card.style.display = show ? '' : 'none';
+      if (show) visibleCount++;
     });
-    const el = document.getElementById('section-' + key);
-    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }
+    block.style.display = visibleCount > 0 ? '' : 'none';
+  });
 }
-
-function openLightbox(url, caption) {
-  const lb = document.createElement('div');
-  lb.style.cssText = 'position:fixed;inset:0;z-index:2000;background:rgba(0,0,0,0.95);display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:zoom-out';
-  lb.onclick = () => lb.remove();
-  lb.innerHTML = `
-    <button onclick="this.parentElement.remove()" style="position:absolute;top:16px;left:16px;background:rgba(255,255,255,0.1);border:none;color:white;border-radius:50%;width:36px;height:36px;cursor:pointer;font-size:18px">✕</button>
-    <img src="${esc(url)}" style="max-width:90vw;max-height:85vh;object-fit:contain;border-radius:8px" onclick="event.stopPropagation()">
-    ${caption ? `<div style="color:white;font-family:Cairo,sans-serif;font-size:14px;margin-top:12px;opacity:.8">${esc(caption)}</div>` : ''}`;
-  document.body.appendChild(lb);
-}
-function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
-document.addEventListener('keydown', e => { if(e.key==='Escape') document.querySelectorAll('[style*="position:fixed"]').forEach(el=>{ if(el.style.zIndex>='2000') el.remove(); }); });
 </script>
 {% endblock %}
