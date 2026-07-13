@@ -5,8 +5,6 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/network/api_client.dart';
-import '../../../../core/utils/app_utils.dart';
-import '../../../../shared/widgets/status_badge.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../products/presentation/pages/add_product_page.dart';
 
@@ -63,6 +61,40 @@ final samsungCatalogProvider =
   final res = await api.get('/products/catalog/samsung');
   final raw = res.data as List;
   return raw.cast<Map<String, dynamic>>();
+});
+
+// ── Cover images provider ──────────────────────────────────────────────────────
+//
+// Fetches all screen products once and returns a map of modelKey → first image URL.
+// Used by the model picker to show cover thumbnails without N separate API calls.
+
+final _screenCoversProvider = FutureProvider<Map<String, String?>>((ref) async {
+  final api = ref.read(apiClientProvider);
+  try {
+    final res = await api.get('/products', queryParameters: {
+      'limit': 500,
+      'skip': 0,
+      'category': 'screen',
+    });
+    final raw = res.data;
+    final List items = raw is List
+        ? raw
+        : ((raw['items'] ?? raw['products'] ?? raw['results'] ?? []) as List);
+    final map = <String, String?>{};
+    for (final p in items) {
+      final model = p['model'] as String? ?? '';
+      if (model.isEmpty) continue;
+      if (!map.containsKey(model)) {
+        final img = p['image_url'] as String?;
+        if (img != null && img.isNotEmpty) {
+          map[model] = img;
+        }
+      }
+    }
+    return map;
+  } catch (_) {
+    return {};
+  }
 });
 
 // ── Provider ───────────────────────────────────────────────────────────────────
@@ -240,6 +272,16 @@ class _ScreenModelPickerPageState extends ConsumerState<ScreenModelPickerPage> {
                     );
                   }
 
+                  // Load cover images alongside the catalog
+                  final coversAsync = ref.watch(_screenCoversProvider);
+                  final covers = coversAsync.maybeWhen(
+                    data: (m) => m,
+                    orElse: () => <String, String?>{},
+                  );
+
+                  // Flatten models into a single global list for correct index alternation
+                  int globalIndex = 0;
+
                   return ListView.builder(
                     padding: const EdgeInsets.only(bottom: 24),
                     itemCount: sections.length,
@@ -247,6 +289,8 @@ class _ScreenModelPickerPageState extends ConsumerState<ScreenModelPickerPage> {
                       final s = sections[si];
                       final seriesInfo = s['series'] as Map<String, dynamic>;
                       final models = s['models'] as List<Map<String, dynamic>>;
+                      final startIndex = globalIndex;
+                      globalIndex += models.length;
                       return Padding(
                         padding: const EdgeInsets.only(bottom: 18),
                         child: Column(
@@ -272,7 +316,8 @@ class _ScreenModelPickerPageState extends ConsumerState<ScreenModelPickerPage> {
                               itemBuilder: (ctx, i) => _ModelFolderTile(
                                 modelKey: models[i]['key'] as String,
                                 modelLabel: models[i]['label_ar'] as String,
-                                index: i,
+                                index: startIndex + i,
+                                imageUrl: covers[models[i]['key'] as String],
                               ),
                             ),
                           ],
@@ -294,10 +339,19 @@ class _ModelFolderTile extends StatelessWidget {
   final String modelKey;
   final String modelLabel;
   final int index;
-  const _ModelFolderTile({required this.modelKey, required this.modelLabel, required this.index});
+  final String? imageUrl;
+  const _ModelFolderTile({
+    required this.modelKey,
+    required this.modelLabel,
+    required this.index,
+    this.imageUrl,
+  });
 
   @override
   Widget build(BuildContext context) {
+    // Alternate label colour: even → white, odd → green
+    final labelColor = index % 2 == 0 ? Colors.white : const Color(0xFF10B981);
+
     return GestureDetector(
       onTap: () {
         Navigator.push(
@@ -318,18 +372,36 @@ class _ModelFolderTile extends StatelessWidget {
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(color: AppColors.primary.withOpacity(0.25)),
               ),
-              child: const Center(
-                child: Icon(Icons.smartphone_rounded, size: 40, color: AppColors.primary),
-              ),
+              clipBehavior: Clip.antiAlias,
+              child: imageUrl != null
+                  ? CachedNetworkImage(
+                      imageUrl: ApiClient.img(imageUrl),
+                      fit: BoxFit.cover,
+                      placeholder: (_, __) => const Center(
+                        child: SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2, color: AppColors.primary),
+                        ),
+                      ),
+                      errorWidget: (_, __, ___) => _noImgPlaceholder(),
+                    )
+                  : _noImgPlaceholder(),
             ),
           ),
           const SizedBox(height: 6),
-          Text(modelLabel,
-              textAlign: TextAlign.center,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                  fontFamily: 'Cairo', fontSize: 11, fontWeight: FontWeight.w700, color: Colors.white)),
+          Text(
+            modelLabel,
+            textAlign: TextAlign.center,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+                fontFamily: 'Cairo',
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                color: labelColor),
+          ),
         ],
       ),
     )
@@ -337,6 +409,21 @@ class _ModelFolderTile extends StatelessWidget {
         .fadeIn(duration: 220.ms)
         .scale(begin: const Offset(0.9, 0.9));
   }
+
+  Widget _noImgPlaceholder() => Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: const [
+          Icon(Icons.image_not_supported_outlined,
+              size: 28, color: AppColors.textMuted),
+          SizedBox(height: 4),
+          Text('لا توجد صور حالياً',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                  fontFamily: 'Cairo',
+                  fontSize: 9,
+                  color: AppColors.textMuted)),
+        ],
+      );
 }
 
 // ── Step 2: Grade (color) Folders Page ──────────────────────────────────────────
@@ -462,7 +549,10 @@ class _GradeFolderTile extends StatelessWidget {
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
-                  fontFamily: 'Cairo', fontSize: 12, fontWeight: FontWeight.w700, color: grade.color)),
+                  fontFamily: 'Cairo',
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: index % 2 == 0 ? Colors.white : const Color(0xFF10B981))),
         ],
       ),
     )
@@ -648,10 +738,10 @@ class ScreensGalleryPage extends ConsumerWidget {
                     ),
                   ),
                   SliverPadding(
-                    padding: const EdgeInsets.fromLTRB(12, 4, 12, 32),
+                    padding: const EdgeInsets.fromLTRB(8, 4, 8, 32),
                     sliver: SliverGrid(
                       delegate: SliverChildBuilderDelegate(
-                        (ctx, i) => _ScreenCard(
+                        (ctx, i) => _ScreenImageTile(
                           product: products[i],
                           grade: grade,
                           index: i,
@@ -659,10 +749,10 @@ class ScreensGalleryPage extends ConsumerWidget {
                         childCount: products.length,
                       ),
                       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 2,
-                        crossAxisSpacing: 10,
-                        mainAxisSpacing: 10,
-                        childAspectRatio: 0.65,
+                        crossAxisCount: 4,
+                        crossAxisSpacing: 5,
+                        mainAxisSpacing: 5,
+                        childAspectRatio: 1.0,
                       ),
                     ),
                   ),
@@ -676,151 +766,63 @@ class ScreensGalleryPage extends ConsumerWidget {
   }
 }
 
-// ── Screen Card (navigates to ProductDetailPage) ──────────────────────────────
+// ── Screen Image Tile (4-column photo grid) ───────────────────────────────────
 
-class _ScreenCard extends StatelessWidget {
+class _ScreenImageTile extends StatelessWidget {
   final Map<String, dynamic> product;
   final ScreenGrade grade;
   final int index;
 
-  const _ScreenCard({required this.product, required this.grade, required this.index});
+  const _ScreenImageTile({required this.product, required this.grade, required this.index});
 
   @override
   Widget build(BuildContext context) {
     final imgUrl = ApiClient.img(product['image_url'] as String?);
-    final name = product['name_ar'] as String? ?? product['name'] as String? ?? '';
-    final model = product['model'] as String? ?? '';
-    final price = (product['price'] as num?)?.toDouble() ?? 0.0;
-    final status = product['status'] as String? ?? 'available';
 
     return GestureDetector(
       onTap: () => context.push('/products/${product['id']}'),
-      child: Container(
-        decoration: BoxDecoration(
-          color: AppColors.darkCard,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: grade.color.withOpacity(0.2)),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Image
-            ClipRRect(
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(13)),
-              child: AspectRatio(
-                aspectRatio: 1.1,
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    product['image_url'] != null
-                        ? CachedNetworkImage(
-                            imageUrl: imgUrl,
-                            fit: BoxFit.cover,
-                            placeholder: (_, __) => Container(
-                              color: AppColors.darkSurface,
-                              child: const Center(
-                                child: SizedBox(
-                                  width: 20,
-                                  height: 20,
-                                  child: CircularProgressIndicator(
-                                      strokeWidth: 2, color: AppColors.primary),
-                                ),
-                              ),
-                            ),
-                            errorWidget: (_, __, ___) => _noImg(),
-                          )
-                        : _noImg(),
-                    // Grade badge
-                    Positioned(
-                      top: 6,
-                      right: 6,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: grade.color.withOpacity(0.88),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Text(grade.label,
-                            style: TextStyle(
-                                fontFamily: 'Cairo',
-                                fontSize: 9,
-                                fontWeight: FontWeight.w700,
-                                color: grade.key == 'white' ? Colors.black87 : Colors.white)),
-                      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(8),
+        child: product['image_url'] != null
+            ? CachedNetworkImage(
+                imageUrl: imgUrl,
+                fit: BoxFit.cover,
+                placeholder: (_, __) => Container(
+                  color: AppColors.darkCard,
+                  child: const Center(
+                    child: SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: AppColors.primary),
                     ),
-                  ],
+                  ),
                 ),
-              ),
-            ),
-            // Info
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(name,
-                            style: const TextStyle(
-                                fontFamily: 'Cairo',
-                                fontSize: 12,
-                                fontWeight: FontWeight.w700,
-                                color: Colors.white),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis),
-                        if (model.isNotEmpty)
-                          Text(model,
-                              style: const TextStyle(
-                                  fontFamily: 'Cairo',
-                                  fontSize: 10,
-                                  color: AppColors.textSecondary),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis),
-                      ],
-                    ),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Flexible(
-                          child: Text(
-                            AppUtils.formatPrice(price),
-                            style: TextStyle(
-                                fontFamily: 'Cairo',
-                                fontSize: 12,
-                                fontWeight: FontWeight.w700,
-                                color: grade.color),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        StatusBadge(status: status, isProduct: true),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
-      )
-          .animate(delay: Duration(milliseconds: index * 45))
-          .fadeIn(duration: 280.ms)
-          .scale(begin: const Offset(0.94, 0.94)),
-    );
+                errorWidget: (_, __, ___) => _noImg(),
+              )
+            : _noImg(),
+      ),
+    )
+        .animate(delay: Duration(milliseconds: index * 30))
+        .fadeIn(duration: 200.ms);
   }
 
   Widget _noImg() => Container(
-        color: AppColors.darkSurface,
+        color: AppColors.darkCard,
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.phone_android, size: 36, color: grade.color.withOpacity(0.4)),
-            const SizedBox(height: 4),
-            const Text('لا تتوفر صورة',
-                style: TextStyle(fontFamily: 'Cairo', fontSize: 10, color: AppColors.textMuted)),
+            Icon(Icons.image_not_supported_outlined,
+                size: 20, color: grade.color.withOpacity(0.4)),
+            const SizedBox(height: 2),
+            const Text('لا تتوفر\nصورة',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                    fontFamily: 'Cairo',
+                    fontSize: 8,
+                    color: AppColors.textMuted)),
           ],
         ),
       );
 }
+
