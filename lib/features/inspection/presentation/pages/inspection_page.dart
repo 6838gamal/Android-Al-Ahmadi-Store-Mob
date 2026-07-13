@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:image_picker/image_picker.dart';
@@ -81,6 +82,7 @@ class _InspectionPageState extends ConsumerState<InspectionPage> {
     final modelCtrl = TextEditingController();
     final probCtrl = TextEditingController();
     final List<XFile> selectedImages = [];
+    XFile? selectedVideo;
 
     showDialog(
       context: context,
@@ -109,50 +111,139 @@ class _InspectionPageState extends ConsumerState<InspectionPage> {
                     Icons.report_problem_outlined,
                     maxLines: 3),
                 const SizedBox(height: 14),
-                // Image picker section
-                GestureDetector(
-                  onTap: () async {
-                    final picker = ImagePicker();
-                    final picked = await picker.pickMultiImage(imageQuality: 70);
-                    if (picked.isNotEmpty) {
-                      setDialogState(() {
-                        selectedImages.clear();
-                        selectedImages.addAll(picked.take(4));
-                      });
-                    }
-                  },
-                  child: Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 14),
-                    decoration: BoxDecoration(
-                      color: AppColors.darkSurface,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: selectedImages.isEmpty
-                            ? AppColors.darkBorder
-                            : AppColors.primary.withOpacity(0.5),
-                        style: BorderStyle.solid,
+                // ── Media row ──────────────────────────────────────────
+                Row(children: [
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () async {
+                        final picker = ImagePicker();
+                        final picked =
+                            await picker.pickMultiImage(imageQuality: 70);
+                        if (picked.isNotEmpty) {
+                          setDialogState(() {
+                            selectedImages.clear();
+                            selectedImages.addAll(picked.take(4));
+                          });
+                        }
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            vertical: 12, horizontal: 10),
+                        decoration: BoxDecoration(
+                          color: AppColors.darkSurface,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: selectedImages.isEmpty
+                                ? AppColors.darkBorder
+                                : AppColors.primary.withOpacity(0.5),
+                          ),
+                        ),
+                        child: Column(mainAxisSize: MainAxisSize.min, children: [
+                          Icon(
+                            selectedImages.isEmpty
+                                ? Icons.add_photo_alternate_outlined
+                                : Icons.check_circle_outline,
+                            color: selectedImages.isEmpty
+                                ? AppColors.textMuted
+                                : AppColors.primary,
+                            size: 22,
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            selectedImages.isEmpty
+                                ? 'صور'
+                                : '${selectedImages.length} صور ✓',
+                            style: TextStyle(
+                                fontFamily: 'Cairo',
+                                fontSize: 11,
+                                color: selectedImages.isEmpty
+                                    ? AppColors.textMuted
+                                    : AppColors.primary),
+                          ),
+                        ]),
                       ),
                     ),
-                    child: Row(children: [
-                      Icon(
-                        selectedImages.isEmpty ? Icons.add_photo_alternate_outlined : Icons.check_circle_outline,
-                        color: selectedImages.isEmpty ? AppColors.textMuted : AppColors.primary,
-                        size: 20,
-                      ),
-                      const SizedBox(width: 10),
-                      Text(
-                        selectedImages.isEmpty
-                            ? 'إضافة صور للجهاز (اختياري)'
-                            : 'تم اختيار ${selectedImages.length} صورة ✓',
-                        style: TextStyle(
-                            fontFamily: 'Cairo',
-                            color: selectedImages.isEmpty ? AppColors.textMuted : AppColors.primary,
-                            fontSize: 13),
-                      ),
-                    ]),
                   ),
-                ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: kIsWeb
+                          ? null
+                          : () async {
+                              final picker = ImagePicker();
+                              final picked = await picker.pickVideo(
+                                source: ImageSource.gallery,
+                                maxDuration: const Duration(minutes: 2),
+                              );
+                              if (picked != null) {
+                                setDialogState(() => selectedVideo = picked);
+                              }
+                            },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            vertical: 12, horizontal: 10),
+                        decoration: BoxDecoration(
+                          color: AppColors.darkSurface,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: selectedVideo == null
+                                ? AppColors.darkBorder
+                                : AppColors.info.withOpacity(0.5),
+                          ),
+                        ),
+                        child: Column(mainAxisSize: MainAxisSize.min, children: [
+                          Icon(
+                            selectedVideo == null
+                                ? Icons.videocam_outlined
+                                : Icons.videocam,
+                            color: selectedVideo == null
+                                ? AppColors.textMuted
+                                : AppColors.info,
+                            size: 22,
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            kIsWeb
+                                ? 'فيديو\n(موبايل فقط)'
+                                : selectedVideo == null
+                                    ? 'فيديو'
+                                    : 'فيديو ✓',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                                fontFamily: 'Cairo',
+                                fontSize: 11,
+                                color: selectedVideo == null
+                                    ? AppColors.textMuted
+                                    : AppColors.info),
+                          ),
+                        ]),
+                      ),
+                    ),
+                  ),
+                ]),
+                // Video name chip
+                if (selectedVideo != null) ...[
+                  const SizedBox(height: 8),
+                  Row(children: [
+                    const Icon(Icons.videocam, color: AppColors.info, size: 14),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        selectedVideo!.name,
+                        style: const TextStyle(
+                            fontFamily: 'Cairo',
+                            fontSize: 11,
+                            color: AppColors.info),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    GestureDetector(
+                      onTap: () => setDialogState(() => selectedVideo = null),
+                      child: const Icon(Icons.close,
+                          color: AppColors.textMuted, size: 16),
+                    ),
+                  ]),
+                ],
               ],
             ),
           ),
@@ -187,6 +278,7 @@ class _InspectionPageState extends ConsumerState<InspectionPage> {
                               deviceModel: modelCtrl.text.trim(),
                               problemDescription: probCtrl.text.trim(),
                               images: selectedImages,
+                              video: selectedVideo,
                             );
                         if (ctx.mounted) Navigator.pop(ctx);
                         if (context.mounted) {
@@ -326,6 +418,7 @@ class _InspectionCard extends StatelessWidget {
     final problem = request['problem_description'] as String? ?? '';
     final diagnosis = request['diagnosis'] as String?;
     final estimatedPrice = request['estimated_price'];
+    final videoUrl = request['video_url'] as String?;
     final createdAtStr = request['created_at'] as String?;
 
     DateTime? createdAt;
@@ -338,22 +431,22 @@ class _InspectionCard extends StatelessWidget {
     IconData statusIcon;
 
     switch (status) {
-      case 'in_progress':
+      case 'under_review':
         statusColor = AppColors.warning;
         statusLabel = 'قيد الفحص';
         statusIcon = Icons.hourglass_top_rounded;
         break;
-      case 'completed':
+      case 'responded':
         statusColor = AppColors.success;
-        statusLabel = 'مكتمل';
+        statusLabel = 'تم الرد';
         statusIcon = Icons.check_circle_outline;
         break;
-      case 'rejected':
-        statusColor = AppColors.error;
-        statusLabel = 'مرفوض';
-        statusIcon = Icons.cancel_outlined;
+      case 'closed':
+        statusColor = AppColors.textMuted;
+        statusLabel = 'مغلق';
+        statusIcon = Icons.lock_outline;
         break;
-      default:
+      default: // pending
         statusColor = AppColors.primary;
         statusLabel = 'قيد الانتظار';
         statusIcon = Icons.schedule_outlined;
@@ -425,6 +518,26 @@ class _InspectionCard extends StatelessWidget {
                     fontFamily: 'Cairo',
                     color: AppColors.textSecondary,
                     fontSize: 13)),
+            if (videoUrl != null && videoUrl.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: AppColors.info.withOpacity(0.08),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: AppColors.info.withOpacity(0.3)),
+                ),
+                child: Row(children: [
+                  const Icon(Icons.videocam_outlined, color: AppColors.info, size: 16),
+                  const SizedBox(width: 8),
+                  const Text('تم إرفاق فيديو',
+                      style: TextStyle(
+                          fontFamily: 'Cairo',
+                          color: AppColors.info,
+                          fontSize: 12)),
+                ]),
+              ),
+            ],
             if (diagnosis != null && diagnosis.isNotEmpty) ...[
               const SizedBox(height: 10),
               Container(

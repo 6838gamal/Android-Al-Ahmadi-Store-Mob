@@ -200,6 +200,7 @@ class _InspectionCard extends StatelessWidget {
     final statusColor = statusColors[status] ?? AppColors.textMuted;
     final statusLabel = statusLabels[status] ?? status;
     final images = item['images'] as List<dynamic>? ?? [];
+    final videoUrl = item['video_url'] as String?;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 14),
@@ -296,6 +297,27 @@ class _InspectionCard extends StatelessWidget {
                 ),
               ),
             ],
+            // Customer video
+            if (videoUrl != null && videoUrl.isNotEmpty) ...[
+              const SizedBox(height: 10),
+              GestureDetector(
+                onTap: () => _showVideoDialog(context, videoUrl),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF06B6D4).withOpacity(0.08),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: const Color(0xFF06B6D4).withOpacity(0.3)),
+                  ),
+                  child: const Row(children: [
+                    Icon(Icons.play_circle_outline, color: Color(0xFF06B6D4), size: 20),
+                    SizedBox(width: 8),
+                    Text('فيديو مرفق — اضغط للمشاهدة',
+                        style: TextStyle(fontFamily: 'Cairo', fontSize: 12, color: Color(0xFF06B6D4))),
+                  ]),
+                ),
+              ),
+            ],
             // Staff response
             if (item['diagnosis'] != null) ...[
               const SizedBox(height: 10),
@@ -357,6 +379,46 @@ class _InspectionCard extends StatelessWidget {
           ]),
         ),
       ]),
+    );
+  }
+
+  void _showVideoDialog(BuildContext context, String url) {
+    showDialog(
+      context: context,
+      builder: (_) => Dialog(
+        backgroundColor: Colors.black,
+        insetPadding: const EdgeInsets.all(16),
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.videocam, color: Colors.white, size: 52),
+              const SizedBox(height: 12),
+              const Text('فيديو العميل',
+                  style: TextStyle(
+                      fontFamily: 'Cairo',
+                      color: Colors.white,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 15)),
+              const SizedBox(height: 12),
+              SelectableText(url,
+                  style: const TextStyle(color: Colors.blueAccent, fontSize: 12)),
+              const SizedBox(height: 8),
+              const Text('انسخ الرابط وافتحه في المتصفح لمشاهدة الفيديو',
+                  style: TextStyle(
+                      fontFamily: 'Cairo', color: Colors.white70, fontSize: 11),
+                  textAlign: TextAlign.center),
+              const SizedBox(height: 16),
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('إغلاق',
+                    style: TextStyle(fontFamily: 'Cairo', color: Colors.white)),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 

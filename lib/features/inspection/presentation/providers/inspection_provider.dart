@@ -63,25 +63,43 @@ class InspectionNotifier extends StateNotifier<InspectionState> {
     required String deviceModel,
     required String problemDescription,
     List<XFile>? images,
+    XFile? video,
   }) async {
     state = state.copyWith(isSubmitting: true, error: null);
     try {
-      // Upload images first (best-effort — failures don't block submission)
+      // Upload images (best-effort — failures don't block submission)
       final List<String> imageUrls = [];
       if (images != null && images.isNotEmpty) {
         for (final img in images) {
           try {
             final bytes = await img.readAsBytes();
+            final contentType = _guessContentType(img.name);
             final formData = FormData.fromMap({
-              'file': MultipartFile.fromBytes(bytes, filename: img.name),
+              'file': MultipartFile.fromBytes(bytes,
+                  filename: img.name,
+                  contentType: DioMediaType.parse(contentType)),
             });
             final uploadRes = await _api.postForm('/uploads/media', formData);
             final url = uploadRes.data['url'] as String?;
             if (url != null) imageUrls.add(url);
-          } catch (_) {
-            // Skip failed image uploads silently
-          }
+          } catch (_) {}
         }
+      }
+
+      // Upload video (best-effort)
+      String? videoUrl;
+      if (video != null) {
+        try {
+          final bytes = await video.readAsBytes();
+          final contentType = _guessContentType(video.name);
+          final formData = FormData.fromMap({
+            'file': MultipartFile.fromBytes(bytes,
+                filename: video.name,
+                contentType: DioMediaType.parse(contentType)),
+          });
+          final uploadRes = await _api.postForm('/uploads/media', formData);
+          videoUrl = uploadRes.data['url'] as String?;
+        } catch (_) {}
       }
 
       await _api.post('/inspection/', data: {
@@ -90,6 +108,7 @@ class InspectionNotifier extends StateNotifier<InspectionState> {
         'device_model': deviceModel,
         'problem_description': problemDescription,
         'images': imageUrls,
+        if (videoUrl != null) 'video_url': videoUrl,
       });
       state = state.copyWith(isSubmitting: false);
       await load();
@@ -98,6 +117,18 @@ class InspectionNotifier extends StateNotifier<InspectionState> {
       state = state.copyWith(isSubmitting: false, error: 'فشل إرسال طلب الفحص');
       return false;
     }
+  }
+
+  static String _guessContentType(String filename) {
+    final lower = filename.toLowerCase();
+    if (lower.endsWith('.jpg') || lower.endsWith('.jpeg')) return 'image/jpeg';
+    if (lower.endsWith('.png')) return 'image/png';
+    if (lower.endsWith('.webp')) return 'image/webp';
+    if (lower.endsWith('.mp4')) return 'video/mp4';
+    if (lower.endsWith('.mov')) return 'video/quicktime';
+    if (lower.endsWith('.avi')) return 'video/x-msvideo';
+    if (lower.endsWith('.webm')) return 'video/webm';
+    return 'application/octet-stream';
   }
 
   static Future<List<Map<String, dynamic>>> _loadCache() async {
