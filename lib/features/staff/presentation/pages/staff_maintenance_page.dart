@@ -1,8 +1,13 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:dio/dio.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/network/api_client.dart';
+import '../../../../shared/widgets/media_pick_btn.dart';
 import '../pages/staff_shell.dart';
 
 final _staffMaintenanceProvider = FutureProvider<List<dynamic>>((ref) async {
@@ -159,19 +164,50 @@ class _StaffMaintenancePageState extends ConsumerState<StaffMaintenancePage> {
     );
   }
 
-  /// Shows a dialog asking for optional notes before confirming the status change.
+  static String _guessContentType(String filename) {
+    final lower = filename.toLowerCase();
+    if (lower.endsWith('.jpg') || lower.endsWith('.jpeg')) return 'image/jpeg';
+    if (lower.endsWith('.png')) return 'image/png';
+    if (lower.endsWith('.webp')) return 'image/webp';
+    if (lower.endsWith('.mp4')) return 'video/mp4';
+    if (lower.endsWith('.mov')) return 'video/quicktime';
+    if (lower.endsWith('.avi')) return 'video/x-msvideo';
+    if (lower.endsWith('.webm')) return 'video/webm';
+    return 'application/octet-stream';
+  }
+
+  Future<String?> _uploadFile(ApiClient api, XFile file) async {
+    try {
+      final bytes = await file.readAsBytes();
+      final ct = _guessContentType(file.name);
+      final form = FormData.fromMap({
+        'file': MultipartFile.fromBytes(bytes,
+            filename: file.name, contentType: DioMediaType.parse(ct)),
+      });
+      final res = await api.postForm('/uploads/media', form);
+      return res.data['url'] as String?;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Shows a dialog asking for note + optional images/video before confirming the status change.
   Future<void> _promptStatusUpdate(int orderId, String newStatus) async {
     final notesCtrl = TextEditingController();
     final label = _statusLabels[newStatus] ?? newStatus;
     final color = _statusColors[newStatus] ?? AppColors.primary;
+    final List<XFile> selectedImages = [];
+    XFile? selectedVideo;
+    bool isUploading = false;
 
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: AppColors.darkCard,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Row(
-          children: [
+      barrierDismissible: false,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSt) => AlertDialog(
+          backgroundColor: AppColors.darkCard,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Row(children: [
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               decoration: BoxDecoration(
@@ -180,78 +216,207 @@ class _StaffMaintenancePageState extends ConsumerState<StaffMaintenancePage> {
                 border: Border.all(color: color.withOpacity(0.4)),
               ),
               child: Text(label,
-                  style: TextStyle(fontFamily: 'Cairo', fontSize: 12, fontWeight: FontWeight.w700, color: color)),
+                  style: TextStyle(
+                      fontFamily: 'Cairo', fontSize: 12, fontWeight: FontWeight.w700, color: color)),
             ),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('ملاحظات (اختياري)',
-                style: TextStyle(fontFamily: 'Cairo', fontSize: 13, color: AppColors.textSecondary)),
-            const SizedBox(height: 8),
-            TextField(
-              controller: notesCtrl,
-              maxLines: 3,
-              style: const TextStyle(fontFamily: 'Cairo', color: Colors.white, fontSize: 13),
-              decoration: InputDecoration(
-                hintText: 'أضف ملاحظة للعميل أو للسجل...',
-                hintStyle: const TextStyle(fontFamily: 'Cairo', color: AppColors.textMuted, fontSize: 12),
-                filled: true,
-                fillColor: AppColors.darkSurface,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
-                  borderSide: BorderSide(color: AppColors.darkBorder),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
-                  borderSide: BorderSide(color: AppColors.darkBorder),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
-                  borderSide: BorderSide(color: color.withOpacity(0.6)),
+          ]),
+          content: SingleChildScrollView(
+            child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+              // Notes
+              const Text('تعليق / ملاحظة (اختياري)',
+                  style: TextStyle(fontFamily: 'Cairo', fontSize: 12, color: AppColors.textSecondary)),
+              const SizedBox(height: 6),
+              TextField(
+                controller: notesCtrl,
+                maxLines: 3,
+                style: const TextStyle(fontFamily: 'Cairo', color: Colors.white, fontSize: 13),
+                decoration: InputDecoration(
+                  hintText: 'اكتب تعليقاً للعميل أو للسجل...',
+                  hintStyle: const TextStyle(fontFamily: 'Cairo', color: AppColors.textMuted, fontSize: 12),
+                  filled: true,
+                  fillColor: AppColors.darkSurface,
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10),
+                      borderSide: const BorderSide(color: AppColors.darkBorder)),
+                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10),
+                      borderSide: const BorderSide(color: AppColors.darkBorder)),
+                  focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10),
+                      borderSide: BorderSide(color: color.withOpacity(0.6))),
                 ),
               ),
+              const SizedBox(height: 14),
+              // Media buttons row
+              const Text('وسائط (اختياري)',
+                  style: TextStyle(fontFamily: 'Cairo', fontSize: 12, color: AppColors.textSecondary)),
+              const SizedBox(height: 6),
+              Row(children: [
+                Expanded(
+                  child: MediaPickBtn(
+                    icon: selectedImages.isEmpty
+                        ? Icons.add_photo_alternate_outlined
+                        : Icons.check_circle_outline,
+                    label: selectedImages.isEmpty ? 'صور' : '${selectedImages.length} صور ✓',
+                    color: selectedImages.isEmpty ? AppColors.primary : AppColors.success,
+                    onTap: () async {
+                      final picked =
+                          await ImagePicker().pickMultiImage(imageQuality: 80);
+                      if (picked.isNotEmpty) {
+                        setSt(() {
+                          selectedImages.clear();
+                          selectedImages.addAll(picked.take(5));
+                        });
+                      }
+                    },
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: MediaPickBtn(
+                    icon: selectedVideo == null
+                        ? Icons.videocam_outlined
+                        : Icons.videocam,
+                    label: selectedVideo == null ? 'فيديو' : 'فيديو ✓',
+                    color: selectedVideo == null ? const Color(0xFF06B6D4) : AppColors.success,
+                    subtitle: kIsWeb ? 'موبايل فقط' : null,
+                    onTap: kIsWeb
+                        ? null
+                        : () async {
+                            final v = await ImagePicker().pickVideo(
+                              source: ImageSource.gallery,
+                              maxDuration: const Duration(minutes: 3),
+                            );
+                            if (v != null) setSt(() => selectedVideo = v);
+                          },
+                  ),
+                ),
+              ]),
+              // Image thumbs
+              if (selectedImages.isNotEmpty) ...[
+                const SizedBox(height: 10),
+                SizedBox(
+                  height: 60,
+                  child: ListView.builder(
+                    scrollDirection: Axis.horizontal,
+                    itemCount: selectedImages.length,
+                    itemBuilder: (_, i) => Stack(children: [
+                      Container(
+                        width: 58, height: 58,
+                        margin: const EdgeInsets.only(right: 6),
+                        decoration: BoxDecoration(
+                          color: AppColors.darkSurface,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: AppColors.primary.withOpacity(0.4)),
+                          image: kIsWeb ? null : DecorationImage(
+                            image: FileImage(File(selectedImages[i].path)),
+                            fit: BoxFit.cover,
+                          ),
+                        ),
+                        child: kIsWeb
+                            ? const Icon(Icons.image, color: AppColors.primary, size: 22)
+                            : null,
+                      ),
+                      Positioned(
+                        top: 0, right: 8,
+                        child: GestureDetector(
+                          onTap: () => setSt(() => selectedImages.removeAt(i)),
+                          child: Container(
+                            decoration: const BoxDecoration(
+                              color: AppColors.error, shape: BoxShape.circle),
+                            padding: const EdgeInsets.all(2),
+                            child: const Icon(Icons.close, color: Colors.white, size: 10),
+                          ),
+                        ),
+                      ),
+                    ]),
+                  ),
+                ),
+              ],
+              // Video chip
+              if (selectedVideo != null) ...[
+                const SizedBox(height: 8),
+                Row(children: [
+                  const Icon(Icons.videocam, color: Color(0xFF06B6D4), size: 14),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(selectedVideo!.name,
+                        style: const TextStyle(fontFamily: 'Cairo', fontSize: 11,
+                            color: Color(0xFF06B6D4)),
+                        overflow: TextOverflow.ellipsis),
+                  ),
+                  GestureDetector(
+                    onTap: () => setSt(() => selectedVideo = null),
+                    child: const Icon(Icons.close, color: AppColors.textMuted, size: 14),
+                  ),
+                ]),
+              ],
+              if (isUploading) ...[
+                const SizedBox(height: 12),
+                const Row(children: [
+                  SizedBox(width: 16, height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary)),
+                  SizedBox(width: 10),
+                  Text('جاري رفع الوسائط...',
+                      style: TextStyle(fontFamily: 'Cairo', fontSize: 12, color: AppColors.textMuted)),
+                ]),
+              ],
+            ]),
+          ),
+          actions: [
+            TextButton(
+              onPressed: isUploading ? null : () => Navigator.pop(ctx, false),
+              child: const Text('إلغاء',
+                  style: TextStyle(fontFamily: 'Cairo', color: AppColors.textSecondary)),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: color,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+              onPressed: isUploading ? null : () => Navigator.pop(ctx, true),
+              child: const Text('تأكيد',
+                  style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.w700)),
             ),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('إلغاء', style: TextStyle(fontFamily: 'Cairo', color: AppColors.textSecondary)),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: color,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-            ),
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('تأكيد', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.w700)),
-          ),
-        ],
       ),
     );
 
     if (confirmed == true && mounted) {
-      await _updateMaintenanceStatus(orderId, newStatus, notesCtrl.text.trim().isEmpty ? null : notesCtrl.text.trim());
+      // Upload media before status update
+      final api = ref.read(apiClientProvider);
+      final List<String> mediaUrls = [];
+      for (final img in selectedImages) {
+        final url = await _uploadFile(api, img);
+        if (url != null) mediaUrls.add(url);
+      }
+      if (selectedVideo != null) {
+        final url = await _uploadFile(api, selectedVideo!);
+        if (url != null) mediaUrls.add(url);
+      }
+      await _updateMaintenanceStatus(
+        orderId, newStatus,
+        notesCtrl.text.trim().isEmpty ? null : notesCtrl.text.trim(),
+        mediaUrls,
+      );
     }
     notesCtrl.dispose();
   }
 
-  Future<void> _updateMaintenanceStatus(int orderId, String newStatus, String? note) async {
+  Future<void> _updateMaintenanceStatus(
+      int orderId, String newStatus, String? note, List<String> mediaUrls) async {
     try {
       final api = ref.read(apiClientProvider);
       await api.put('/maintenance/$orderId/status', data: {
         'maintenance_status': newStatus,
         if (note != null) 'note': note,
+        if (mediaUrls.isNotEmpty) 'media_urls': mediaUrls,
       });
       ref.invalidate(_staffMaintenanceProvider);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: const Text('تم تحديث حالة الصيانة', style: TextStyle(fontFamily: 'Cairo')),
+            content: const Text('تم تحديث حالة الصيانة',
+                style: TextStyle(fontFamily: 'Cairo')),
             backgroundColor: AppColors.success,
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -262,7 +427,8 @@ class _StaffMaintenancePageState extends ConsumerState<StaffMaintenancePage> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('فشل التحديث: $e', style: const TextStyle(fontFamily: 'Cairo')),
+            content: Text('فشل التحديث: $e',
+                style: const TextStyle(fontFamily: 'Cairo')),
             backgroundColor: AppColors.error,
             behavior: SnackBarBehavior.floating,
           ),
@@ -547,14 +713,11 @@ class _MaintenanceCard extends StatelessWidget {
   }
 
   List<String> _getNextStatuses(String current) {
-    const flow = {
-      'received':     ['inspecting', 'unrepairable_visit', 'unrepairable_other'],
-      'inspecting':   ['repairing', 'waiting_part', 'unrepairable_visit', 'unrepairable_other'],
-      'repairing':    ['repaired', 'waiting_part'],
-      'waiting_part': ['repairing'],
-      'repaired':     ['ready'],
-      'ready':        ['delivered'],
-    };
-    return flow[current] ?? [];
+    const all = [
+      'received', 'inspecting', 'repairing', 'waiting_part',
+      'repaired', 'ready', 'delivered',
+      'unrepairable_visit', 'unrepairable_other',
+    ];
+    return all.where((s) => s != current).toList();
   }
 }

@@ -36,6 +36,7 @@ class MaintenanceStatusUpdate(BaseModel):
     note: Optional[str] = None
     estimated_time: Optional[str] = None
     admin_notes: Optional[str] = None
+    media_urls: Optional[List[str]] = []
 
 
 class MaintenanceResponse(BaseModel):
@@ -238,6 +239,7 @@ def update_maintenance_status(
         order_id=order.id,
         status=data.maintenance_status,
         note=data.note,
+        images=data.media_urls or [],
         employee_name=current_user.name,
     )
     db.add(upd)

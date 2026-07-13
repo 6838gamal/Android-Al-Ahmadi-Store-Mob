@@ -1,9 +1,14 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:dio/dio.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/network/api_client.dart';
 import 'staff_shell.dart';
+import '../../../../shared/widgets/media_pick_btn.dart';
 
 final _inspectionListProvider = FutureProvider<List<dynamic>>((ref) async {
   final api = ref.read(apiClientProvider);
@@ -24,12 +29,14 @@ class _StaffInspectionPageState extends ConsumerState<StaffInspectionPage> {
   static const _statusLabels = {
     '': 'الكل',
     'pending': 'قيد الانتظار',
+    'under_review': 'قيد الفحص',
     'responded': 'تم الرد',
     'closed': 'مغلق',
   };
 
   static const _statusColors = {
     'pending': Color(0xFFF59E0B),
+    'under_review': Color(0xFF8B5CF6),
     'responded': Color(0xFF10B981),
     'closed': Color(0xFF6B7280),
   };
@@ -93,7 +100,7 @@ class _StaffInspectionPageState extends ConsumerState<StaffInspectionPage> {
                     item: filtered[i],
                     statusColors: _statusColors,
                     statusLabels: _statusLabels,
-                    onRespond: _respondToInspection,
+                    onRespond: _showRespondDialog,
                     onClose: _closeInspection,
                   ).animate(delay: Duration(milliseconds: i * 40)).fadeIn().slideY(begin: 0.05, end: 0),
                 );
@@ -138,22 +145,304 @@ class _StaffInspectionPageState extends ConsumerState<StaffInspectionPage> {
     );
   }
 
-  Future<void> _respondToInspection(int id, String diagnosis, String? price, String? notes) async {
+  static String _guessContentType(String filename) {
+    final lower = filename.toLowerCase();
+    if (lower.endsWith('.jpg') || lower.endsWith('.jpeg')) return 'image/jpeg';
+    if (lower.endsWith('.png')) return 'image/png';
+    if (lower.endsWith('.webp')) return 'image/webp';
+    if (lower.endsWith('.mp4')) return 'video/mp4';
+    if (lower.endsWith('.mov')) return 'video/quicktime';
+    if (lower.endsWith('.avi')) return 'video/x-msvideo';
+    if (lower.endsWith('.webm')) return 'video/webm';
+    return 'application/octet-stream';
+  }
+
+  Future<String?> _uploadFile(ApiClient api, XFile file) async {
+    try {
+      final bytes = await file.readAsBytes();
+      final ct = _guessContentType(file.name);
+      final form = FormData.fromMap({
+        'file': MultipartFile.fromBytes(bytes,
+            filename: file.name, contentType: DioMediaType.parse(ct)),
+      });
+      final res = await api.postForm('/uploads/media', form);
+      return res.data['url'] as String?;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Shows the respond dialog — runs in page state so it can upload via ApiClient.
+  void _showRespondDialog(int id) {
+    final diagCtrl = TextEditingController();
+    final priceCtrl = TextEditingController();
+    final notesCtrl = TextEditingController();
+    final List<XFile> selectedImages = [];
+    XFile? selectedVideo;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => StatefulBuilder(
+        builder: (ctx, setSt) => AlertDialog(
+          backgroundColor: AppColors.darkSurface,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Text('الرد على طلب الفحص',
+              style: TextStyle(
+                  fontFamily: 'Cairo',
+                  color: Colors.white,
+                  fontWeight: FontWeight.w700)),
+          content: SingleChildScrollView(
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              // Diagnosis
+              TextField(
+                controller: diagCtrl,
+                maxLines: 3,
+                style: const TextStyle(fontFamily: 'Cairo', color: Colors.white),
+                decoration: const InputDecoration(
+                  labelText: 'التشخيص *',
+                  labelStyle: TextStyle(fontFamily: 'Cairo', color: AppColors.textMuted),
+                  enabledBorder: OutlineInputBorder(
+                      borderSide: BorderSide(color: AppColors.darkBorder)),
+                  focusedBorder: OutlineInputBorder(
+                      borderSide: BorderSide(color: AppColors.primary)),
+                ),
+              ),
+              const SizedBox(height: 10),
+              // Price
+              TextField(
+                controller: priceCtrl,
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                style: const TextStyle(fontFamily: 'Cairo', color: Colors.white),
+                decoration: const InputDecoration(
+                  labelText: 'السعر التقديري (ر.ي)',
+                  labelStyle: TextStyle(fontFamily: 'Cairo', color: AppColors.textMuted),
+                  enabledBorder: OutlineInputBorder(
+                      borderSide: BorderSide(color: AppColors.darkBorder)),
+                  focusedBorder: OutlineInputBorder(
+                      borderSide: BorderSide(color: AppColors.primary)),
+                ),
+              ),
+              const SizedBox(height: 10),
+              // Notes
+              TextField(
+                controller: notesCtrl,
+                maxLines: 2,
+                style: const TextStyle(fontFamily: 'Cairo', color: Colors.white),
+                decoration: const InputDecoration(
+                  labelText: 'ملاحظات إضافية',
+                  labelStyle: TextStyle(fontFamily: 'Cairo', color: AppColors.textMuted),
+                  enabledBorder: OutlineInputBorder(
+                      borderSide: BorderSide(color: AppColors.darkBorder)),
+                  focusedBorder: OutlineInputBorder(
+                      borderSide: BorderSide(color: AppColors.primary)),
+                ),
+              ),
+              const SizedBox(height: 14),
+              // Media header
+              Align(
+                alignment: AlignmentDirectional.centerStart,
+                child: Text('وسائط الرد (صور / فيديو — اختياري)',
+                    style: const TextStyle(
+                        fontFamily: 'Cairo',
+                        fontSize: 12,
+                        color: AppColors.textSecondary)),
+              ),
+              const SizedBox(height: 8),
+              // Media buttons
+              Row(children: [
+                Expanded(
+                  child: MediaPickBtn(
+                    icon: selectedImages.isEmpty
+                        ? Icons.add_photo_alternate_outlined
+                        : Icons.check_circle_outline,
+                    label: selectedImages.isEmpty
+                        ? 'صور'
+                        : '${selectedImages.length} صور ✓',
+                    color: selectedImages.isEmpty ? AppColors.primary : AppColors.success,
+                    onTap: () async {
+                      final picked =
+                          await ImagePicker().pickMultiImage(imageQuality: 80);
+                      if (picked.isNotEmpty) {
+                        setSt(() {
+                          selectedImages.clear();
+                          selectedImages.addAll(picked.take(5));
+                        });
+                      }
+                    },
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: MediaPickBtn(
+                    icon: selectedVideo == null
+                        ? Icons.videocam_outlined
+                        : Icons.videocam,
+                    label: selectedVideo == null ? 'فيديو' : 'فيديو ✓',
+                    color: selectedVideo == null
+                        ? const Color(0xFF06B6D4)
+                        : AppColors.success,
+                    subtitle: kIsWeb ? 'موبايل فقط' : null,
+                    onTap: kIsWeb
+                        ? null
+                        : () async {
+                            final v = await ImagePicker().pickVideo(
+                              source: ImageSource.gallery,
+                              maxDuration: const Duration(minutes: 3),
+                            );
+                            if (v != null) setSt(() => selectedVideo = v);
+                          },
+                  ),
+                ),
+              ]),
+              // Image thumbs
+              if (selectedImages.isNotEmpty) ...[
+                const SizedBox(height: 10),
+                SizedBox(
+                  height: 60,
+                  child: ListView.builder(
+                    scrollDirection: Axis.horizontal,
+                    itemCount: selectedImages.length,
+                    itemBuilder: (_, i) => Stack(children: [
+                      Container(
+                        width: 58,
+                        height: 58,
+                        margin: const EdgeInsets.only(right: 6),
+                        decoration: BoxDecoration(
+                          color: AppColors.darkCard,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                              color: AppColors.primary.withOpacity(0.4)),
+                          image: kIsWeb
+                              ? null
+                              : DecorationImage(
+                                  image: FileImage(
+                                      File(selectedImages[i].path)),
+                                  fit: BoxFit.cover,
+                                ),
+                        ),
+                        child: kIsWeb
+                            ? const Icon(Icons.image,
+                                color: AppColors.primary, size: 22)
+                            : null,
+                      ),
+                      Positioned(
+                        top: 0,
+                        right: 8,
+                        child: GestureDetector(
+                          onTap: () =>
+                              setSt(() => selectedImages.removeAt(i)),
+                          child: Container(
+                            decoration: const BoxDecoration(
+                                color: AppColors.error,
+                                shape: BoxShape.circle),
+                            padding: const EdgeInsets.all(2),
+                            child: const Icon(Icons.close,
+                                color: Colors.white, size: 10),
+                          ),
+                        ),
+                      ),
+                    ]),
+                  ),
+                ),
+              ],
+              // Video chip
+              if (selectedVideo != null) ...[
+                const SizedBox(height: 8),
+                Row(children: [
+                  const Icon(Icons.videocam,
+                      color: Color(0xFF06B6D4), size: 14),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(selectedVideo!.name,
+                        style: const TextStyle(
+                            fontFamily: 'Cairo',
+                            fontSize: 11,
+                            color: Color(0xFF06B6D4)),
+                        overflow: TextOverflow.ellipsis),
+                  ),
+                  GestureDetector(
+                    onTap: () => setSt(() => selectedVideo = null),
+                    child: const Icon(Icons.close,
+                        color: AppColors.textMuted, size: 14),
+                  ),
+                ]),
+              ],
+            ]),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('إلغاء',
+                  style: TextStyle(
+                      fontFamily: 'Cairo', color: AppColors.textMuted)),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                if (diagCtrl.text.trim().isEmpty) return;
+                Navigator.pop(ctx);
+                await _submitResponse(
+                  id: id,
+                  diagnosis: diagCtrl.text.trim(),
+                  price: priceCtrl.text.trim().isEmpty
+                      ? null
+                      : priceCtrl.text.trim(),
+                  notes: notesCtrl.text.trim().isEmpty
+                      ? null
+                      : notesCtrl.text.trim(),
+                  images: selectedImages,
+                  video: selectedVideo,
+                );
+              },
+              style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
+              child: const Text('إرسال الرد',
+                  style: TextStyle(
+                      fontFamily: 'Cairo', color: Colors.white)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _submitResponse({
+    required int id,
+    required String diagnosis,
+    String? price,
+    String? notes,
+    List<XFile> images = const [],
+    XFile? video,
+  }) async {
     try {
       final api = ref.read(apiClientProvider);
+
+      // Upload images + video (best-effort)
+      final List<String> mediaUrls = [];
+      for (final img in images) {
+        final url = await _uploadFile(api, img);
+        if (url != null) mediaUrls.add(url);
+      }
+      if (video != null) {
+        final url = await _uploadFile(api, video);
+        if (url != null) mediaUrls.add(url);
+      }
+
       await api.post('/inspection/$id/respond', data: {
         'diagnosis': diagnosis,
-        'estimated_price': price,
-        'response_notes': notes,
+        if (price != null) 'estimated_price': price,
+        if (notes != null) 'response_notes': notes,
+        if (mediaUrls.isNotEmpty) 'response_images': mediaUrls,
       });
       ref.invalidate(_inspectionListProvider);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: const Text('تم إرسال الرد بنجاح', style: TextStyle(fontFamily: 'Cairo')),
+            content: const Text('تم إرسال الرد بنجاح',
+                style: TextStyle(fontFamily: 'Cairo')),
             backgroundColor: AppColors.success,
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           ),
         );
       }
@@ -161,7 +450,8 @@ class _StaffInspectionPageState extends ConsumerState<StaffInspectionPage> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('فشل الإرسال: $e', style: const TextStyle(fontFamily: 'Cairo')),
+            content: Text('فشل الإرسال: $e',
+                style: const TextStyle(fontFamily: 'Cairo')),
             backgroundColor: AppColors.error,
             behavior: SnackBarBehavior.floating,
           ),
@@ -183,7 +473,7 @@ class _InspectionCard extends StatelessWidget {
   final Map<String, dynamic> item;
   final Map<String, Color> statusColors;
   final Map<String, String> statusLabels;
-  final void Function(int, String, String?, String?) onRespond;
+  final void Function(int) onRespond;
   final void Function(int) onClose;
 
   const _InspectionCard({
@@ -345,18 +635,21 @@ class _InspectionCard extends StatelessWidget {
               ),
             ],
             const SizedBox(height: 12),
-            if (status == 'pending') ...[
+            if (status == 'pending' || status == 'under_review') ...[
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton.icon(
-                  onPressed: () => _showRespondDialog(context),
+                  onPressed: () => onRespond(item['id']),
                   icon: const Icon(Icons.reply, size: 16),
-                  label: const Text('الرد على الطلب', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.w700)),
+                  label: const Text('الرد على الطلب',
+                      style: TextStyle(
+                          fontFamily: 'Cairo', fontWeight: FontWeight.w700)),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF06B6D4),
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 10),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10)),
                   ),
                 ),
               ),
@@ -366,12 +659,15 @@ class _InspectionCard extends StatelessWidget {
                 child: OutlinedButton.icon(
                   onPressed: () => onClose(item['id']),
                   icon: const Icon(Icons.check, size: 16),
-                  label: const Text('إغلاق الطلب', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.w700)),
+                  label: const Text('إغلاق الطلب',
+                      style: TextStyle(
+                          fontFamily: 'Cairo', fontWeight: FontWeight.w700)),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: AppColors.textMuted,
                     side: const BorderSide(color: AppColors.darkBorder),
                     padding: const EdgeInsets.symmetric(vertical: 10),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10)),
                   ),
                 ),
               ),
@@ -403,89 +699,25 @@ class _InspectionCard extends StatelessWidget {
                       fontSize: 15)),
               const SizedBox(height: 12),
               SelectableText(url,
-                  style: const TextStyle(color: Colors.blueAccent, fontSize: 12)),
+                  style: const TextStyle(
+                      color: Colors.blueAccent, fontSize: 12)),
               const SizedBox(height: 8),
               const Text('انسخ الرابط وافتحه في المتصفح لمشاهدة الفيديو',
                   style: TextStyle(
-                      fontFamily: 'Cairo', color: Colors.white70, fontSize: 11),
+                      fontFamily: 'Cairo',
+                      color: Colors.white70,
+                      fontSize: 11),
                   textAlign: TextAlign.center),
               const SizedBox(height: 16),
               TextButton(
                 onPressed: () => Navigator.pop(context),
                 child: const Text('إغلاق',
-                    style: TextStyle(fontFamily: 'Cairo', color: Colors.white)),
+                    style: TextStyle(
+                        fontFamily: 'Cairo', color: Colors.white)),
               ),
             ],
           ),
         ),
-      ),
-    );
-  }
-
-  void _showRespondDialog(BuildContext context) {
-    final diagCtrl = TextEditingController();
-    final priceCtrl = TextEditingController();
-    final notesCtrl = TextEditingController();
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        backgroundColor: AppColors.darkSurface,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('الرد على طلب الفحص',
-            style: TextStyle(fontFamily: 'Cairo', color: Colors.white, fontWeight: FontWeight.w700)),
-        content: SingleChildScrollView(
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
-            TextField(
-              controller: diagCtrl,
-              maxLines: 3,
-              style: const TextStyle(fontFamily: 'Cairo', color: Colors.white),
-              decoration: const InputDecoration(
-                labelText: 'التشخيص *',
-                labelStyle: TextStyle(fontFamily: 'Cairo', color: AppColors.textMuted),
-                enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: AppColors.darkBorder)),
-                focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: AppColors.primary)),
-              ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: priceCtrl,
-              style: const TextStyle(fontFamily: 'Cairo', color: Colors.white),
-              decoration: const InputDecoration(
-                labelText: 'السعر التقديري',
-                labelStyle: TextStyle(fontFamily: 'Cairo', color: AppColors.textMuted),
-                enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: AppColors.darkBorder)),
-                focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: AppColors.primary)),
-              ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: notesCtrl,
-              style: const TextStyle(fontFamily: 'Cairo', color: Colors.white),
-              decoration: const InputDecoration(
-                labelText: 'ملاحظات إضافية',
-                labelStyle: TextStyle(fontFamily: 'Cairo', color: AppColors.textMuted),
-                enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: AppColors.darkBorder)),
-                focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: AppColors.primary)),
-              ),
-            ),
-          ]),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('إلغاء', style: TextStyle(fontFamily: 'Cairo', color: AppColors.textMuted)),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              if (diagCtrl.text.trim().isEmpty) return;
-              Navigator.pop(context);
-              onRespond(item['id'], diagCtrl.text.trim(), priceCtrl.text.trim().isEmpty ? null : priceCtrl.text.trim(),
-                  notesCtrl.text.trim().isEmpty ? null : notesCtrl.text.trim());
-            },
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
-            child: const Text('إرسال الرد', style: TextStyle(fontFamily: 'Cairo', color: Colors.white)),
-          ),
-        ],
       ),
     );
   }
