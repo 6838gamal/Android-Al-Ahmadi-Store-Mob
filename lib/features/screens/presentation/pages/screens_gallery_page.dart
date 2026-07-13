@@ -74,7 +74,6 @@ final _screenCoversProvider = FutureProvider<Map<String, String?>>((ref) async {
     final res = await api.get('/products', queryParameters: {
       'limit': 500,
       'skip': 0,
-      'category': 'screen',
     });
     final raw = res.data;
     final List items = raw is List
@@ -112,7 +111,6 @@ final _screensGalleryProvider =
     final res = await api.get('/products', queryParameters: {
       'limit': 200,
       'skip': 0,
-      'category': 'screen',
       'model': modelKey,
       'grade': grade,
     });
