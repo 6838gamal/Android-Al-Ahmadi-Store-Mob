@@ -1816,6 +1816,7 @@ file:///home/runner/workspace/lib/features/orders/presentation/pages/create_orde
 file:///home/runner/workspace/lib/features/orders/presentation/pages/order_tracking_page.dart
 file:///home/runner/workspace/lib/features/orders/presentation/pages/orders_page.dart
 file:///home/runner/workspace/lib/features/orders/presentation/providers/orders_provider.dart
+file:///home/runner/workspace/lib/features/products/presentation/pages/add_product_page.dart
 file:///home/runner/workspace/lib/features/products/presentation/pages/product_detail_page.dart
 file:///home/runner/workspace/lib/features/products/presentation/pages/products_page.dart
 file:///home/runner/workspace/lib/features/products/presentation/providers/products_provider.dart
@@ -1824,6 +1825,7 @@ file:///home/runner/workspace/lib/features/referrals/presentation/pages/referral
 file:///home/runner/workspace/lib/features/referrals/presentation/providers/referrals_provider.dart
 file:///home/runner/workspace/lib/features/reservations/presentation/pages/create_reservation_page.dart
 file:///home/runner/workspace/lib/features/reservations/presentation/pages/reservations_page.dart
+file:///home/runner/workspace/lib/features/screens/presentation/pages/screens_gallery_page.dart
 file:///home/runner/workspace/lib/features/settings/presentation/pages/settings_page.dart
 file:///home/runner/workspace/lib/features/staff/presentation/pages/staff_home_page.dart
 file:///home/runner/workspace/lib/features/staff/presentation/pages/staff_inspection_page.dart

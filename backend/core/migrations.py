@@ -184,6 +184,33 @@ def run_migrations():
                 if col_name not in auc_cols:
                     conn.execute(text(f"ALTER TABLE auctions ADD COLUMN {col_name} {col_def}"))
 
+        # ── fix columns that were mistakenly created as TEXT instead of JSON ─
+        # (products.image_urls, inspection_requests.response_images). On
+        # Postgres, SQLAlchemy's JSON type assumes the driver already
+        # deserializes native json/jsonb columns, so a raw TEXT column with
+        # '[]' in it leaks through as the literal string '[]' instead of a
+        # list, breaking response validation (500 on GET /api/products).
+        _json_text_cols = [
+            ("products", "image_urls"),
+            ("inspection_requests", "response_images"),
+        ]
+        for tbl, col in _json_text_cols:
+            if tbl in existing_tables:
+                cols = [c["name"] for c in inspector.get_columns(tbl)]
+                col_info = next((c for c in inspector.get_columns(tbl) if c["name"] == col), None)
+                if col_info is not None:
+                    col_type = str(col_info["type"]).upper()
+                    if _is_postgres() and "JSON" not in col_type:
+                        conn.execute(text(f"ALTER TABLE {tbl} ALTER COLUMN {col} DROP DEFAULT"))
+                        conn.execute(text(
+                            f"ALTER TABLE {tbl} ALTER COLUMN {col} TYPE json "
+                            f"USING CASE WHEN {col} IS NULL OR {col} = '' THEN '[]'::json "
+                            f"ELSE {col}::json END"
+                        ))
+                        conn.execute(text(
+                            f"ALTER TABLE {tbl} ALTER COLUMN {col} SET DEFAULT '[]'::json"
+                        ))
+
         # ── purchase_invoice_items table (timestamps) ──────────────────────
         if "purchase_invoice_items" in existing_tables:
             pii_cols = [c["name"] for c in inspector.get_columns("purchase_invoice_items")]

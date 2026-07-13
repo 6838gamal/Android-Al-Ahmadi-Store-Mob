@@ -115,7 +115,16 @@ class _ProductsPageState extends ConsumerState<ProductsPage> {
             const SliverFillRemaining(child: ProductGridShimmer())
           else if (state.error != null)
             SliverFillRemaining(
-                child: EmptyState(title: 'حدث خطأ', subtitle: state.error, icon: Icons.error_outline))
+                child: EmptyState(
+                  title: 'تعذّر تحميل المنتجات',
+                  subtitle: state.error,
+                  icon: Icons.wifi_off_rounded,
+                  actionLabel: 'إعادة المحاولة',
+                  onAction: () => ref.read(productsProvider.notifier).load(
+                        category: _selectedCategory,
+                        status: _selectedStatus,
+                      ),
+                ))
           else if (state.products.isEmpty)
             const SliverFillRemaining(
                 child: EmptyState(title: 'لا توجد منتجات', icon: Icons.inventory_2_outlined))
