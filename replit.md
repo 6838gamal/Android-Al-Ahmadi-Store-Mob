@@ -55,4 +55,8 @@ Admin Panel (port 8080)
 
 ## User Preferences
 
-(Add your preferences here)
+- Do not replace external URLs (e.g. the Render.com backend API) with local ones, and do not change other existing configuration/details when doing setup work — keep everything as imported.
+
+## Setup Notes
+
+Python dependencies (uvicorn, jinja2, itsdangerous, etc.) were missing after import and were installed via `uv add` from the existing `requirements.txt` list; `bcrypt` was re-pinned to `4.0.1` (required for passlib compatibility). No URLs, endpoints, or other configuration were changed. All three workflows (Start application, Backend API, Admin Panel) are running.
