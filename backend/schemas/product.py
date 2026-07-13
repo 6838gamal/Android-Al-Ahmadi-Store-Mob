@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, List
 from datetime import datetime
 from backend.models.product import ProductCategory, ProductStatus
 
@@ -12,6 +12,7 @@ class ProductCreate(BaseModel):
     model: Optional[str] = None
     series: Optional[str] = None   # e.g. "s_series", "note_series"
     image_url: Optional[str] = None
+    image_urls: List[str] = []     # extra images beyond the primary
     price: float
     quantity: int = 0
     status: ProductStatus = ProductStatus.available
@@ -28,6 +29,8 @@ class ProductUpdate(BaseModel):
     brand: Optional[str] = None
     model: Optional[str] = None
     series: Optional[str] = None
+    image_url: Optional[str] = None
+    image_urls: Optional[List[str]] = None
     price: Optional[float] = None
     quantity: Optional[int] = None
     status: Optional[ProductStatus] = None
@@ -46,6 +49,7 @@ class ProductResponse(BaseModel):
     model: Optional[str]
     series: Optional[str]
     image_url: Optional[str]
+    image_urls: List[str] = []
     price: float
     quantity: int
     status: ProductStatus

@@ -6,7 +6,7 @@ from PIL import Image
 import io
 from backend.core.database import get_db
 from backend.core.config import settings
-from backend.api.dependencies import get_admin_user, get_current_user
+from backend.api.dependencies import get_admin_user, get_current_user, require_staff_or_above
 from backend.models.user import User
 from backend.models.stored_image import StoredImage
 from backend.core import supabase_storage
@@ -86,7 +86,7 @@ def serve_image(img_uuid: str, db: Session = Depends(get_db)):
 @router.post("/image")
 async def upload_image(
     file: UploadFile = File(...),
-    admin: User = Depends(get_admin_user),
+    admin: User = Depends(require_staff_or_above),
     db: Session = Depends(get_db),
 ):
     if file.content_type not in ALLOWED_IMAGE_TYPES:

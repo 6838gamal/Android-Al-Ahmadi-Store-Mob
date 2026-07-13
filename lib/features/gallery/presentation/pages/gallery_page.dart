@@ -7,6 +7,8 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/network/api_client.dart';
 import '../../../home/presentation/pages/main_shell.dart';
 import '../../../screens/presentation/pages/screens_gallery_page.dart';
+import '../../../auth/presentation/providers/auth_provider.dart';
+import '../../../products/presentation/pages/add_product_page.dart';
 
 // ─── Providers ────────────────────────────────────────────────────────────────
 
@@ -21,10 +23,24 @@ final _galleryProductsProvider =
     final List items = raw is List
         ? raw
         : ((raw['items'] ?? raw['products'] ?? raw['results'] ?? []) as List);
-    return items
-        .where((p) => _validUrl(p['image_url'] as String?))
-        .map<Map<String, dynamic>>((p) => Map<String, dynamic>.from(p as Map))
-        .toList();
+
+    // Expand: each extra image in image_urls becomes its own gallery entry
+    final expanded = <Map<String, dynamic>>[];
+    for (final p in items) {
+      final base = Map<String, dynamic>.from(p as Map);
+      final primary = base['image_url'] as String?;
+      final extras = (base['image_urls'] as List?)?.cast<String>() ?? [];
+
+      if (_validUrl(primary)) {
+        expanded.add(base);
+      }
+      for (final url in extras) {
+        if (_validUrl(url)) {
+          expanded.add({...base, 'image_url': url, '_extra_image': true});
+        }
+      }
+    }
+    return expanded;
   } catch (_) {
     return [];
   }
@@ -44,6 +60,8 @@ class GalleryPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final productsAsync = ref.watch(_galleryProductsProvider);
     final selectedCat  = ref.watch(_galleryCatProvider);
+    final auth         = ref.watch(authProvider);
+    final isStaff      = auth.isStaffOrAbove;
 
     return Scaffold(
       backgroundColor: AppColors.darkBg,
@@ -60,6 +78,22 @@ class GalleryPage extends ConsumerWidget {
                   MainShell.scaffoldKey.currentState?.openDrawer(),
             ),
             actions: [
+              if (isStaff)
+                IconButton(
+                  tooltip: 'إضافة منتج جديد',
+                  icon: const Icon(Icons.add_photo_alternate_outlined,
+                      color: AppColors.primary),
+                  onPressed: () async {
+                    final added = await Navigator.push<bool>(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const AddProductPage()),
+                    );
+                    if (added == true) {
+                      ref.invalidate(_galleryProductsProvider);
+                    }
+                  },
+                ),
               IconButton(
                 icon: const Icon(Icons.refresh, color: AppColors.primary),
                 onPressed: () => ref.invalidate(_galleryProductsProvider),

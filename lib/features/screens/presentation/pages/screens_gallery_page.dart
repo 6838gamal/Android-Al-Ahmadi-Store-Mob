@@ -7,6 +7,8 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/network/api_client.dart';
 import '../../../../core/utils/app_utils.dart';
 import '../../../../shared/widgets/status_badge.dart';
+import '../../../auth/presentation/providers/auth_provider.dart';
+import '../../../products/presentation/pages/add_product_page.dart';
 
 // ── Grade definitions ──────────────────────────────────────────────────────────
 
@@ -66,7 +68,24 @@ final _screensGalleryProvider =
     final List items = raw is List
         ? raw
         : ((raw['items'] ?? raw['products'] ?? raw['results'] ?? []) as List);
-    return items.map<Map<String, dynamic>>((p) => Map<String, dynamic>.from(p as Map)).toList();
+
+    // Expand multi-image products: each image_url becomes its own gallery entry
+    final expanded = <Map<String, dynamic>>[];
+    for (final p in items) {
+      final base = Map<String, dynamic>.from(p as Map);
+      final primary = base['image_url'] as String?;
+      final extras = (base['image_urls'] as List?)?.cast<String>() ?? [];
+
+      if (primary != null && primary.isNotEmpty) {
+        expanded.add(base);
+      }
+      for (final url in extras) {
+        if (url.isNotEmpty) {
+          expanded.add({...base, 'image_url': url, '_extra_image': true});
+        }
+      }
+    }
+    return expanded;
   } catch (_) {
     return [];
   }
@@ -196,6 +215,8 @@ class ScreensGalleryPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final productsAsync = ref.watch(_screensGalleryProvider(grade.key));
+    final auth = ref.watch(authProvider);
+    final isStaff = auth.isStaffOrAbove;
 
     return Scaffold(
       backgroundColor: AppColors.darkBg,
@@ -211,6 +232,26 @@ class ScreensGalleryPage extends ConsumerWidget {
               onPressed: () => Navigator.pop(context),
             ),
             actions: [
+              if (isStaff)
+                IconButton(
+                  tooltip: 'إضافة منتج جديد',
+                  icon: const Icon(Icons.add_photo_alternate_outlined,
+                      color: AppColors.primary),
+                  onPressed: () async {
+                    final added = await Navigator.push<bool>(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => AddProductPage(
+                          preCategory: 'screen',
+                          preSeries: grade.key,
+                        ),
+                      ),
+                    );
+                    if (added == true) {
+                      ref.invalidate(_screensGalleryProvider(grade.key));
+                    }
+                  },
+                ),
               IconButton(
                 icon: const Icon(Icons.refresh, color: Colors.white),
                 onPressed: () => ref.invalidate(_screensGalleryProvider(grade.key)),

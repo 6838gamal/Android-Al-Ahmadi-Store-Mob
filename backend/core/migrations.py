@@ -165,11 +165,13 @@ def run_migrations():
                 if col_name not in res_cols:
                     conn.execute(text(f"ALTER TABLE reservations ADD COLUMN {col_name} {col_def}"))
 
-        # ── products table — cost_price ────────────────────────────────────
+        # ── products table — cost_price + image_urls ───────────────────────
         if "products" in existing_tables:
             prod_cols2 = [c["name"] for c in inspector.get_columns("products")]
             if "cost_price" not in prod_cols2:
                 conn.execute(text("ALTER TABLE products ADD COLUMN cost_price FLOAT"))
+            if "image_urls" not in prod_cols2:
+                conn.execute(text("ALTER TABLE products ADD COLUMN image_urls TEXT DEFAULT '[]'"))
 
         # ── auctions table — reserve_price + commission_rate ───────────────
         if "auctions" in existing_tables:

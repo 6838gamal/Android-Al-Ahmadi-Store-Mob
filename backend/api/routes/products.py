@@ -4,7 +4,7 @@ from typing import Optional, List
 from backend.core.database import get_db
 from backend.models.product import Product, ProductStatus, ProductCategory
 from backend.schemas.product import ProductCreate, ProductUpdate, ProductResponse
-from backend.api.dependencies import get_admin_user, get_current_user
+from backend.api.dependencies import get_admin_user, get_current_user, require_staff_or_above
 from backend.models.user import User
 from backend.core.samsung_catalog import get_catalog_tree, MODEL_TO_SERIES, ALL_MODEL_KEYS
 from backend.core.notifications_helper import push_notification
@@ -69,7 +69,7 @@ def get_product(product_id: int, db: Session = Depends(get_db)):
 def create_product(
     product_data: ProductCreate,
     db: Session = Depends(get_db),
-    admin: User = Depends(get_admin_user)
+    admin: User = Depends(require_staff_or_above)
 ):
     data = product_data.dict()
     # Auto-detect series from model key if not explicitly set

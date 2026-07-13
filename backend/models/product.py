@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime, Enum, Text
+from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime, Enum, Text, JSON
 from sqlalchemy.sql import func
 from backend.core.database import Base
 import enum
@@ -40,6 +40,7 @@ class Product(Base):
     # Samsung series/model classification (e.g. series="s_series", model="S23 Ultra")
     series = Column(String(50), nullable=True, index=True)
 
+    image_urls = Column(JSON, default=list)   # extra images beyond the primary image_url
     barcode = Column(String(100), nullable=True, unique=True)
     qr_code = Column(String(500), nullable=True)
     notes = Column(Text, nullable=True)
