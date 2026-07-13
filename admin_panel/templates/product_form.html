@@ -101,17 +101,41 @@
               <i class="fa-solid fa-palette"></i>
               درجة الشاشة (اللون)
             </p>
-            <div class="flex flex-wrap gap-4">
+            <div class="grid grid-cols-3 gap-3">
               {% for gval, glabel, gcolor in [('white','أبيض','#f3f4f6'),('green','أخضر','#22c55e'),('orange','برتقالي','#f97316')] %}
-              <label class="flex items-center gap-2 cursor-pointer bg-dark-bg/50 border border-dark-border rounded-xl px-4 py-2 hover:border-emerald-500/50 transition">
-                <input type="radio" name="grade" value="{{ gval }}" class="w-4 h-4 accent-emerald-500"
+              <label class="grade-folder relative flex flex-col items-center gap-2 cursor-pointer bg-dark-bg/50 border-2 border-dark-border rounded-2xl px-3 py-4 hover:border-emerald-500/50 transition">
+                <input type="radio" name="grade" value="{{ gval }}" class="peer absolute opacity-0 w-0 h-0"
                   {% if product and product.grade == gval %}checked{% endif %}>
-                <span class="w-4 h-4 rounded-full border border-dark-border inline-block" style="background:{{ gcolor }}"></span>
-                <span class="text-gray-300 text-sm font-semibold">{{ glabel }}</span>
+                <i class="fa-solid fa-folder text-4xl transition" style="color:{{ gcolor }}"></i>
+                <span class="text-gray-300 text-sm font-semibold peer-checked:text-emerald-400">{{ glabel }}</span>
+                <i class="fa-solid fa-circle-check text-emerald-400 text-lg absolute top-2 left-2 opacity-0 grade-check"></i>
               </label>
               {% endfor %}
             </div>
           </div>
+        </div>
+
+        <!-- Product image gallery -->
+        <div>
+          <label class="text-gray-400 text-sm font-semibold mb-2 block">معرض صور المنتج</label>
+          <label class="flex flex-col items-center justify-center w-full h-24 border-2 border-dashed border-dark-border rounded-xl cursor-pointer hover:border-primary/50 transition mb-3">
+            <i class="fa-solid fa-cloud-arrow-up text-gray-500 text-2xl mb-1"></i>
+            <span class="text-gray-500 text-sm">اختر صورة أو أكثر</span>
+            <input type="file" name="images" accept="image/*" multiple class="hidden" onchange="previewImages(this)">
+          </label>
+
+          {% if product and (product.image_url or product.image_urls) %}
+          <div id="existingGallery" class="grid grid-cols-4 gap-2 mb-3 max-h-[420px] overflow-y-auto p-1 bg-dark-bg/30 rounded-xl">
+            {% if product.image_url %}
+            <img src="{{ product.image_url|bu }}" class="w-full aspect-square object-cover rounded-lg" onerror="this.style.display='none'">
+            {% endif %}
+            {% for u in product.image_urls %}
+            <img src="{{ u|bu }}" class="w-full aspect-square object-cover rounded-lg" onerror="this.style.display='none'">
+            {% endfor %}
+          </div>
+          {% endif %}
+
+          <div id="preview" class="hidden grid grid-cols-4 gap-2 max-h-[420px] overflow-y-auto p-1 bg-dark-bg/30 rounded-xl"></div>
         </div>
 
         <div>
@@ -142,26 +166,6 @@
             class="w-4 h-4 rounded accent-blue-500">
           <span class="text-gray-300 text-sm font-semibold">منتج مميز</span>
         </label>
-      </div>
-
-      <div class="card p-6 space-y-4">
-        <h2 class="text-white font-bold border-b border-dark-border pb-3">صور المنتج</h2>
-        {% if product and product.image_url %}
-        <img src="{{ product.image_url|bu }}" class="w-full h-40 object-cover rounded-xl mb-3" onerror="this.style.display='none'">
-        {% endif %}
-        {% if product and product.image_urls %}
-        <div class="grid grid-cols-3 gap-2 mb-3">
-          {% for u in product.image_urls %}
-          <img src="{{ u|bu }}" class="w-full h-20 object-cover rounded-lg" onerror="this.style.display='none'">
-          {% endfor %}
-        </div>
-        {% endif %}
-        <label class="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-dark-border rounded-xl cursor-pointer hover:border-primary/50 transition">
-          <i class="fa-solid fa-cloud-arrow-up text-gray-500 text-2xl mb-2"></i>
-          <span class="text-gray-500 text-sm">اختر صورة أو أكثر</span>
-          <input type="file" name="images" accept="image/*" multiple class="hidden" onchange="previewImages(this)">
-        </label>
-        <div id="preview" class="hidden grid grid-cols-3 gap-2"></div>
       </div>
 
       <div class="flex gap-3">
@@ -222,19 +226,37 @@ function previewImages(input) {
   container.innerHTML = '';
   if (input.files && input.files.length) {
     container.classList.remove('hidden');
+    const existing = document.getElementById('existingGallery');
+    if (existing) existing.classList.add('hidden');
     Array.from(input.files).forEach(file => {
       const reader = new FileReader();
       reader.onload = e => {
         const img = document.createElement('img');
         img.src = e.target.result;
-        img.className = 'w-full h-20 object-cover rounded-lg';
+        img.className = 'w-full aspect-square object-cover rounded-lg';
         container.appendChild(img);
       };
       reader.readAsDataURL(file);
     });
   } else {
     container.classList.add('hidden');
+    const existing = document.getElementById('existingGallery');
+    if (existing) existing.classList.remove('hidden');
   }
+}
+
+function refreshGradeFolders() {
+  document.querySelectorAll('.grade-folder').forEach(label => {
+    const input = label.querySelector('input[type=radio]');
+    const check = label.querySelector('.grade-check');
+    if (input.checked) {
+      label.classList.add('border-emerald-500');
+      check.classList.remove('opacity-0');
+    } else {
+      label.classList.remove('border-emerald-500');
+      check.classList.add('opacity-0');
+    }
+  });
 }
 
 (function() {
@@ -245,6 +267,8 @@ function previewImages(input) {
     document.getElementById('seriesSelect').value = existingSeries;
     onSeriesChange(existingSeries);
   }
+  document.querySelectorAll('input[name=grade]').forEach(r => r.addEventListener('change', refreshGradeFolders));
+  refreshGradeFolders();
 })();
 </script>
 {% endblock %}
