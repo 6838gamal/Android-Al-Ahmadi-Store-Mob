@@ -106,7 +106,8 @@ templates.env.globals['bu'] = _bu
 
 def _fmt_dt(dt, fmt='%Y-%m-%d %H:%M'):
     """Jinja2 filter: format a datetime or ISO-string safely."""
-    if dt is None:
+    from jinja2 import Undefined
+    if dt is None or isinstance(dt, Undefined):
         return '—'
     if hasattr(dt, 'strftime'):
         return dt.strftime(fmt)

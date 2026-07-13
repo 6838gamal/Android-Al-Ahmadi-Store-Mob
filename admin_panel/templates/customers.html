@@ -70,7 +70,7 @@
             <span class="badge bg-gray-500/15 text-gray-500">غير موثّق</span>
             {% endif %}
           </td>
-          <td class="px-5 py-3 text-gray-500 text-xs">{{ c.created_at|dt }}</td>
+          <td class="px-5 py-3 text-gray-500 text-xs">{{ c.created_at|default(none)|dt }}</td>
           <td class="px-5 py-3">
             <div class="flex items-center gap-2 flex-wrap">
               <form method="post" action="/customers/{{ c.id }}/toggle-active" class="inline">

@@ -1,0 +1,78 @@
+⚠️ حدث خطأ داخلي في الخادم
+GET https://android-al-ahmadi-store-admin.onrender.com/customers
+
+Traceback (most recent call last):
+  File "/opt/render/project/src/.venv/lib/python3.14/site-packages/starlette/middleware/errors.py", line 164, in __call__
+    await self.app(scope, receive, _send)
+  File "/opt/render/project/src/.venv/lib/python3.14/site-packages/starlette/middleware/sessions.py", line 88, in __call__
+    await self.app(scope, receive, send_wrapper)
+  File "/opt/render/project/src/.venv/lib/python3.14/site-packages/starlette/middleware/exceptions.py", line 63, in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+  File "/opt/render/project/src/.venv/lib/python3.14/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "/opt/render/project/src/.venv/lib/python3.14/site-packages/starlette/_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "/opt/render/project/src/.venv/lib/python3.14/site-packages/fastapi/middleware/asyncexitstack.py", line 18, in __call__
+    await self.app(scope, receive, send)
+  File "/opt/render/project/src/.venv/lib/python3.14/site-packages/starlette/routing.py", line 660, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "/opt/render/project/src/.venv/lib/python3.14/site-packages/fastapi/routing.py", line 2683, in app
+    await route.handle(scope, receive, send)
+  File "/opt/render/project/src/.venv/lib/python3.14/site-packages/fastapi/routing.py", line 1266, in handle
+    await super().handle(scope, receive, send)
+  File "/opt/render/project/src/.venv/lib/python3.14/site-packages/starlette/routing.py", line 276, in handle
+    await self.app(scope, receive, send)
+  File "/opt/render/project/src/.venv/lib/python3.14/site-packages/fastapi/routing.py", line 150, in app
+    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+  File "/opt/render/project/src/.venv/lib/python3.14/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "/opt/render/project/src/.venv/lib/python3.14/site-packages/starlette/_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "/opt/render/project/src/.venv/lib/python3.14/site-packages/fastapi/routing.py", line 136, in app
+    response = await f(request)
+               ^^^^^^^^^^^^^^^^
+  File "/opt/render/project/src/.venv/lib/python3.14/site-packages/fastapi/routing.py", line 690, in app
+    raw_response = await run_endpoint_function(
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+    )
+    ^
+  File "/opt/render/project/src/.venv/lib/python3.14/site-packages/fastapi/routing.py", line 344, in run_endpoint_function
+    return await dependant.call(**values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/render/project/src/admin_panel/main.py", line 860, in customers_list
+    return templates.TemplateResponse(request, "customers.html", {
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        "admin_name": _name(request), "active": "customers",
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        "customers": customers, "search": search,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    })
+    ^^
+  File "/opt/render/project/src/.venv/lib/python3.14/site-packages/starlette/templating.py", line 149, in TemplateResponse
+    return _TemplateResponse(
+        template,
+    ...<4 lines>...
+        background=background,
+    )
+  File "/opt/render/project/src/.venv/lib/python3.14/site-packages/starlette/templating.py", line 43, in __init__
+    content = template.render(context)
+  File "/opt/render/project/src/.venv/lib/python3.14/site-packages/jinja2/environment.py", line 1295, in render
+    self.environment.handle_exception()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "/opt/render/project/src/.venv/lib/python3.14/site-packages/jinja2/environment.py", line 942, in handle_exception
+    raise rewrite_traceback_stack(source=source)
+  File "/opt/render/project/src/admin_panel/templates/customers.html", line 2, in top-level template code
+    {% set active = 'customers' %}
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/render/project/src/admin_panel/templates/layout.html", line 298, in top-level template code
+    {% block content %}{% endblock %}
+    ^^^^^^^^^^^^^^^^^
+  File "/opt/render/project/src/admin_panel/templates/customers.html", line 73, in block 'content'
+    <td class="px-5 py-3 text-gray-500 text-xs">{{ c.created_at|dt }}</td>
+    ^^^^^^^^^^^^^^^
+  File "/opt/render/project/src/admin_panel/main.py", line 111, in _fmt_dt
+    if hasattr(dt, 'strftime'):
+       ~~~~~~~^^^^^^^^^^^^^^^^
+jinja2.exceptions.UndefinedError: 'types.SimpleNamespace object' has no attribute 'created_at'
+← العودة للصفحة السابقة
