@@ -11,6 +11,7 @@ class ProductCreate(BaseModel):
     brand: Optional[str] = None
     model: Optional[str] = None
     series: Optional[str] = None   # e.g. "s_series", "note_series"
+    grade: Optional[str] = None    # screen quality grade: "white" | "green" | "orange"
     image_url: Optional[str] = None
     image_urls: List[str] = []     # extra images beyond the primary
     price: float
@@ -29,6 +30,7 @@ class ProductUpdate(BaseModel):
     brand: Optional[str] = None
     model: Optional[str] = None
     series: Optional[str] = None
+    grade: Optional[str] = None
     image_url: Optional[str] = None
     image_urls: Optional[List[str]] = None
     price: Optional[float] = None
@@ -48,6 +50,7 @@ class ProductResponse(BaseModel):
     brand: Optional[str]
     model: Optional[str]
     series: Optional[str]
+    grade: Optional[str] = None
     image_url: Optional[str]
     image_urls: List[str] = []
     price: float

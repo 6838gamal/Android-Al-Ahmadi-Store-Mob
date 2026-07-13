@@ -30,6 +30,7 @@ def get_products(
     status: Optional[ProductStatus] = None,
     brand: Optional[str] = None,
     series: Optional[str] = None,
+    grade: Optional[str] = None,
     model: Optional[str] = None,
     is_featured: Optional[bool] = None,
     db: Session = Depends(get_db)

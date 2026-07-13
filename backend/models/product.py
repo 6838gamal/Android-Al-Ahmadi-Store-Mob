@@ -39,6 +39,8 @@ class Product(Base):
     description = Column(Text, nullable=True)
     # Samsung series/model classification (e.g. series="s_series", model="S23 Ultra")
     series = Column(String(50), nullable=True, index=True)
+    # Screen quality grade — only meaningful for category=screen: "white" | "green" | "orange"
+    grade = Column(String(20), nullable=True, index=True)
 
     image_urls = Column(JSON, default=list)   # extra images beyond the primary image_url
     barcode = Column(String(100), nullable=True, unique=True)
