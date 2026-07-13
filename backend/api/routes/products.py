@@ -53,6 +53,8 @@ def get_products(
         query = query.filter(Product.series == series)
     if model:
         query = query.filter(Product.model == model)
+    if grade:
+        query = query.filter(Product.grade == grade)
     if is_featured is not None:
         query = query.filter(Product.is_featured == is_featured)
     return query.offset(skip).limit(limit).all()
