@@ -79,6 +79,7 @@ def run_migrations():
                 ("warehouse_id", "INTEGER"),
                 ("branch_id",    "INTEGER"),
                 ("series",       "VARCHAR(50)"),
+                ("grade",        "VARCHAR(20)"),
             ]
             for col_name, col_def in new_prod_cols:
                 if col_name not in prod_cols:

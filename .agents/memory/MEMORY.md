@@ -22,3 +22,4 @@
 - [SMS gateway sending](sms-gateway-sending.md) — sms-gateway.app blocked by Cloudflare for Python HTTP clients (urllib/httpx); use subprocess curl. +967 prefix causes "Please use a valid Mobile Number" → normalise to 00967. sms_devices in AppSetting DB must be numeric device ID (e.g. 11209), NOT a phone number — wrong value causes "Invalid request format."
 - [Proxy body replay on redirect](proxy-body-replay.md) — req.pipe() can only be called once; buffer body as Buffer before proxying so POST bodies survive 307/308 redirects
 - [JSON column mistakenly TEXT](json-text-column-mismatch.md) — Column(JSON) over an actual TEXT column returns raw string on Postgres, not parsed list; breaks Pydantic response validation
+- [Product grade column migration](product-grade-migration.md) — `grade` field existed on Product model but not in migrations.py; broke ALL product creation until added

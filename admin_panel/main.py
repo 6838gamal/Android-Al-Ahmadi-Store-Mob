@@ -479,26 +479,32 @@ async def product_add_post(
     request: Request,
     name: str = Form(...), name_ar: str = Form(""), brand: str = Form(""),
     model: str = Form(""), series: str = Form(""), category: str = Form(...),
-    price: float = Form(...), quantity: int = Form(0),
+    grade: str = Form(""), price: float = Form(...), quantity: int = Form(0),
     description: str = Form(""), notes: str = Form(""),
     is_featured: Optional[str] = Form(None),
-    image: Optional[UploadFile] = File(None),
+    images: list[UploadFile] = File(default_factory=list),
 ):
     if not _logged(request):
         return _redirect_login()
 
-    image_url = None
-    if image and image.filename:
-        img_bytes = await image.read()
-        image_url = await _local_upload_image(_token(request), image.filename, img_bytes, image.content_type)
+    uploaded_urls = []
+    for img in images or []:
+        if img and img.filename:
+            img_bytes = await img.read()
+            url = await _local_upload_image(_token(request), img.filename, img_bytes, img.content_type)
+            if url:
+                uploaded_urls.append(url)
+
+    image_url = uploaded_urls[0] if uploaded_urls else None
+    extra_image_urls = uploaded_urls[1:]
 
     payload = {
         "name": name, "name_ar": name_ar or None, "brand": brand or None,
         "model": model or None, "series": series or None,
-        "category": category, "price": price,
+        "category": category, "grade": grade or None, "price": price,
         "quantity": quantity, "description": description or None,
         "notes": notes or None, "is_featured": bool(is_featured),
-        "image_url": image_url,
+        "image_url": image_url, "image_urls": extra_image_urls,
     }
     _, err = await _local_json("post", "/api/products/", token=_token(request), json=payload)
     if err:
@@ -536,28 +542,32 @@ async def product_edit_post(
     product_id: int, request: Request,
     name: str = Form(...), name_ar: str = Form(""), brand: str = Form(""),
     model: str = Form(""), series: str = Form(""), category: str = Form(...),
-    price: float = Form(...), quantity: int = Form(0),
+    grade: str = Form(""), price: float = Form(...), quantity: int = Form(0),
     description: str = Form(""), notes: str = Form(""),
     is_featured: Optional[str] = Form(None), status: str = Form("available"),
-    image: Optional[UploadFile] = File(None),
+    images: list[UploadFile] = File(default_factory=list),
 ):
     if not _logged(request):
         return _redirect_login()
 
-    image_url = None
-    if image and image.filename:
-        img_bytes = await image.read()
-        image_url = await _local_upload_image(_token(request), image.filename, img_bytes, image.content_type)
+    uploaded_urls = []
+    for img in images or []:
+        if img and img.filename:
+            img_bytes = await img.read()
+            url = await _local_upload_image(_token(request), img.filename, img_bytes, img.content_type)
+            if url:
+                uploaded_urls.append(url)
 
     payload = {
         "name": name, "name_ar": name_ar or None, "brand": brand or None,
         "model": model or None, "series": series or None,
-        "category": category, "price": price,
+        "category": category, "grade": grade or None, "price": price,
         "quantity": quantity, "description": description or None,
         "notes": notes or None, "is_featured": bool(is_featured), "status": status,
     }
-    if image_url:
-        payload["image_url"] = image_url
+    if uploaded_urls:
+        payload["image_url"] = uploaded_urls[0]
+        payload["image_urls"] = uploaded_urls[1:]
 
     _, err = await _local_json("put", f"/api/products/{product_id}", token=_token(request), json=payload)
     if err:
