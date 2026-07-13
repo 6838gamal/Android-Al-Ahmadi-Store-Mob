@@ -33,6 +33,8 @@ class _StaffMaintenancePageState extends ConsumerState<StaffMaintenancePage> {
     'repaired': 'تم الإصلاح',
     'ready': 'جاهز للاستلام',
     'delivered': 'تم التسليم',
+    'unrepairable_visit': 'غير قابل - زيارة',
+    'unrepairable_other': 'غير قابل - أخرى',
   };
 
   static const _statusColors = {
@@ -43,6 +45,8 @@ class _StaffMaintenancePageState extends ConsumerState<StaffMaintenancePage> {
     'repaired': Color(0xFF06B6D4),
     'ready': Color(0xFF10B981),
     'delivered': Color(0xFF22C55E),
+    'unrepairable_visit': Color(0xFFDC2626),
+    'unrepairable_other': Color(0xFF991B1B),
   };
 
   @override
@@ -111,7 +115,7 @@ class _StaffMaintenancePageState extends ConsumerState<StaffMaintenancePage> {
                     order: filtered[i],
                     statusColors: _statusColors,
                     statusLabels: _statusLabels,
-                    onStatusUpdate: _updateMaintenanceStatus,
+                    onStatusUpdate: _promptStatusUpdate,
                   ).animate(delay: Duration(milliseconds: i * 40)).fadeIn().slideY(begin: 0.05, end: 0),
                 );
               },
@@ -155,10 +159,94 @@ class _StaffMaintenancePageState extends ConsumerState<StaffMaintenancePage> {
     );
   }
 
-  Future<void> _updateMaintenanceStatus(int orderId, String newStatus) async {
+  /// Shows a dialog asking for optional notes before confirming the status change.
+  Future<void> _promptStatusUpdate(int orderId, String newStatus) async {
+    final notesCtrl = TextEditingController();
+    final label = _statusLabels[newStatus] ?? newStatus;
+    final color = _statusColors[newStatus] ?? AppColors.primary;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.darkCard,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: color.withOpacity(0.4)),
+              ),
+              child: Text(label,
+                  style: TextStyle(fontFamily: 'Cairo', fontSize: 12, fontWeight: FontWeight.w700, color: color)),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('ملاحظات (اختياري)',
+                style: TextStyle(fontFamily: 'Cairo', fontSize: 13, color: AppColors.textSecondary)),
+            const SizedBox(height: 8),
+            TextField(
+              controller: notesCtrl,
+              maxLines: 3,
+              style: const TextStyle(fontFamily: 'Cairo', color: Colors.white, fontSize: 13),
+              decoration: InputDecoration(
+                hintText: 'أضف ملاحظة للعميل أو للسجل...',
+                hintStyle: const TextStyle(fontFamily: 'Cairo', color: AppColors.textMuted, fontSize: 12),
+                filled: true,
+                fillColor: AppColors.darkSurface,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: BorderSide(color: AppColors.darkBorder),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: BorderSide(color: AppColors.darkBorder),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: BorderSide(color: color.withOpacity(0.6)),
+                ),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('إلغاء', style: TextStyle(fontFamily: 'Cairo', color: AppColors.textSecondary)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: color,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('تأكيد', style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.w700)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && mounted) {
+      await _updateMaintenanceStatus(orderId, newStatus, notesCtrl.text.trim().isEmpty ? null : notesCtrl.text.trim());
+    }
+    notesCtrl.dispose();
+  }
+
+  Future<void> _updateMaintenanceStatus(int orderId, String newStatus, String? note) async {
     try {
       final api = ref.read(apiClientProvider);
-      await api.put('/maintenance/$orderId/status', data: {'maintenance_status': newStatus});
+      await api.put('/maintenance/$orderId/status', data: {
+        'maintenance_status': newStatus,
+        if (note != null) 'note': note,
+      });
       ref.invalidate(_staffMaintenanceProvider);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -188,7 +276,7 @@ class _MaintenanceCard extends StatelessWidget {
   final Map<String, dynamic> order;
   final Map<String, Color> statusColors;
   final Map<String, String> statusLabels;
-  final void Function(int, String) onStatusUpdate;
+  final Future<void> Function(int, String) onStatusUpdate;
 
   const _MaintenanceCard({
     required this.order,
@@ -207,6 +295,9 @@ class _MaintenanceCard extends StatelessWidget {
     final deviceInfo = items.isNotEmpty
         ? '${items[0]['device'] ?? ''} — ${items[0]['problem'] ?? ''}'
         : '';
+
+    // Show staff notes if present
+    final adminNotes = order['admin_notes'] as String?;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -280,6 +371,29 @@ class _MaintenanceCard extends StatelessWidget {
                         style: const TextStyle(fontFamily: 'Cairo', fontSize: 12, color: AppColors.textSecondary)),
                   ),
                 ],
+                // Staff notes
+                if (adminNotes != null && adminNotes.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF59E0B).withOpacity(0.08),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: const Color(0xFFF59E0B).withOpacity(0.25)),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Icon(Icons.sticky_note_2_outlined, size: 13, color: Color(0xFFF59E0B)),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(adminNotes,
+                              style: const TextStyle(fontFamily: 'Cairo', fontSize: 12, color: Color(0xFFF59E0B))),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
                 // Customer-uploaded media (photos/video)
                 _buildMediaStrip(order['images']),
                 if (order['total'] != null && order['total'] != 0) ...[
@@ -290,7 +404,7 @@ class _MaintenanceCard extends StatelessWidget {
               ],
             ),
           ),
-          if (!['delivered'].contains(status))
+          if (!['delivered', 'unrepairable_visit', 'unrepairable_other'].contains(status))
             Container(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
               child: _buildActionButtons(context, status),
@@ -303,23 +417,31 @@ class _MaintenanceCard extends StatelessWidget {
   Widget _buildActionButtons(BuildContext context, String status) {
     final nextStatuses = _getNextStatuses(status);
     if (nextStatuses.isEmpty) return const SizedBox.shrink();
-    return Row(
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
       children: nextStatuses.map((s) {
         final color = statusColors[s] ?? AppColors.primary;
-        return Expanded(
-          child: Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: OutlinedButton(
-              onPressed: () => onStatusUpdate(order['id'], s),
-              style: OutlinedButton.styleFrom(
-                side: BorderSide(color: color.withOpacity(0.6)),
-                foregroundColor: color,
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-              ),
-              child: Text(statusLabels[s] ?? s,
+        final isUnrepairable = s.startsWith('unrepairable');
+        return OutlinedButton(
+          onPressed: () => onStatusUpdate(order['id'], s),
+          style: OutlinedButton.styleFrom(
+            side: BorderSide(color: color.withOpacity(0.6)),
+            foregroundColor: color,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (isUnrepairable)
+                Padding(
+                  padding: const EdgeInsets.only(left: 4),
+                  child: Icon(Icons.cancel_outlined, size: 13, color: color),
+                ),
+              Text(statusLabels[s] ?? s,
                   style: TextStyle(fontFamily: 'Cairo', fontSize: 11, fontWeight: FontWeight.w700, color: color)),
-            ),
+            ],
           ),
         );
       }).toList(),
@@ -426,12 +548,12 @@ class _MaintenanceCard extends StatelessWidget {
 
   List<String> _getNextStatuses(String current) {
     const flow = {
-      'received': ['inspecting'],
-      'inspecting': ['repairing', 'waiting_part'],
-      'repairing': ['repaired', 'waiting_part'],
+      'received':     ['inspecting', 'unrepairable_visit', 'unrepairable_other'],
+      'inspecting':   ['repairing', 'waiting_part', 'unrepairable_visit', 'unrepairable_other'],
+      'repairing':    ['repaired', 'waiting_part'],
       'waiting_part': ['repairing'],
-      'repaired': ['ready'],
-      'ready': ['delivered'],
+      'repaired':     ['ready'],
+      'ready':        ['delivered'],
     };
     return flow[current] ?? [];
   }

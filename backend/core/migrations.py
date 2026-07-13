@@ -37,6 +37,13 @@ def run_migrations():
                         ))
                     except Exception:
                         pass
+                for val in ("unrepairable_visit", "unrepairable_other"):
+                    try:
+                        conn.execute(text(
+                            f"ALTER TYPE maintenancestatus ADD VALUE IF NOT EXISTS '{val}'"
+                        ))
+                    except Exception:
+                        pass
         except Exception:
             pass
         finally:

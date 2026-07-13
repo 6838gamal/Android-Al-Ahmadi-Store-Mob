@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -65,7 +66,10 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
           leading: IconButton(icon: const Icon(Icons.arrow_back_ios, color: Colors.white), onPressed: () => context.pop()),
           actions: [
             IconButton(icon: const Icon(Icons.favorite_border, color: Colors.white), onPressed: () {}),
-            IconButton(icon: const Icon(Icons.share_outlined, color: Colors.white), onPressed: () {}),
+            IconButton(
+              icon: const Icon(Icons.share_outlined, color: Colors.white),
+              onPressed: () => _shareProduct(),
+            ),
           ],
           flexibleSpace: FlexibleSpaceBar(
             background: Stack(
@@ -204,6 +208,34 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
         ),
       ],
     );
+  }
+
+  void _shareProduct() {
+    final p = _product;
+    if (p == null) return;
+    final name = p['name'] as String? ?? '';
+    final price = (p['price'] as num?)?.toDouble() ?? 0.0;
+    final id = widget.productId;
+    const baseUrl = 'https://android-alahmadi-mob.netlify.app';
+    final link = '$baseUrl/products/$id';
+    final text = '🛍️ $name\n💰 ${AppUtils.formatPrice(price)}\n\n🔗 $link\n\nمن متجر ${AppConstants.appName}';
+    Clipboard.setData(ClipboardData(text: text));
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: const [
+              Icon(Icons.check_circle_outline, color: Colors.white, size: 18),
+              SizedBox(width: 8),
+              Text('تم نسخ رابط المنتج', style: TextStyle(fontFamily: 'Cairo')),
+            ],
+          ),
+          backgroundColor: AppColors.success,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+      );
+    }
   }
 
   Future<void> _handleRestockRequest() async {

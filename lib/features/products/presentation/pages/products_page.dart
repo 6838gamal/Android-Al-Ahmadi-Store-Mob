@@ -13,6 +13,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import '../../../../shared/widgets/status_badge.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../providers/products_provider.dart';
+import '../../../screens/presentation/pages/screens_gallery_page.dart';
 
 class ProductsPage extends ConsumerStatefulWidget {
   const ProductsPage({super.key});
@@ -99,6 +100,10 @@ class _ProductsPageState extends ConsumerState<ProductsPage> {
             child: _CategoryChips(
               selected: _selectedCategory,
               onSelect: (cat) {
+                if (cat == 'screen') {
+                  showScreenGradePicker(context);
+                  return;
+                }
                 setState(() => _selectedCategory = cat);
                 ref.read(selectedProductCategoryProvider.notifier).state = cat;
                 ref.read(productsProvider.notifier).load(category: cat);

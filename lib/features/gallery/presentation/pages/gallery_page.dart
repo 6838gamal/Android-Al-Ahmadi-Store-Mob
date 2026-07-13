@@ -6,6 +6,7 @@ import '../../../../core/constants/app_constants.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/network/api_client.dart';
 import '../../../home/presentation/pages/main_shell.dart';
+import '../../../screens/presentation/pages/screens_gallery_page.dart';
 
 // ─── Providers ────────────────────────────────────────────────────────────────
 
@@ -118,7 +119,11 @@ class GalleryPage extends ConsumerWidget {
                 delegate: _CatTabsDelegate(
                   categories: cats,
                   selected: selectedCat,
-                  onSelect: (k) {
+                  onSelect: (k, context) {
+                    if (k == 'screen') {
+                      showScreenGradePicker(context, fromGallery: true);
+                      return;
+                    }
                     ref.read(_galleryCatProvider.notifier).state = k;
                   },
                 ),
@@ -304,7 +309,7 @@ class GalleryPage extends ConsumerWidget {
 class _CatTabsDelegate extends SliverPersistentHeaderDelegate {
   final List<String> categories;
   final String? selected;
-  final void Function(String?) onSelect;
+  final void Function(String?, BuildContext) onSelect;
 
   const _CatTabsDelegate({
     required this.categories,
@@ -341,14 +346,14 @@ class _CatTabsDelegate extends SliverPersistentHeaderDelegate {
             _TabChip(
               label: 'الكل',
               isSelected: selected == null,
-              onTap: () => onSelect(null),
+              onTap: () => onSelect(null, context),
             ),
             ...categories.map((cat) {
               final label = AppConstants.categoryAr[cat] ?? cat;
               return _TabChip(
                 label: label,
                 isSelected: selected == cat,
-                onTap: () => onSelect(selected == cat ? null : cat),
+                onTap: () => onSelect(selected == cat ? null : cat, context),
               );
             }),
           ],

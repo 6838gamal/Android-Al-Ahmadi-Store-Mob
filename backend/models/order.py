@@ -29,6 +29,8 @@ class MaintenanceStatus(str, enum.Enum):
     repaired = "repaired"
     ready = "ready"
     delivered = "delivered"
+    unrepairable_visit = "unrepairable_visit"
+    unrepairable_other = "unrepairable_other"
 
 
 class PaymentMethod(str, enum.Enum):

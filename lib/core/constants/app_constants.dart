@@ -48,6 +48,8 @@ class AppConstants {
     'repaired': 'تم الإصلاح',
     'ready': 'جاهز للاستلام',
     'delivered': 'تم التسليم',
+    'unrepairable_visit': 'غير قابل - يحتاج زيارة',
+    'unrepairable_other': 'غير قابل - أسباب أخرى',
   };
 
   static const Map<String, String> categoryAr = {
