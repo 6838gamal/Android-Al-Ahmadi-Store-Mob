@@ -121,20 +121,32 @@ final _screensGalleryProvider =
         ? raw
         : ((raw['items'] ?? raw['products'] ?? raw['results'] ?? []) as List);
 
-    // Expand multi-image products: each image_url becomes its own gallery entry
+    // Expand multi-image products: each image_url becomes its own gallery entry.
+    // Every entry gets a unique _uid (productId_imageIndex) so the grid can key
+    // each tile independently. We also deduplicate by image_url so the same
+    // photo never appears twice in the same grade folder.
     final expanded = <Map<String, dynamic>>[];
+    final seenUrls = <String>{};
+    int imgIdx = 0;
+
     for (final p in items) {
       final base = Map<String, dynamic>.from(p as Map);
+      final productId = base['id'];
       final primary = base['image_url'] as String?;
       final extras = (base['image_urls'] as List?)?.cast<String>() ?? [];
 
-      if (primary != null && primary.isNotEmpty) {
-        expanded.add(base);
+      void addEntry(Map<String, dynamic> entry, String url) {
+        if (url.isEmpty || seenUrls.contains(url)) return;
+        seenUrls.add(url);
+        expanded.add({...entry, '_uid': '${productId}_$imgIdx'});
+        imgIdx++;
+      }
+
+      if (primary != null) {
+        addEntry(base, primary);
       }
       for (final url in extras) {
-        if (url.isNotEmpty) {
-          expanded.add({...base, 'image_url': url, '_extra_image': true});
-        }
+        addEntry({...base, 'image_url': url, '_extra_image': true}, url);
       }
     }
     return expanded;
