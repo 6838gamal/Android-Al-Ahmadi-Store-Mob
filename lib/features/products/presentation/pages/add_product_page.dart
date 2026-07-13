@@ -8,11 +8,13 @@ import '../../../../core/network/api_client.dart';
 import '../../../../core/constants/app_constants.dart';
 
 class AddProductPage extends ConsumerStatefulWidget {
-  /// Pre-fill category and series when opened from the screens gallery.
+  /// Pre-fill category, model and grade (screen color) when opened from the
+  /// screens gallery (model picker → color folder → "+" button).
   final String? preCategory;
-  final String? preSeries;
+  final String? preGrade;
+  final String? preModel;
 
-  const AddProductPage({super.key, this.preCategory, this.preSeries});
+  const AddProductPage({super.key, this.preCategory, this.preGrade, this.preModel});
 
   @override
   ConsumerState<AddProductPage> createState() => _AddProductPageState();
@@ -31,7 +33,7 @@ class _AddProductPageState extends ConsumerState<AddProductPage> {
   final _descCtrl = TextEditingController();
 
   String _category = 'screen';
-  String? _series;
+  String? _grade;
   String _status = 'available';
 
   // Images state
@@ -49,7 +51,7 @@ class _AddProductPageState extends ConsumerState<AddProductPage> {
     'other': 'أخرى',
   };
 
-  static const _seriesOptions = {
+  static const _gradeOptions = {
     'white': 'أبيض — جودة أصلية',
     'green': 'أخضر — جودة متوسطة',
     'orange': 'برتقالي — اقتصادي',
@@ -64,7 +66,8 @@ class _AddProductPageState extends ConsumerState<AddProductPage> {
   void initState() {
     super.initState();
     if (widget.preCategory != null) _category = widget.preCategory!;
-    if (widget.preSeries != null) _series = widget.preSeries!;
+    if (widget.preGrade != null) _grade = widget.preGrade!;
+    if (widget.preModel != null) _modelCtrl.text = widget.preModel!;
   }
 
   @override
@@ -154,7 +157,7 @@ class _AddProductPageState extends ConsumerState<AddProductPage> {
         'name': _nameCtrl.text.trim(),
         if (_nameArCtrl.text.trim().isNotEmpty) 'name_ar': _nameArCtrl.text.trim(),
         'category': _category,
-        if (_series != null) 'series': _series,
+        if (_grade != null) 'grade': _grade,
         if (_brandCtrl.text.trim().isNotEmpty) 'brand': _brandCtrl.text.trim(),
         if (_modelCtrl.text.trim().isNotEmpty) 'model': _modelCtrl.text.trim(),
         'price': double.tryParse(_priceCtrl.text.trim()) ?? 0,
@@ -300,17 +303,17 @@ class _AddProductPageState extends ConsumerState<AddProductPage> {
               items: _categoryOptions,
               onChanged: (v) => setState(() {
                 _category = v!;
-                if (_category != 'screen') _series = null;
+                if (_category != 'screen') _grade = null;
               }),
             ),
             if (_category == 'screen') ...[
               const SizedBox(height: 12),
               _DropdownField(
-                label: 'نوع الشاشة',
-                value: _series,
-                items: _seriesOptions,
-                onChanged: (v) => setState(() => _series = v),
-                hint: 'اختر نوع الشاشة',
+                label: 'درجة الشاشة (اللون)',
+                value: _grade,
+                items: _gradeOptions,
+                onChanged: (v) => setState(() => _grade = v),
+                hint: 'اختر درجة الشاشة',
               ),
             ],
             const SizedBox(height: 22),

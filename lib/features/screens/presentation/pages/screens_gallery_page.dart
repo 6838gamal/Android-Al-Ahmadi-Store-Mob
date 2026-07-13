@@ -52,17 +52,37 @@ const _grades = [
   ),
 ];
 
+// ── Samsung catalog (model list) ────────────────────────────────────────────────
+//
+// Fetched from the backend so the admin panel and the app always share the
+// exact same model list (backend/core/samsung_catalog.py).
+
+final samsungCatalogProvider =
+    FutureProvider<List<Map<String, dynamic>>>((ref) async {
+  final api = ref.read(apiClientProvider);
+  final res = await api.get('/products/catalog/samsung');
+  final raw = res.data as List;
+  return raw.cast<Map<String, dynamic>>();
+});
+
 // ── Provider ───────────────────────────────────────────────────────────────────
+//
+// Key is "modelKey|grade" — a screen gallery is always scoped to one specific
+// model AND one color grade (white/green/orange).
 
 final _screensGalleryProvider =
-    FutureProvider.family<List<Map<String, dynamic>>, String>((ref, grade) async {
+    FutureProvider.family<List<Map<String, dynamic>>, String>((ref, key) async {
+  final parts = key.split('|');
+  final modelKey = parts[0];
+  final grade = parts[1];
   final api = ref.read(apiClientProvider);
   try {
     final res = await api.get('/products', queryParameters: {
       'limit': 200,
       'skip': 0,
       'category': 'screen',
-      'series': grade,
+      'model': modelKey,
+      'grade': grade,
     });
     final raw = res.data;
     final List items = raw is List
@@ -91,21 +111,245 @@ final _screensGalleryProvider =
   }
 });
 
-// ── Grade Folders Page (full-screen grid, replaces the old bottom sheet) ───────
+// ── Step 1: Model Picker Page ───────────────────────────────────────────────────
 //
 // Shown when the customer taps the "شاشة" category from the products page.
-// Presents the three grades (أبيض / أخضر / برتقالي) as folder tiles in a grid.
-// Tapping a folder opens ScreensGalleryPage with the images for that grade.
+// Lists every Samsung model from the shared catalog (same list used in the
+// admin panel), grouped by series, even if no product exists for it yet.
+// Tapping a model moves to step 2 (color folders).
 
 void showScreenGradePicker(BuildContext context, {bool fromGallery = false}) {
   Navigator.push(
     context,
-    MaterialPageRoute(builder: (_) => const ScreenGradeFoldersPage()),
+    MaterialPageRoute(builder: (_) => const ScreenModelPickerPage()),
   );
 }
 
+class ScreenModelPickerPage extends ConsumerStatefulWidget {
+  const ScreenModelPickerPage({super.key});
+
+  @override
+  ConsumerState<ScreenModelPickerPage> createState() => _ScreenModelPickerPageState();
+}
+
+class _ScreenModelPickerPageState extends ConsumerState<ScreenModelPickerPage> {
+  final _searchCtrl = TextEditingController();
+  String _query = '';
+
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final catalogAsync = ref.watch(samsungCatalogProvider);
+
+    return Scaffold(
+      backgroundColor: AppColors.darkBg,
+      appBar: AppBar(
+        backgroundColor: AppColors.darkSurface,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: const Text('موديل الشاشة',
+            style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.w700, color: Colors.white)),
+      ),
+      body: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'اختر موديل الشاشة',
+              style: TextStyle(
+                fontFamily: 'Cairo',
+                fontSize: 16,
+                fontWeight: FontWeight.w800,
+                color: Colors.white,
+              ),
+            ),
+            const SizedBox(height: 4),
+            const Text(
+              'ثم اختر اللون بعد ذلك',
+              style: TextStyle(fontFamily: 'Cairo', fontSize: 12, color: AppColors.textSecondary),
+            ),
+            const SizedBox(height: 14),
+            TextField(
+              controller: _searchCtrl,
+              onChanged: (v) => setState(() => _query = v.trim()),
+              style: const TextStyle(fontFamily: 'Cairo', color: Colors.white, fontSize: 13),
+              decoration: InputDecoration(
+                hintText: 'ابحث عن موديل...',
+                hintStyle: const TextStyle(fontFamily: 'Cairo', color: AppColors.textMuted, fontSize: 12),
+                prefixIcon: const Icon(Icons.search, color: AppColors.textMuted, size: 20),
+                filled: true,
+                fillColor: AppColors.darkCard,
+                contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: AppColors.darkBorder),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: AppColors.darkBorder),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Expanded(
+              child: catalogAsync.when(
+                loading: () => const Center(
+                    child: CircularProgressIndicator(color: AppColors.primary)),
+                error: (_, __) => Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.error_outline, color: AppColors.error, size: 40),
+                      const SizedBox(height: 10),
+                      const Text('تعذّر تحميل قائمة الموديلات',
+                          style: TextStyle(fontFamily: 'Cairo', color: AppColors.textSecondary)),
+                      const SizedBox(height: 10),
+                      TextButton(
+                        onPressed: () => ref.invalidate(samsungCatalogProvider),
+                        child: const Text('إعادة المحاولة',
+                            style: TextStyle(fontFamily: 'Cairo', color: AppColors.primary)),
+                      ),
+                    ],
+                  ),
+                ),
+                data: (series) {
+                  final q = _query.toLowerCase();
+                  final sections = series.map((s) {
+                    final models = (s['models'] as List).cast<Map<String, dynamic>>().where((m) {
+                      if (q.isEmpty) return true;
+                      final label = (m['label_ar'] as String? ?? '').toLowerCase();
+                      final key = (m['key'] as String? ?? '').toLowerCase();
+                      return label.contains(q) || key.contains(q);
+                    }).toList();
+                    return {'series': s, 'models': models};
+                  }).where((s) => (s['models'] as List).isNotEmpty).toList();
+
+                  if (sections.isEmpty) {
+                    return const Center(
+                      child: Text('لا توجد نتائج',
+                          style: TextStyle(fontFamily: 'Cairo', color: AppColors.textSecondary)),
+                    );
+                  }
+
+                  return ListView.builder(
+                    padding: const EdgeInsets.only(bottom: 24),
+                    itemCount: sections.length,
+                    itemBuilder: (ctx, si) {
+                      final s = sections[si];
+                      final seriesInfo = s['series'] as Map<String, dynamic>;
+                      final models = s['models'] as List<Map<String, dynamic>>;
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 18),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(seriesInfo['label_ar'] as String? ?? '',
+                                style: const TextStyle(
+                                    fontFamily: 'Cairo',
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppColors.primary)),
+                            const SizedBox(height: 10),
+                            GridView.builder(
+                              shrinkWrap: true,
+                              physics: const NeverScrollableScrollPhysics(),
+                              itemCount: models.length,
+                              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                                crossAxisCount: 3,
+                                crossAxisSpacing: 12,
+                                mainAxisSpacing: 12,
+                                childAspectRatio: 0.85,
+                              ),
+                              itemBuilder: (ctx, i) => _ModelFolderTile(
+                                modelKey: models[i]['key'] as String,
+                                modelLabel: models[i]['label_ar'] as String,
+                                index: i,
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ModelFolderTile extends StatelessWidget {
+  final String modelKey;
+  final String modelLabel;
+  final int index;
+  const _ModelFolderTile({required this.modelKey, required this.modelLabel, required this.index});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => ScreenGradeFoldersPage(modelKey: modelKey, modelLabel: modelLabel),
+          ),
+        );
+      },
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Expanded(
+            child: Container(
+              width: double.infinity,
+              decoration: BoxDecoration(
+                color: AppColors.darkCard,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: AppColors.primary.withOpacity(0.25)),
+              ),
+              child: const Center(
+                child: Icon(Icons.smartphone_rounded, size: 40, color: AppColors.primary),
+              ),
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(modelLabel,
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                  fontFamily: 'Cairo', fontSize: 11, fontWeight: FontWeight.w700, color: Colors.white)),
+        ],
+      ),
+    )
+        .animate(delay: Duration(milliseconds: index * 40))
+        .fadeIn(duration: 220.ms)
+        .scale(begin: const Offset(0.9, 0.9));
+  }
+}
+
+// ── Step 2: Grade (color) Folders Page ──────────────────────────────────────────
+//
+// Scoped to the model chosen in step 1. Presents the three grades
+// (أبيض / أخضر / برتقالي) as folder tiles, labeled "{الموديل} {اللون}".
+// Tapping a folder opens ScreensGalleryPage — the image gallery for that
+// exact model + color combination.
+
 class ScreenGradeFoldersPage extends StatelessWidget {
-  const ScreenGradeFoldersPage({super.key});
+  final String modelKey;
+  final String modelLabel;
+  const ScreenGradeFoldersPage({super.key, required this.modelKey, required this.modelLabel});
 
   @override
   Widget build(BuildContext context) {
@@ -118,8 +362,8 @@ class ScreenGradeFoldersPage extends StatelessWidget {
           icon: const Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text('فئات الشاشات',
-            style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.w700, color: Colors.white)),
+        title: Text(modelLabel,
+            style: const TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.w700, color: Colors.white)),
       ),
       body: Padding(
         padding: const EdgeInsets.all(20),
@@ -127,7 +371,7 @@ class ScreenGradeFoldersPage extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              'اختر فئة الشاشة',
+              'اختر لون الشاشة',
               style: TextStyle(
                 fontFamily: 'Cairo',
                 fontSize: 16,
@@ -136,9 +380,9 @@ class ScreenGradeFoldersPage extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 4),
-            const Text(
-              'كل فئة تعرض مجموعة الصور الخاصة بها',
-              style: TextStyle(fontFamily: 'Cairo', fontSize: 12, color: AppColors.textSecondary),
+            Text(
+              'كل لون يعرض معرض صور $modelLabel الخاص به',
+              style: const TextStyle(fontFamily: 'Cairo', fontSize: 12, color: AppColors.textSecondary),
             ),
             const SizedBox(height: 24),
             Expanded(
@@ -150,7 +394,12 @@ class ScreenGradeFoldersPage extends StatelessWidget {
                   mainAxisSpacing: 14,
                   childAspectRatio: 0.85,
                 ),
-                itemBuilder: (ctx, i) => _GradeFolderTile(grade: _grades[i], index: i),
+                itemBuilder: (ctx, i) => _GradeFolderTile(
+                  grade: _grades[i],
+                  modelKey: modelKey,
+                  modelLabel: modelLabel,
+                  index: i,
+                ),
               ),
             ),
           ],
@@ -162,8 +411,15 @@ class ScreenGradeFoldersPage extends StatelessWidget {
 
 class _GradeFolderTile extends StatelessWidget {
   final ScreenGrade grade;
+  final String modelKey;
+  final String modelLabel;
   final int index;
-  const _GradeFolderTile({required this.grade, required this.index});
+  const _GradeFolderTile({
+    required this.grade,
+    required this.modelKey,
+    required this.modelLabel,
+    required this.index,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -171,7 +427,13 @@ class _GradeFolderTile extends StatelessWidget {
       onTap: () {
         Navigator.push(
           context,
-          MaterialPageRoute(builder: (_) => ScreensGalleryPage(grade: grade)),
+          MaterialPageRoute(
+            builder: (_) => ScreensGalleryPage(
+              grade: grade,
+              modelKey: modelKey,
+              modelLabel: modelLabel,
+            ),
+          ),
         );
       },
       child: Column(
@@ -195,9 +457,12 @@ class _GradeFolderTile extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 8),
-          Text(grade.label,
+          Text('$modelLabel ${grade.label}',
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
               style: TextStyle(
-                  fontFamily: 'Cairo', fontSize: 13, fontWeight: FontWeight.w700, color: grade.color)),
+                  fontFamily: 'Cairo', fontSize: 12, fontWeight: FontWeight.w700, color: grade.color)),
         ],
       ),
     )
@@ -211,11 +476,20 @@ class _GradeFolderTile extends StatelessWidget {
 
 class ScreensGalleryPage extends ConsumerWidget {
   final ScreenGrade grade;
-  const ScreensGalleryPage({super.key, required this.grade});
+  final String modelKey;
+  final String modelLabel;
+  const ScreensGalleryPage({
+    super.key,
+    required this.grade,
+    required this.modelKey,
+    required this.modelLabel,
+  });
+
+  String get _providerKey => '$modelKey|${grade.key}';
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final productsAsync = ref.watch(_screensGalleryProvider(grade.key));
+    final productsAsync = ref.watch(_screensGalleryProvider(_providerKey));
     final auth = ref.watch(authProvider);
     final isStaff = auth.isStaffOrAbove;
 
@@ -244,18 +518,19 @@ class ScreensGalleryPage extends ConsumerWidget {
                       MaterialPageRoute(
                         builder: (_) => AddProductPage(
                           preCategory: 'screen',
-                          preSeries: grade.key,
+                          preGrade: grade.key,
+                          preModel: modelKey,
                         ),
                       ),
                     );
                     if (added == true) {
-                      ref.invalidate(_screensGalleryProvider(grade.key));
+                      ref.invalidate(_screensGalleryProvider(_providerKey));
                     }
                   },
                 ),
               IconButton(
                 icon: const Icon(Icons.refresh, color: Colors.white),
-                onPressed: () => ref.invalidate(_screensGalleryProvider(grade.key)),
+                onPressed: () => ref.invalidate(_screensGalleryProvider(_providerKey)),
               ),
             ],
             flexibleSpace: FlexibleSpaceBar(
@@ -280,7 +555,7 @@ class ScreensGalleryPage extends ConsumerWidget {
                             Icon(grade.icon, color: grade.color, size: 22),
                             const SizedBox(width: 8),
                             Text(
-                              'شاشات ${grade.label}',
+                              '$modelLabel ${grade.label}',
                               style: const TextStyle(
                                 fontFamily: 'Cairo',
                                 color: Colors.white,
@@ -322,7 +597,7 @@ class ScreensGalleryPage extends ConsumerWidget {
                         style: TextStyle(fontFamily: 'Cairo', color: AppColors.textSecondary)),
                     const SizedBox(height: 12),
                     TextButton(
-                      onPressed: () => ref.invalidate(_screensGalleryProvider(grade.key)),
+                      onPressed: () => ref.invalidate(_screensGalleryProvider(_providerKey)),
                       child: const Text('إعادة المحاولة',
                           style: TextStyle(fontFamily: 'Cairo', color: AppColors.primary)),
                     ),
