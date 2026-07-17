@@ -15,7 +15,7 @@ from urllib.parse import quote as _q
 from contextlib import asynccontextmanager
 
 # ── Backend API URL — الرابط الخارجي هو الافتراضي دائماً ────────────
-_API_BASE_DEFAULT = os.getenv("BACKEND_API_URL", "https://android-al-ahmadi-store-api.onrender.com").rstrip("/")
+_API_BASE_DEFAULT = os.getenv("BACKEND_API_URL", "https://android-al-ahmadi-store-api-backend.onrender.com").rstrip("/")
 API_BASE = _API_BASE_DEFAULT  # kept for backward compat
 _api_base_override: list = [None]  # [0] = override from DB (None = use default)
 
